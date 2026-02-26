@@ -18,13 +18,9 @@ import {
     Tag,
     Scale,
     Layers,
-    Link as LinkIcon,
     AlertCircle,
     LayoutGrid,
     List,
-    CheckCircle2,
-    ChevronRight,
-    ArrowUpDown,
     TrendingUp,
     Percent,
     Zap,
@@ -35,7 +31,8 @@ import {
     Truck,
     Copy,
     FileSpreadsheet,
-    Download
+    Eye,
+    EyeOff
 } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
@@ -59,11 +56,12 @@ const smartSearch = (text: string, query: string) => {
 
 export default function ProductosPage() {
     const { data, refreshData } = useData();
-    const products = data?.products || [];
+    const products = useMemo(() => data?.products || [], [data?.products]);
     const [saving, setSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+    const [showMetrics, setShowMetrics] = useState(false);
 
     // Estados para Edición Masiva
     const [isMassEditing, setIsMassEditing] = useState(false);
@@ -95,7 +93,7 @@ export default function ProductosPage() {
     const categories = ["ALL", ...new Set(products.map((p: any) => p.Categoria).filter(Boolean).sort() as string[])];
 
     const filteredProducts = useMemo(() => {
-        let result = products.filter((p: any) => {
+        const result = products.filter((p: any) => {
             const searchPayload = `${p.Nombre} ${p.ID_Producto} ${p.Categoria}`;
             const matchesSearch = smartSearch(searchPayload, searchTerm);
             const matchesCat = categoryFilter === "ALL" || p.Categoria === categoryFilter;
@@ -279,6 +277,7 @@ export default function ProductosPage() {
     useEffect(() => {
         (window as any).handleDeleteProduct = handleDeleteProduct;
         (window as any).handleDuplicateProduct = handleDuplicateProduct;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filteredProducts]);
 
     const handleSaveIndividual = async () => {
@@ -373,39 +372,69 @@ export default function ProductosPage() {
                             </button>
                         </div>
                     )}
+
+                    <label className="flex items-center gap-2 cursor-pointer bg-[var(--card)] border border-[var(--border)] px-3 sm:px-4 py-2.5 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all group ml-auto sm:ml-0">
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={showMetrics}
+                                onChange={(e) => setShowMetrics(e.target.checked)}
+                            />
+                            <div className={`block w-9 h-5 rounded-full transition-colors ${showMetrics ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
+                            <div className={`absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform ${showMetrics ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-black text-slate-500 group-hover:text-indigo-500 uppercase tracking-widest flex items-center gap-1.5 transition-colors">
+                            {showMetrics ? <EyeOff size={14} className="hidden sm:block" /> : <Eye size={14} className="hidden sm:block" />}
+                            <span className="hidden sm:inline">{showMetrics ? "Ocultar Métricas" : "Mostrar Métricas"}</span>
+                            <span className="sm:hidden">{showMetrics ? "Ocultar" : "Métricas"}</span>
+                        </span>
+                    </label>
                 </div>
             </div>
 
             {/* Panel de Estadísticas Rápidas */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-[var(--card)] border border-[var(--border)] p-6 rounded-3xl shadow-sm flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-                        <DollarSign size={24} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valorización de Stock</p>
-                        <p className="text-xl font-black text-slate-800 dark:text-slate-100">${stats.valuation.toLocaleString()}</p>
-                    </div>
-                </div>
-                <div className="bg-[var(--card)] border border-[var(--border)] p-6 rounded-3xl shadow-sm flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                        <Truck size={24} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Carga Total Est. (Kg)</p>
-                        <p className="text-xl font-black text-slate-800 dark:text-slate-100">{stats.weight.toLocaleString(undefined, { maximumFractionDigits: 1 })} Kg</p>
-                    </div>
-                </div>
-                <div className="bg-[var(--card)] border border-[var(--border)] p-6 rounded-3xl shadow-sm flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
-                        <AlertCircle size={24} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alertas de Reposición</p>
-                        <p className={`text-xl font-black ${stats.lowStock > 0 ? 'text-rose-500' : 'text-slate-800 dark:text-slate-100'}`}>{stats.lowStock} Items</p>
-                    </div>
-                </div>
-            </div>
+
+            <AnimatePresence>
+                {showMetrics && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                            <div className="bg-[var(--card)] border border-[var(--border)] p-6 rounded-3xl shadow-sm flex items-center gap-5">
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                                    <DollarSign size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valorización de Stock</p>
+                                    <p className="text-xl font-black text-slate-800 dark:text-slate-100">${stats.valuation.toLocaleString()}</p>
+                                </div>
+                            </div>
+                            <div className="bg-[var(--card)] border border-[var(--border)] p-6 rounded-3xl shadow-sm flex items-center gap-5">
+                                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                                    <Truck size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Carga Total Est. (Kg)</p>
+                                    <p className="text-xl font-black text-slate-800 dark:text-slate-100">{stats.weight.toLocaleString(undefined, { maximumFractionDigits: 1 })} Kg</p>
+                                </div>
+                            </div>
+                            <div className="bg-[var(--card)] border border-[var(--border)] p-6 rounded-3xl shadow-sm flex items-center gap-5">
+                                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                                    <AlertCircle size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alertas de Reposición</p>
+                                    <p className={`text-xl font-black ${stats.lowStock > 0 ? 'text-rose-500' : 'text-slate-800 dark:text-slate-100'}`}>{stats.lowStock} Items</p>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* BARRA DE HERRAMIENTAS AJUSTE MASIVO */}
             <AnimatePresence>
@@ -570,7 +599,6 @@ export default function ProductosPage() {
                                             ) : (
                                                 <ProductRow
                                                     product={product}
-                                                    idx={idx}
                                                     onEdit={openEditDrawer}
                                                 />
                                             )}
@@ -595,7 +623,6 @@ export default function ProductosPage() {
             <AnimatePresence>
                 {isDrawerOpen && (
                     <ProductDrawer
-                        isOpen={isDrawerOpen}
                         onClose={() => setIsDrawerOpen(false)}
                         formData={formData}
                         setFormData={setFormData}
@@ -810,7 +837,7 @@ function ProductCard({ product, idx, onEdit }: any) {
 }
 
 // --- SUBCOMPONENTE DE FILA (LISTA) ---
-function ProductRow({ product, idx, onEdit }: any) {
+function ProductRow({ product, onEdit }: any) {
     const isLowStock = parseFloat(product.Stock_Actual) <= 5;
     const margin = calculateProfitability(parseFloat(product.Precio_Unitario), parseFloat(product.Costo));
     const estimatedWeight = (parseFloat(product.Stock_Actual || 0) * parseFloat(product.Peso_Promedio || 0)).toFixed(2);
@@ -909,7 +936,7 @@ function ProductRow({ product, idx, onEdit }: any) {
 }
 
 // --- SUBCOMPONENTE DRAWER ---
-function ProductDrawer({ isOpen, onClose, formData, setFormData, onSave, saving, drawerMode, categories }: any) {
+function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerMode, categories }: any) {
     const currentMargin = calculateProfitability(parseFloat(formData.Precio_Unitario || 0), parseFloat(formData.Costo || 0));
     const profit = (parseFloat(formData.Precio_Unitario || 0) - parseFloat(formData.Costo || 0));
     const estimatedStockWeight = (parseFloat(formData.Stock_Actual || 0) * parseFloat(formData.Peso_Promedio || 0)).toFixed(2);
