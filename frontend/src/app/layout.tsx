@@ -77,6 +77,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       router.push('/productos');
     }
 
+    // --- LIMPIEZA DE PWA EN MODO DEV ---
+    if (process.env.NODE_ENV === 'development' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
 
   }, [pathname, router]);
 
