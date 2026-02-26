@@ -1,0 +1,251 @@
+"use client";
+
+
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import {
+  LayoutDashboard,
+  Package,
+  Truck,
+  Users,
+  Settings,
+  Bell,
+  Menu,
+  X,
+  Loader2,
+  Store,
+  BarChart3
+} from "lucide-react";
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from "framer-motion";
+import { DataProvider, useData } from "@/context/DataContext";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="es" className="antialiased h-full">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#6366f1" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Wanda" />
+      </head>
+      <body className={`${inter.className} min-h-screen bg-[var(--background)] flex`}>
+        <DataProvider>
+          <LayoutContent>{children}</LayoutContent>
+        </DataProvider>
+      </body>
+    </html>
+  );
+}
+
+function LayoutContent({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { loading, error } = useData();
+
+  // --- LÓGICA DE PROTECCIÓN DE RUTAS ---
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem("is_logged_in");
+    const role = localStorage.getItem("user_role");
+
+    if (!isLoggedIn && pathname !== '/login') {
+      router.push('/login');
+    } else if (isLoggedIn && pathname === '/login') {
+      if (role === 'admin') router.push('/productos');
+      else router.push('/preventa');
+    }
+
+    // Si el usuario es preventista y trata de entrar al admin, lo mandamos a /preventa
+    if (role === 'preventista' && pathname !== '/preventa' && pathname !== '/tienda' && pathname !== '/login') {
+      router.push('/preventa');
+    }
+
+    // Si el usuario es admin y entra a tienda, lo dejamos. Pero si entra a otra cosa que no sea admin, lo dejamos.
+    // La lógica actual redirigía si el path no era /preventa, ahora excluimos /tienda de las restricciones.
+    if (role === 'admin' && pathname === '/preventa') {
+      router.push('/productos');
+    }
+
+
+  }, [pathname, router]);
+
+  const navItems = [
+    { href: "/", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
+    { href: "/productos", icon: <Package size={18} />, label: "Productos" },
+    { href: "/logistica", icon: <Truck size={18} />, label: "Logística" },
+    { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
+    { href: "/informes", icon: <BarChart3 size={18} />, label: "Informes" },
+    { href: "/settings", icon: <Settings size={18} />, label: "Ajustes" },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex-1 h-screen flex flex-col items-center justify-center gap-4 bg-[var(--background)] w-full">
+        <div className="relative">
+          <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Wanda Cloud</p>
+          <p className="text-[10px] text-slate-500 font-medium">Sincronizando base de datos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // RENDERIZADO ESPECIAL PARA PAGINAS SIN SIDEBAR (Login, Preventa, Tienda)
+  const isMinimalLayout = pathname === '/login' || pathname === '/preventa' || pathname === '/tienda';
+
+  if (isMinimalLayout) {
+    return <main className="flex-1 w-full h-full min-h-screen">{children}</main>;
+  }
+
+  return (
+    <>
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[100] md:hidden backdrop-blur-sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <aside className={`
+        fixed md:sticky top-0 left-0 z-[101] h-screen bg-[var(--card)] border-r border-[var(--border)] transition-all duration-300
+        ${isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0 w-64'}
+      `}>
+        <div className="p-6 h-full flex flex-col">
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg tech-gradient shadow-lg shadow-indigo-500/20" />
+              <span className="font-black text-xl tracking-tighter uppercase">Wanda<span className="text-indigo-500">Pro</span></span>
+            </div>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400">
+              <X size={20} />
+            </button>
+          </div>
+
+          <nav className="space-y-1.5 flex-1">
+            {navItems.map((item) => (
+              <NavItem
+                key={item.href}
+                {...item}
+                active={pathname === item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+              />
+            ))}
+          </nav>
+
+          <div className="mt-auto pt-6 border-t border-[var(--border)]">
+            <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 mb-4 transition-all hover:bg-indigo-500/10 group cursor-pointer" onClick={() => window.open('/tienda', '_blank')}>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-bold text-indigo-500 uppercase">Vista de Tienda</p>
+                <Store size={10} className="text-indigo-500 opacity-50 group-hover:opacity-100" />
+              </div>
+              <p className="text-[9px] text-slate-500 leading-relaxed">Acceder a la Tienda Online como Administrador.</p>
+            </div>
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-indigo-500 uppercase">
+                  {(pathname !== '/login' && typeof window !== 'undefined') ? localStorage.getItem('user_role')?.slice(0, 2) : 'WA'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold truncate">Usuario</p>
+                  <p className="text-[10px] text-slate-500 truncate capitalize">{(pathname !== '/login' && typeof window !== 'undefined') ? localStorage.getItem('user_role') : 'Cargando...'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.href = '/login';
+                }}
+                className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                title="Cerrar Sesión"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+        <header className="h-16 border-b border-[var(--border)] bg-[var(--card)]/50 backdrop-blur-md sticky top-0 z-[50] px-4 md:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+            >
+              <Menu size={20} />
+            </button>
+            <h1 className="font-bold text-xs text-[var(--foreground)] opacity-70 uppercase tracking-widest hidden sm:block">
+              {navItems.find(i => i.href === pathname)?.label || "Operaciones"}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {error && (
+              <span className="text-[10px] font-bold text-rose-500 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/10 animate-pulse">
+                Error de Sincronización
+              </span>
+            )}
+            <button className="p-2 text-slate-400 hover:text-indigo-500 transition-colors relative">
+              <Bell size={20} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[var(--card)]" />
+            </button>
+            <div className="h-8 w-[1px] bg-[var(--border)] mx-1" />
+            <div className="text-right">
+              <p className="text-xs font-bold leading-none mb-1">Venta Directa</p>
+              <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-tighter">Sincronizado</p>
+            </div>
+          </div>
+        </header>
+
+        <main className="p-4 md:p-8 flex-1">
+          {children}
+        </main>
+      </div>
+    </>
+  );
+}
+
+function NavItem({ label, href, icon, active, onClick }: any) {
+  return (
+    <Link href={href} onClick={onClick}>
+      <div className={`
+        flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group cursor-pointer border
+        ${active
+          ? 'bg-indigo-500 text-white font-bold border-indigo-400 shadow-lg shadow-indigo-500/10'
+          : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 border-transparent hover:border-[var(--border)]'}
+      `}>
+        <span className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-indigo-500'} transition-colors`}>
+          {icon}
+        </span>
+        <span className="text-sm">{label}</span>
+        {active && (
+          <motion.div
+            layoutId="nav-active"
+            className="ml-auto w-1 h-1 rounded-full bg-white"
+          />
+        )}
+      </div>
+    </Link>
+  );
+}

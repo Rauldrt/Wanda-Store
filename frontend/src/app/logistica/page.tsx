@@ -1,0 +1,2043 @@
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    Truck,
+    Package,
+    MapPin,
+    ArrowRight,
+    Plus,
+    CheckCircle2,
+    Printer,
+    Trash2,
+    ChevronRight,
+    Info,
+    X,
+    LayoutGrid,
+    List,
+    Search,
+    Filter,
+    ArrowLeft,
+    ChevronLeft,
+    CheckCircle,
+    PackageIcon,
+    AlertCircle,
+    User,
+    Calendar,
+    ChevronDown,
+    ChevronUp,
+    MessageCircle,
+    Copy,
+    Save,
+    RotateCcw,
+    Check,
+    CreditCard,
+    DollarSign,
+    Loader2,
+    Settings,
+    Clock,
+    Edit2,
+    Minus
+} from "lucide-react";
+import { wandaApi } from "@/lib/api";
+import { useData } from "@/context/DataContext";
+
+export default function LogisticaPage() {
+    const { data, loading, refreshData } = useData();
+    const orders: any[] = data?.orders || [];
+    const products: any[] = data?.products || [];
+    const clients: any[] = data?.clients || [];
+
+    const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+    const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas'>('pendientes');
+    const [editingRoute, setEditingRoute] = useState<string | null>(null);
+    const [settlingRoute, setSettlingRoute] = useState<string | null>(null);
+    const [viewingDetailId, setViewingDetailId] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterDate, setFilterDate] = useState("");
+    const [filterSeller, setFilterSeller] = useState("");
+
+    const allPendingOrders = useMemo(() => {
+        return orders.filter(o => !o.reparto || o.reparto === '' || o.reparto === 'null');
+    }, [orders]);
+
+    const availableSellers = useMemo(() => {
+        const set = new Set(allPendingOrders.map(o => o.vendedor).filter(Boolean));
+        return Array.from(set).sort();
+    }, [allPendingOrders]);
+
+    const availableDates = useMemo(() => {
+        const set = new Set(allPendingOrders.map(o => o.fecha).filter(Boolean));
+        return Array.from(set).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    }, [allPendingOrders]);
+
+    const filteredPendingOrders = useMemo(() => {
+        return allPendingOrders.filter(o => {
+            const matchesSearch = !searchTerm ||
+                o.cliente_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                o.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                o.direccion?.toLowerCase().includes(searchTerm.toLowerCase());
+
+            const matchesDate = !filterDate || o.fecha === filterDate;
+            const matchesSeller = !filterSeller || o.vendedor === filterSeller;
+
+            return matchesSearch && matchesDate && matchesSeller;
+        });
+    }, [allPendingOrders, searchTerm, filterDate, filterSeller]);
+
+    const routeNames = useMemo(() => {
+        const set = new Set(orders.map(o => o.reparto).filter(r => r && r !== 'null' && r !== ''));
+        return Array.from(set);
+    }, [orders]);
+
+    const toggleOrderSelection = (id: string) => {
+        const next = new Set(selectedOrders);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedOrders(next);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0) {
+            setSelectedOrders(new Set());
+        } else {
+            setSelectedOrders(new Set(filteredPendingOrders.map(o => o.id)));
+        }
+    };
+
+    const handleAssignToRoute = async () => {
+        const routeName = prompt("Ingrese el nombre de la ruta (Chofer/Vehículo):");
+        if (!routeName) return;
+
+        try {
+            await wandaApi.asignarRepartoMasivo(Array.from(selectedOrders), routeName);
+            setSelectedOrders(new Set());
+            await refreshData(true);
+            alert("Pedidos asignados correctamente");
+        } catch (error) {
+            alert("Error al asignar pedidos");
+        }
+    };
+
+    const handleLiberarReparto = async (routeName: string) => {
+        if (!confirm(`¿Está seguro de liberar todos los pedidos de la ruta ${routeName}?`)) return;
+
+        try {
+            await wandaApi.liberarReparto(routeName);
+            await refreshData(true);
+        } catch (error) {
+            alert("Error al liberar pedidos");
+        }
+    };
+
+    const printOrders = (orderList: any[]) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const html = `
+            <html>
+            <head>
+                <title>Remitos de Entrega</title>
+                <style>
+                    body { font-family: sans-serif; margin: 0; padding: 0; color: #333; }
+                    .print-page { page-break-after: always; padding: 10px; }
+                    .remito { 
+                        border: 1px solid #000; 
+                        padding: 15px; 
+                        margin-bottom: 10px; 
+                        position: relative; 
+                        display: flex;
+                        flex-direction: column;
+                        background: #fff;
+                    }
+                    .separator {
+                        border-top: 1px dashed #ccc;
+                        margin: 20px 0;
+                        position: relative;
+                        height: 1px;
+                        width: 100%;
+                    }
+                    .separator::after {
+                        content: '✂ Recortar aquí';
+                        position: absolute;
+                        top: -10px;
+                        right: 0;
+                        font-size: 8px;
+                        color: #999;
+                        text-transform: uppercase;
+                    }
+                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+                    .title { font-size: 22px; font-weight: 900; letter-spacing: -1px; }
+                    .copy-type { 
+                        position: absolute; 
+                        top: 5px; 
+                        right: 15px; 
+                        font-size: 9px; 
+                        font-weight: bold; 
+                        text-transform: uppercase; 
+                        color: #999; 
+                    }
+                    .info { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-radius: 8px; }
+                    .info-block div { margin-bottom: 3px; font-size: 11px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+                    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 11px; }
+                    th { background: #eee; font-weight: 900; text-transform: uppercase; font-size: 9px; }
+                    .total { text-align: right; font-size: 18px; font-weight: 900; margin-top: 15px; border-top: 2px solid #000; padding-top: 8px; color: #000; }
+                    .badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); border: 2px solid #000; padding: 2px 10px; font-weight: 900; font-size: 16px; }
+                    
+                    @media print {
+                        .print-page { padding: 0.2cm; page-break-after: always; }
+                        .remito { margin-bottom: 0.5cm; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${orderList.map(order => `
+                    <div class="print-page">
+                        ${['ORIGINAL', 'DUPLICADO'].map((type, idx) => `
+                            ${idx === 1 ? '<div class="separator"></div>' : ''}
+                            <div class="remito">
+                                <div class="copy-type">${type}</div>
+                                <div class="badge">X</div>
+                                <div class="header">
+                                    <div>
+                                        <div class="title">${data?.config?.REMITO_TITULO || 'REMITO'}</div>
+                                        <div style="font-weight: bold; margin-top: 5px; font-size: 12px;">Orden: #${order.id.slice(-8)}</div>
+                                    </div>
+                                    <div style="text-align: right">
+                                        <div style="font-weight: 900; font-size: 14px;">${data?.config?.EMPRESA || 'WANDA DISTRIBUCIONES'}</div>
+                                        ${data?.config?.REMITO_DIRECCION ? `<div style="font-size: 9px; color: #444;">${data?.config?.REMITO_DIRECCION}</div>` : ''}
+                                        ${data?.config?.REMITO_TELEFONO ? `<div style="font-size: 9px; color: #444;">Tel: ${data?.config?.REMITO_TELEFONO}</div>` : ''}
+                                        <div style="font-size: 10px; color: #666; margin-top: 5px;">Fecha: ${order.fecha}</div>
+                                        <div style="font-size: 10px; color: #666;">Vendedor: ${order.vendedor || 'S/V'}</div>
+                                    </div>
+                                </div>
+                                <div class="info">
+                                    <div class="info-block">
+                                        <div><strong>CLIENTE:</strong> ${order.cliente_nombre}</div>
+                                        <div><strong>DIRECCIÓN:</strong> ${order.direccion || 'Sin dirección registrada'}</div>
+                                    </div>
+                                </div>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th width="70">CANT</th>
+                                            <th>DESCRIPCIÓN</th>
+                                            <th width="90">P. UNIT</th>
+                                            <th width="110">SUBTOTAL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${order.items?.map((item: any) => {
+            const prod = products.find(p => p.ID_Producto === item.id_prod);
+            const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
+            const ub = parseFloat(prod?.UB || prod?.Unidades_Bulto || 1);
+            const qty = parseFloat(item.cantidad) || 0;
+
+            let displayQty = "";
+            if (item._formato === 'BULTO') {
+                displayQty = `${qty} BUL ${ub > 1 ? `<small style="font-weight: normal; color: #666;">(x${ub} UNID)</small>` : ''}`;
+            } else if (isKg) {
+                displayQty = `${qty.toFixed(2)} KG`;
+            } else if (ub > 1) {
+                const bul = Math.floor(qty / ub);
+                const uni = Math.round((qty % ub) * 100) / 100;
+                if (bul > 0 && uni > 0) displayQty = `${bul} BUL + ${uni} UNI <small style="font-weight: normal; color: #666;">(x${ub})</small>`;
+                else if (bul > 0) displayQty = `${bul} BUL <small style="font-weight: normal; color: #666;">(x${ub})</small>`;
+                else displayQty = `${uni} UNID`;
+            } else {
+                displayQty = `${qty} UNID`;
+            }
+
+            return `
+                                                <tr>
+                                                    <td style="font-weight: bold">${displayQty}</td>
+                                                    <td>${item.nombre} ${isKg ? '<em style="font-size: 9px; color: #999;">(Sujeto a pesaje en balanza)</em>' : ''}</td>
+                                                    <td>$${parseFloat(item.precio).toLocaleString()}</td>
+                                                    <td style="font-weight: bold">$${(parseFloat(item.cantidad) * parseFloat(item.precio)).toLocaleString()}</td>
+                                                </tr>
+                                            `;
+        }).join('')}
+                                    </tbody>
+                                </table>
+                                <div class="total">TOTAL A PAGAR: $${parseFloat(order.total).toLocaleString()}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `).join('')}
+                <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
+    const printPickingList = (orderList: any[], routeName?: string) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const aggregates: Record<string, any> = {};
+        orderList.forEach(order => {
+            order.items?.forEach((item: any) => {
+                const prod = products.find(p => p.ID_Producto === item.id_prod);
+                const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
+                const id = item.id_prod || item.nombre;
+                const ub = parseFloat(prod?.UB || prod?.Unidades_Bulto || 1);
+
+                if (!aggregates[id]) {
+                    aggregates[id] = {
+                        nombre: item.nombre,
+                        cantidad: 0,
+                        formato: item._formato || (isKg ? 'KG' : 'UNID'),
+                        isKg: isKg,
+                        ub: ub,
+                        clientes: []
+                    };
+                }
+
+                let itemQty = parseFloat(item.cantidad) || 0;
+                if (item._formato === 'BULTO') {
+                    itemQty *= ub;
+                }
+
+                aggregates[id].cantidad += itemQty;
+                aggregates[id].clientes.push({
+                    nombre: order.cliente_nombre,
+                    cantidad: itemQty,
+                    ub: ub,
+                    isKg: isKg
+                });
+            });
+        });
+
+        const formatCompact = (qty: number, ub: number, isKg: boolean) => {
+            if (isKg) return `${qty.toFixed(2)} KG`;
+            if (ub <= 1) return `${qty} UNID`;
+            const bul = Math.floor(qty / ub);
+            const uni = Math.round((qty % ub) * 100) / 100;
+            const suffix = `<small style="font-weight: normal; font-size: 10px; color: #666; margin-left: 4px;">(x${ub} UNI)</small>`;
+            if (bul === 0) return `${uni} UNID`;
+            if (uni === 0) return `${bul} BUL ${suffix}`;
+            return `${bul} BUL + ${uni} UNI ${suffix}`;
+        };
+
+        const sorted = Object.values(aggregates).sort((a, b) => a.nombre.localeCompare(b.nombre));
+        const pesables = sorted.filter(i => i.isKg);
+        const noPesables = sorted.filter(i => !i.isKg);
+
+        const html = `
+            <html>
+            <head>
+                <title>Picking List - ${routeName || 'Selección'}</title>
+                <style>
+                    body { font-family: sans-serif; padding: 15px; line-height: 1.1; color: #222; }
+                    .header-print { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #000; padding-bottom: 5px; margin-bottom: 12px; }
+                    h1 { margin: 0; font-size: 20px; font-weight: 900; text-transform: uppercase; }
+                    .meta { font-weight: bold; color: #666; font-size: 10px; }
+                    .section { margin-top: 15px; }
+                    .section h2 { background: #333; color: #fff; padding: 3px 10px; border-radius: 3px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #aaa; padding: 2px 8px; text-align: left; vertical-align: middle; }
+                    th { border-bottom: 2px solid #000; font-size: 9px; font-weight: 900; background: #f2f2f2; }
+                    .check { width: 14px; height: 14px; border: 1px solid #000; border-radius: 2px; display: inline-block; vertical-align: middle; }
+                    .qty { font-size: 13px; font-weight: 900; color: #4338ca; }
+                    .client-list { margin-top: 2px; font-size: 9px; color: #555; border-top: 1px dashed #eee; padding-top: 2px; }
+                    .client-item { display: flex; justify-content: space-between; margin-bottom: 0px; }
+                </style>
+            </head>
+            <body>
+                <div class="header-print">
+                    <div>
+                        <div class="meta">${data?.config?.EMPRESA || 'WANDA DISTRIBUCIONES'}</div>
+                        <div class="meta">PLANILLA DE CARGA / PICKING</div>
+                        <h1>${routeName || 'SELECCIÓN'}</h1>
+                    </div>
+                    <div style="text-align: right">
+                        <div class="meta">Fecha: ${new Date().toLocaleDateString()}</div>
+                        <div class="meta">Cant. Pedidos: ${orderList.length}</div>
+                    </div>
+                </div>
+
+                ${noPesables.length > 0 ? `
+                    <div class="section">
+                        <h2>Productos Generales (Unidades)</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th width="40">LISTO</th>
+                                    <th width="100">CANTIDAD</th>
+                                    <th>PRODUCTO / DESCRIPCIÓN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${noPesables.map(item => `
+                                    <tr>
+                                        <td align="center"><div class="check"></div></td>
+                                        <td class="qty">${formatCompact(item.cantidad, item.ub, item.isKg)}</td>
+                                        <td style="font-weight: bold; font-size: 14px;">${item.nombre}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : ''}
+
+                ${pesables.length > 0 ? `
+                    <div class="section">
+                        <h2>Productos Pesables (Balanza)</h2>
+                        <p style="font-size: 10px; color: #666; margin-top: 2px;">* Cantidad expresada en KG estimado. Requiere pesaje real por bulto.</p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th width="40">LISTO</th>
+                                    <th width="120">KG ESTIMADO</th>
+                                    <th>PRODUCTO Y DESGLOSE POR CLIENTE</th>
+                                    <th width="200">PESO REAL (ANOTAR)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pesables.map(item => `
+                                    <tr>
+                                        <td align="center"><div class="check"></div></td>
+                                        <td class="qty">${item.cantidad.toFixed(2)} KG</td>
+                                        <td>
+                                            <div style="font-weight: bold; font-size: 14px;">${item.nombre}</div>
+                                            <div class="client-list">
+                                                ${item.clientes.map((c: any) => `
+                                                    <div class="client-item">
+                                                        <span>\u2022 ${c.nombre}</span>
+                                                        <span style="font-weight: bold;">${c.cantidad.toFixed(2)} KG</span>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </td>
+                                        <td style="font-size: 18px; color: #ccc;">________________</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : ''}
+
+                <div style="margin-top: 50px; border-top: 1px dashed #ccc; padding-top: 20px;">
+                    <p style="font-size: 12px; font-weight: bold;">Notas / Observaciones de Carga:</p>
+                    <div style="height: 100px; border: 1px solid #eee;"></div>
+                </div>
+
+                <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
+    const printRouteSheet = (orderList: any[], routeName: string) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const totalValue = orderList.reduce((acc, o) => acc + parseFloat(o.total), 0);
+
+        const html = `
+            <html>
+            <head>
+                <title>Hoja de Ruta - ${routeName}</title>
+                <style>
+                    body { font-family: sans-serif; padding: 15px; line-height: 1.1; font-size: 11px; color: #333; }
+                    .header-route { display: flex; justify-content: space-between; border-bottom: 3px solid #4338ca; padding-bottom: 8px; margin-bottom: 15px; }
+                    h1 { margin: 0; font-size: 18px; font-weight: 900; color: #4338ca; text-transform: uppercase; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+                    th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+                    th { background: #f8fafc; font-weight: 900; text-transform: uppercase; font-size: 9px; color: #64748b; }
+                    .footer { margin-top: 25px; display: grid; grid-template-cols: 1fr 1fr; gap: 20px; }
+                    .firma { border-top: 1px solid #000; padding-top: 5px; text-align: center; font-weight: bold; text-transform: uppercase; font-size: 9px; }
+                    .summary { background: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-top: 15px; display: flex; gap: 30px; font-size: 10px; }
+                    .summary-item b { font-size: 13px; color: #4338ca; }
+                </style>
+            </head>
+            <body>
+                <div class="header-route">
+                    <div>
+                        <div style="font-weight: bold; color: #4338ca; font-size: 11px; margin-bottom: 0px;">${data?.config?.EMPRESA || 'WANDA DISTRIBUCIONES'}</div>
+                        <div style="font-weight: bold; color: #64748b; font-size: 9px; margin-bottom: 2px;">REPARTO / LOGÍSTICA</div>
+                        <h1>${routeName}</h1>
+                    </div>
+                    <div style="text-align: right">
+                        <div style="font-weight: bold; font-size: 10px;">Fecha: ${new Date().toLocaleDateString()}</div>
+                        <div style="color: #64748b; font-size: 9px;">Planilla de Control de Entregas</div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="30">#</th>
+                            <th>CLIENTE / DIRECCIÓN</th>
+                            <th width="120">FORMA PAGO</th>
+                            <th width="120">A COBRAR</th>
+                            <th width="150">ESTADO / FIRMA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${orderList.map((order, i) => `
+                            <tr>
+                                <td style="color: #94a3b8; font-weight: bold; font-size: 10px;">${i + 1}</td>
+                                <td>
+                                    <div style="font-weight: 900; font-size: 11px; line-height: 1;">${order.cliente_nombre}</div>
+                                    <div style="color: #64748b; font-size: 9px; margin-top: 1px;">${order.direccion || 'Sin dirección'}</div>
+                                </td>
+                                <td style="font-weight: bold; text-transform: uppercase; color: #475569; font-size: 9px;"></td>
+                                <td style="font-weight: 900; font-size: 12px;">$${parseFloat(order.total).toLocaleString()}</td>
+                                <td align="center" style="color: #ccc; font-size: 10px;">________________</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="summary">
+                    <div class="summary-item">BULTOS TOTALES: <b>${orderList.reduce((acc, o) => acc + (o.items?.length || 0), 0)}</b></div>
+                    <div class="summary-item">VALOR TOTAL CARGA: <b>$${totalValue.toLocaleString()}</b></div>
+                    <div class="summary-item">TOTAL ENTREGAS: <b>${orderList.length}</b></div>
+                </div>
+
+                <div class="footer">
+                    <div>
+                        <div style="margin-bottom: 40px;">KM SALIDA: __________ | KM LLEGADA: __________</div>
+                        <div class="firma">Firma chofer / entregador</div>
+                    </div>
+                    <div>
+                        <div style="margin-bottom: 40px;">HORA SALIDA: __________ | HORA LLEGADA: __________</div>
+                        <div class="firma">Control de salida (Depósito)</div>
+                    </div>
+                </div>
+
+                <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
+    if (loading && !data) return <div className="h-[60vh] flex items-center justify-center">Sincronizando logística...</div>;
+
+    return (
+        <div className="p-6 space-y-8 max-w-[1600px] mx-auto">
+            <div className="flex justify-between items-end">
+                <div>
+                    <h2 className="text-3xl font-black">Logística</h2>
+                    <p className="text-slate-500 text-sm">Organiza entregas y optimiza tus rutas.</p>
+                </div>
+
+                <div className="flex bg-[var(--card)] border border-[var(--border)] p-1 rounded-xl">
+                    <button
+                        onClick={() => setActiveTab('pendientes')}
+                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'pendientes' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
+                    >
+                        Pendientes ({allPendingOrders.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('rutas')}
+                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'rutas' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
+                    >
+                        Hojas de Ruta ({routeNames.length})
+                    </button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <div className="lg:col-span-3 space-y-4">
+                    {activeTab === 'pendientes' ? (
+                        <>
+                            <div className="bg-[var(--card)] border border-[var(--border)] p-4 rounded-2xl shadow-sm space-y-4 mb-6">
+                                <div className="flex flex-col md:flex-row gap-4">
+                                    <div className="flex-1 relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar por cliente, ID o dirección..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                                        <div className="relative w-full sm:w-auto">
+                                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                            <select
+                                                value={filterDate}
+                                                onChange={(e) => setFilterDate(e.target.value)}
+                                                className="w-full pl-10 pr-8 py-2.5 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-xs font-bold appearance-none focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                                            >
+                                                <option value="">Todas las fechas</option>
+                                                {availableDates.map(date => (
+                                                    <option key={date} value={date}>{date}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                                        </div>
+                                        <div className="relative w-full sm:w-auto">
+                                            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                            <select
+                                                value={filterSeller}
+                                                onChange={(e) => setFilterSeller(e.target.value)}
+                                                className="w-full pl-10 pr-8 py-2.5 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-xs font-bold appearance-none focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                                            >
+                                                <option value="">Todos los vendedores</option>
+                                                {availableSellers.map(seller => (
+                                                    <option key={seller} value={seller}>{seller}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-dashed border-[var(--border)]">
+                                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                                        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                                            <button
+                                                onClick={() => setViewMode('grid')}
+                                                className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                                title="Vista Grilla"
+                                            >
+                                                <LayoutGrid size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => setViewMode('list')}
+                                                className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                                title="Vista Lista"
+                                            >
+                                                <List size={16} />
+                                            </button>
+                                        </div>
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                                            {filteredPendingOrders.length} resultados \u2022 {selectedOrders.size} seleccionados
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                        {selectedOrders.size > 0 && (
+                                            <button
+                                                onClick={() => printOrders(Array.from(selectedOrders).map(id => orders.find(o => o.id === id)))}
+                                                className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition-all shadow-lg"
+                                                title="Imprimir Remitos Seleccionados"
+                                            >
+                                                <Printer size={14} /> Remitos (${selectedOrders.size})
+                                            </button>
+                                        )}
+                                        {selectedOrders.size > 0 && (
+                                            <button
+                                                onClick={() => printPickingList(Array.from(selectedOrders).map(id => orders.find(o => o.id === id)))}
+                                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg"
+                                                title="Imprimir Picking de los seleccionados"
+                                            >
+                                                <Package size={14} /> Picking
+                                            </button>
+                                        )}
+                                        {selectedOrders.size > 0 && (
+                                            <button
+                                                onClick={handleAssignToRoute}
+                                                className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/10"
+                                            >
+                                                <Plus size={14} /> Asignar a Ruta
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {viewMode === 'grid' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {filteredPendingOrders.length === 0 ? (
+                                        <div className="col-span-full p-12 text-center text-slate-400 font-bold bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
+                                            No se encontraron pedidos con los filtros actuales
+                                        </div>
+                                    ) : (
+                                        filteredPendingOrders.map(order => (
+                                            <OrderCard
+                                                key={order.id}
+                                                order={order}
+                                                isSelected={selectedOrders.has(order.id)}
+                                                onSelect={() => toggleOrderSelection(order.id)}
+                                                onViewDetail={() => setViewingDetailId(order.id)}
+                                                onPrint={() => printOrders([order])}
+                                            />
+                                        ))
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden overflow-x-auto shadow-sm">
+                                    <table className="w-full border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-[var(--border)]">
+                                                <th className="p-4 text-left w-10">
+                                                    <div
+                                                        onClick={(e) => { e.stopPropagation(); toggleSelectAll(); }}
+                                                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
+                                                    >
+                                                        {selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 && <CheckCircle2 size={12} />}
+                                                        {selectedOrders.size > 0 && selectedOrders.size < filteredPendingOrders.length && <div className="w-2 h-0.5 bg-slate-400" />}
+                                                    </div>
+                                                </th>
+                                                <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente</th>
+                                                <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">ID Pedido</th>
+                                                <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Items</th>
+                                                <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
+                                                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
+                                                <th className="p-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ver</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[var(--border)] text-sm">
+                                            {filteredPendingOrders.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
+                                                        No se encontraron pedidos con los filtros actuales
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                filteredPendingOrders.map(order => (
+                                                    <tr
+                                                        key={order.id}
+                                                        className={`hover:bg-indigo-500/5 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-indigo-500/5' : ''}`}
+                                                        onClick={() => toggleOrderSelection(order.id)}
+                                                    >
+                                                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                                                            <div
+                                                                onClick={() => toggleOrderSelection(order.id)}
+                                                                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
+                                                            >
+                                                                {selectedOrders.has(order.id) && <CheckCircle2 size={12} />}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-700 dark:text-slate-200">{order.cliente_nombre}</span>
+                                                                <span className="text-[10px] text-slate-400">{order.direccion || 'Sin dirección'}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 font-mono text-[11px] text-slate-400 font-bold">#{order.id.slice(-8)}</td>
+                                                        <td className="p-4 text-xs font-bold text-slate-500">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Package size={14} className="text-slate-300" />
+                                                                {order.items?.length || 0}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <span className="text-[9px] font-black uppercase py-1 px-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                                                                {order.estado}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 text-right font-black text-indigo-600">${parseFloat(order.total).toLocaleString()}</td>
+                                                        <td className="p-4 text-center">
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <button
+                                                                    className="p-2 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-lg transition-all"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        printOrders([order]);
+                                                                    }}
+                                                                    title="Imprimir Remito"
+                                                                >
+                                                                    <Printer size={16} />
+                                                                </button>
+                                                                <button
+                                                                    className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-lg transition-all"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setViewingDetailId(order.id);
+                                                                    }}
+                                                                >
+                                                                    <ChevronRight size={18} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {routeNames.map(routeName => (
+                                <RouteCard
+                                    key={routeName as string}
+                                    name={routeName as string}
+                                    orderCount={orders.filter(o => o.reparto === routeName).length}
+                                    onManage={() => setEditingRoute(routeName as string)}
+                                    onDelete={() => handleLiberarReparto(routeName as string)}
+                                    onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === routeName))}
+                                    onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === routeName), routeName as string)}
+                                    onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === routeName), routeName as string)}
+                                    onSettlement={() => setSettlingRoute(routeName as string)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="space-y-6">
+                    <div className="tech-card border-indigo-500/20">
+                        <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
+                            <Info size={16} className="text-indigo-500" />
+                            Estado General
+                        </h3>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-[var(--border)]">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">Sin Ruta</span>
+                                <span className="font-black text-indigo-500">{allPendingOrders.length}</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-indigo-500/5 p-3 rounded-xl border border-indigo-500/10">
+                                <span className="text-[10px] font-bold text-indigo-500 uppercase">En Viaje</span>
+                                <span className="font-black text-indigo-500">{orders.filter(o => o.estado === 'En Ruta').length}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="tech-card">
+                        <h3 className="font-bold text-sm mb-4">Picking List</h3>
+                        <p className="text-[10px] text-slate-500 mb-4">Imprime el consolidado de carga para el depósito.</p>
+                        <button className="w-full py-3 bg-slate-900 dark:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-600 transition-all">
+                            <Printer size={14} /> Consolidado Total
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <AnimatePresence>
+                {editingRoute && (
+                    <RouteManagerModal
+                        routeName={editingRoute}
+                        orders={orders.filter(o => o.reparto === editingRoute)}
+                        clients={clients}
+                        products={products}
+                        config={data?.config}
+                        onClose={() => setEditingRoute(null)}
+                        onRefresh={refreshData}
+                        onPrintOrder={(id: string) => {
+                            const orderToPrint = orders.find(o => o.id === id);
+                            if (orderToPrint) printOrders([orderToPrint]);
+                        }}
+                        onPrintRemitos={(ordersToPrint) => printOrders(ordersToPrint)}
+                        onPrintPickingList={(ordersToPrint, name) => printPickingList(ordersToPrint, name)}
+                        onPrintRouteSheet={(ordersToPrint, name) => printRouteSheet(ordersToPrint, name)}
+                    />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {viewingDetailId && (
+                    <OrderDetailModal
+                        order={orders.find(o => o.id === viewingDetailId)}
+                        products={products}
+                        config={data?.config}
+                        onClose={() => setViewingDetailId(null)}
+                        onPrint={() => printOrders([orders.find(o => o.id === viewingDetailId)])}
+                    />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {settlingRoute && (
+                    <RouteSettlementModal
+                        routeName={settlingRoute}
+                        orders={orders.filter(o => o.reparto === settlingRoute)}
+                        products={products}
+                        onClose={() => setSettlingRoute(null)}
+                        onRefresh={refreshData}
+                    />
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
+function RouteManagerModal({ routeName, orders, clients, products, config, onClose, onRefresh, onPrintOrder, onPrintRemitos, onPrintPickingList, onPrintRouteSheet }: {
+    routeName: string;
+    orders: any[];
+    clients: any[];
+    products: any[];
+    config: any;
+    onClose: () => void;
+    onRefresh: () => void;
+    onPrintOrder: (id: string) => void;
+    onPrintRemitos: (orders: any[]) => void;
+    onPrintPickingList: (orders: any[], name: string) => void;
+    onPrintRouteSheet: (orders: any[], name: string) => void;
+}) {
+    const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+    const [localOrders, setLocalOrders] = useState(() => JSON.parse(JSON.stringify(orders)));
+    const [saving, setSaving] = useState(false);
+    const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
+    const [orderDetailId, setOrderDetailId] = useState<string | null>(null);
+
+    const consolidated = useMemo(() => {
+        const map: Record<string, any> = {};
+        localOrders.forEach((order: any) => {
+            (order.items || []).forEach((item: any, idx: number) => {
+                const key = item.id_prod || item.nombre;
+                const product = products.find((p: any) => p.ID_Producto === item.id_prod);
+                const isKg = (product?.Unidad || '').toLowerCase() === 'kg';
+                const ub = parseFloat(product?.UB || product?.Unidades_Bulto || 1);
+
+                if (!map[key]) {
+                    map[key] = {
+                        id_prod: item.id_prod,
+                        nombre: item.nombre,
+                        totalQty: 0,
+                        totalPrice: 0,
+                        isKg,
+                        ub,
+                        deliveries: []
+                    };
+                }
+
+                let qtyInUnits = parseFloat(item.cantidad) || 0;
+                // Si el item viene marcado como bulto en el objeto (aunque intentemos normalizar), multiplicamos
+                if (item._formato === 'BULTO') qtyInUnits *= ub;
+
+                map[key].totalQty += qtyInUnits;
+                map[key].totalPrice += qtyInUnits * (parseFloat(item.precio) || 0);
+
+                const pesoPromedio = parseFloat(product?.Peso || product?.Peso_Promedio || 0);
+
+                map[key].deliveries.push({
+                    orderId: order.id,
+                    itemIdx: idx,
+                    cliente: order.cliente_nombre,
+                    cantidadVenta: qtyInUnits, // Total en unidades para cálculos
+                    cantidadVisual: parseFloat(item.cantidad) || 0, // Lo que se ve en el input
+                    precioCatalogo: parseFloat(product?.Precio_Unitario || item.precio),
+                    pesoPromedio,
+                    isKg,
+                    ub,
+                    precio: item.precio,
+                    formato: item._formato || 'UNID'
+                });
+            });
+        });
+        return Object.values(map).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
+    }, [localOrders, products]);
+
+    const formatQtyWithBultos = (qty: number, ub: number, isKg: boolean) => {
+        if (isKg) return `${qty.toFixed(2)} Kg`;
+        if (ub <= 1) return `${qty} Unid`;
+        const bul = Math.floor(qty / ub);
+        const uni = Math.round((qty % ub) * 100) / 100;
+        if (bul === 0) return `${uni} Unid`;
+        if (uni === 0) return `${bul} Bultos`;
+        return `${bul} Bul + ${uni} Uni`;
+    };
+
+    const totalRuta = useMemo(() => {
+        return localOrders.reduce((acc: number, o: any) => acc + (parseFloat(o.total) || 0), 0);
+    }, [localOrders]);
+
+    const toggleProduct = (id: string) => {
+        setExpandedProduct(prev => (prev === id ? null : id));
+    };
+
+    const handleShareWhatsApp = () => {
+        let msg = `🚚 *HOJA DE RUTA: ${routeName}*\n🗓️ ${new Date().toLocaleDateString()}\n\n`;
+        const uniqueClients = [...new Set(localOrders.map((o: any) => o.cliente_nombre))];
+
+        uniqueClients.forEach((cn, i) => {
+            const client = clients.find((c: any) => c.Nombre_Negocio === cn) || {};
+            const dir = client.Direccion ? `${client.Direccion}, ${client.Zona || ''}`.trim() : 'Sin dirección';
+            msg += `*${i + 1}. ${cn}*\n🏠 ${dir}\n📞 ${client.Telefono || 'N/A'}\n\n`;
+        });
+
+        const stops = localOrders.map((o: any) => {
+            const c = clients.find((cl: any) => cl.Nombre_Negocio === o.cliente_nombre) || {};
+            return c.Direccion ? encodeURIComponent(c.Direccion) : null;
+        }).filter(Boolean);
+
+        if (stops.length > 0) {
+            msg += `🗺️ *Recorrido Google Maps:*\nhttps://www.google.com/maps/dir//${stops.join('/')}\n`;
+        }
+
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    };
+
+    const handleUpdateQty = (orderId: string, itemIdx: number, delta: number) => {
+        setLocalOrders((prev: any) => prev.map((order: any) => {
+            if (order.id !== orderId) return order;
+            const newItems = order.items.map((it: any, idx: number) => {
+                if (idx !== itemIdx) return it;
+                const product = products.find((p: any) => p.ID_Producto === it.id_prod);
+                const step = (it._formato === 'BULTO') ? 1 : (product?.Unidad?.toLowerCase() === 'kg' ? 0.1 : 1);
+                return { ...it, cantidad: Math.max(0, (parseFloat(it.cantidad) || 0) + (delta * step)) };
+            });
+
+            const newTotal = newItems.reduce((acc: number, i: any) => {
+                return acc + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0);
+            }, 0);
+            return { ...order, items: newItems, total: newTotal, _editado: true };
+        }));
+    };
+
+    const toggleFormato = (orderId: string, itemIdx: number) => {
+        setLocalOrders((prev: any) => prev.map((order: any) => {
+            if (order.id !== orderId) return order;
+            const product = products.find((p: any) => p.ID_Producto === order.items[itemIdx].id_prod);
+            if (!product) return order;
+
+            const isKg = (product.Unidad || '').toLowerCase() === 'kg';
+            if (isKg) return order;
+
+            const ub = parseFloat(product.UB || product.Unidades_Bulto || 1);
+            const precioBase = parseFloat(product.Precio_Unitario || 0);
+
+            const newItems = order.items.map((it: any, idx: number) => {
+                if (idx !== itemIdx) return it;
+                const iB = it._formato === 'BULTO';
+                if (iB) {
+                    return { ...it, _formato: 'UNID', precio: precioBase, cantidad: (parseFloat(it.cantidad) || 0) * ub };
+                } else {
+                    return { ...it, _formato: 'BULTO', precio: precioBase * ub, cantidad: (parseFloat(it.cantidad) || 0) / ub };
+                }
+            });
+
+            const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0), 0);
+            return { ...order, items: newItems, total: newTotal, _editado: true };
+        }));
+    };
+
+    const handleSave = async () => {
+        const edited = localOrders.filter((o: any) => o._editado);
+        if (edited.length === 0) return onClose();
+
+        try {
+            setSaving(true);
+            for (const order of edited) {
+                // Normalizamos los items para que el backend siempre reciba UNIDADES
+                // Esto evita que el stock se descuente mal si se guardó como BULTO
+                const normalizedOrder = {
+                    ...order,
+                    items: order.items.map((it: any) => {
+                        if (it._formato === 'BULTO') {
+                            const product = products.find((p: any) => p.ID_Producto === it.id_prod);
+                            const ub = parseFloat(product?.UB || product?.Unidades_Bulto || 1);
+                            return {
+                                ...it,
+                                cantidad: it.cantidad * ub,
+                                precio: it.precio / ub,
+                                _formato: 'UNID'
+                            };
+                        }
+                        return it;
+                    })
+                };
+                await wandaApi.saveOrderCorrection(normalizedOrder);
+            }
+            alert("Cambios guardados con éxito.");
+            onRefresh();
+            onClose();
+        } catch (err) {
+            alert("Error al guardar cambios");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        >
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl"
+            >
+                <div className="p-6 border-b border-[var(--border)] flex justify-between items-center bg-slate-100 dark:bg-slate-800/50">
+                    <div>
+                        <h3 className="text-xl font-black">Gestionar Ruta: {routeName}</h3>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{localOrders.length} pedidos • Total: ${totalRuta.toLocaleString()}</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-auto p-6 space-y-4">
+                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                        <button onClick={handleShareWhatsApp} className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-500/10 hover:brightness-110 active:scale-95 transition-all">
+                            <MessageCircle size={16} /> WhatsApp Chofer
+                        </button>
+                        <button
+                            onClick={() => onPrintPickingList(localOrders, routeName)}
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 active:scale-95 transition-all"
+                        >
+                            <Printer size={16} /> Picking List
+                        </button>
+                        <button
+                            onClick={() => onPrintRouteSheet(localOrders, routeName)}
+                            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-50 active:scale-95 transition-all"
+                        >
+                            <Copy size={16} /> Hoja de Ruta
+                        </button>
+                        <button
+                            onClick={() => onPrintRemitos(localOrders)}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-black hover:bg-indigo-600 active:scale-95 transition-all shadow-lg shadow-indigo-500/10"
+                        >
+                            <Printer size={16} /> Remitos de Ruta
+                        </button>
+                    </div>
+
+                    <div className="space-y-3">
+                        {consolidated.map((prod: any) => {
+                            const isExpanded = expandedProduct === (prod.id_prod || prod.nombre);
+                            return (
+                                <div key={prod.id_prod || prod.nombre} className={`border rounded-2xl overflow-hidden transition-all ${isExpanded ? 'border-indigo-500 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
+                                    <div
+                                        onClick={() => toggleProduct(prod.id_prod || prod.nombre)}
+                                        className={`p-4 flex justify-between items-center cursor-pointer ${isExpanded ? 'bg-indigo-50 dark:bg-indigo-500/5' : 'bg-white dark:bg-slate-800'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {isExpanded ? <ChevronUp size={16} className="text-indigo-500" /> : <ChevronDown size={16} className="text-slate-400" />}
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-sm">{prod.nombre}</span>
+                                                {prod.isKg && <span className="text-[9px] font-black text-emerald-500 uppercase tracking-tighter">Producto Pesable (Kg)</span>}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="font-black text-sm text-indigo-600">
+                                                {formatQtyWithBultos(prod.totalQty, prod.ub, prod.isKg)}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {isExpanded && (
+                                        <div className="bg-slate-50 dark:bg-slate-900/30 divide-y divide-[var(--border)]">
+                                            {prod.deliveries.map((delivery: any, idx: number) => (
+                                                <div key={idx} className="p-3 flex justify-between items-center bg-white dark:bg-transparent">
+                                                    <div>
+                                                        <p className="font-bold text-xs">{delivery.cliente}</p>
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    onPrintOrder(delivery.orderId);
+                                                                }}
+                                                                className="p-1 hover:bg-white rounded transition-colors text-slate-400 hover:text-indigo-600"
+                                                                title="Imprimir Remito"
+                                                            >
+                                                                <Printer size={12} />
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setOrderDetailId(delivery.orderId);
+                                                                }}
+                                                                className="p-1 hover:bg-white rounded transition-colors text-indigo-600 font-bold"
+                                                            >
+                                                                Ver
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        {delivery.isKg ? (
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-[10px] font-bold text-slate-400">Balancero</span>
+                                                                <div className="flex items-center bg-emerald-50 dark:bg-emerald-500/10 rounded-lg p-1 border border-emerald-200">
+                                                                    <input
+                                                                        type="text"
+                                                                        inputMode="decimal"
+                                                                        placeholder="Kg reales"
+                                                                        value={rawInputs[`${delivery.orderId}_${delivery.itemIdx}`] ?? delivery.cantidadVisual}
+                                                                        onFocus={(e) => {
+                                                                            setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}`]: e.target.value }));
+                                                                        }}
+                                                                        onBlur={() => {
+                                                                            setRawInputs(prev => {
+                                                                                const next = { ...prev };
+                                                                                delete next[`${delivery.orderId}_${delivery.itemIdx}`];
+                                                                                return next;
+                                                                            });
+                                                                        }}
+                                                                        onChange={(e) => {
+                                                                            const valStr = e.target.value;
+                                                                            setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}`]: valStr }));
+
+                                                                            const normalized = valStr.replace(',', '.');
+                                                                            const valNum = parseFloat(normalized);
+
+                                                                            if (!isNaN(valNum)) {
+                                                                                setLocalOrders((prev: any) => prev.map((order: any) => {
+                                                                                    if (order.id !== delivery.orderId) return order;
+                                                                                    const newItems = [...order.items];
+                                                                                    newItems[delivery.itemIdx].cantidad = valNum;
+                                                                                    // No pisamos el precio si ya está escalado por bulto/unidad en toggleFormato
+                                                                                    const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0), 0);
+                                                                                    return { ...order, items: newItems, total: newTotal, _editado: true };
+                                                                                }));
+                                                                            }
+                                                                        }}
+                                                                        className="w-16 text-center font-black text-sm bg-transparent outline-none text-emerald-700"
+                                                                    />
+                                                                    <span className="text-[10px] font-bold text-emerald-600 mr-1">Kg</span>
+                                                                </div>
+                                                                <span className="text-[9px] text-slate-400 italic">Pre-venta: {Math.round(delivery.cantidadVenta / (delivery.pesoPromedio || 1))} un.</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col items-end">
+                                                                <div className="flex items-center gap-2">
+                                                                    <button
+                                                                        onClick={() => toggleFormato(delivery.orderId, delivery.itemIdx)}
+                                                                        className={`text-[9px] font-black px-2 py-1 rounded border shadow-sm transition-all ${delivery.formato === 'BULTO' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}
+                                                                    >
+                                                                        {delivery.formato === 'BULTO' ? 'BULTO' : 'UNID'}
+                                                                    </button>
+                                                                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); handleUpdateQty(delivery.orderId, delivery.itemIdx, -1); }}
+                                                                            className="w-8 h-8 flex items-center justify-center hover:text-indigo-600 transition-colors"
+                                                                        >
+                                                                            <ChevronDown size={14} />
+                                                                        </button>
+                                                                        <input
+                                                                            type="text"
+                                                                            inputMode="decimal"
+                                                                            value={rawInputs[`${delivery.orderId}_${delivery.itemIdx}`] ?? delivery.cantidadVisual}
+                                                                            onFocus={(e) => {
+                                                                                setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}`]: e.target.value }));
+                                                                            }}
+                                                                            onBlur={() => {
+                                                                                setRawInputs(prev => {
+                                                                                    const next = { ...prev };
+                                                                                    delete next[`${delivery.orderId}_${delivery.itemIdx}`];
+                                                                                    return next;
+                                                                                });
+                                                                            }}
+                                                                            onChange={(e) => {
+                                                                                const valStr = e.target.value;
+                                                                                setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}`]: valStr }));
+
+                                                                                const normalized = valStr.replace(',', '.');
+                                                                                const valNum = parseFloat(normalized);
+
+                                                                                if (!isNaN(valNum)) {
+                                                                                    setLocalOrders((prev: any) => prev.map((order: any) => {
+                                                                                        if (order.id !== delivery.orderId) return order;
+                                                                                        const newItems = [...order.items];
+                                                                                        newItems[delivery.itemIdx].cantidad = valNum;
+                                                                                        const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0), 0);
+                                                                                        return { ...order, items: newItems, total: newTotal, _editado: true };
+                                                                                    }));
+                                                                                }
+                                                                            }}
+                                                                            className="w-12 text-center font-black text-sm bg-transparent outline-none"
+                                                                        />
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); handleUpdateQty(delivery.orderId, delivery.itemIdx, 1); }}
+                                                                            className="w-8 h-8 flex items-center justify-center hover:text-indigo-600 transition-colors"
+                                                                        >
+                                                                            <ChevronUp size={14} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                <span className="text-[9px] font-bold text-indigo-500 mt-1">
+                                                                    {formatQtyWithBultos(delivery.cantidadVenta, delivery.ub, delivery.isKg)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        <div className="w-20 text-right font-bold text-xs">
+                                                            ${(parseFloat(delivery.cantidadVenta) * parseFloat(delivery.precio)).toLocaleString()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {prod.isKg && (
+                                                <div className="p-3 bg-emerald-50 dark:bg-emerald-500/5 text-center border-t border-emerald-100">
+                                                    <span className="text-[10px] font-black text-emerald-600 uppercase">Espacio para Peso Real en Balanza disponible en Remito impreso</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <AnimatePresence>
+                    {orderDetailId && (
+                        <OrderDetailModal
+                            order={localOrders.find((o: any) => o.id === orderDetailId)}
+                            products={products}
+                            config={config}
+                            onClose={() => setOrderDetailId(null)}
+                            onPrint={() => {
+                                const order = localOrders.find((o: any) => o.id === orderDetailId);
+                                if (order) onPrintOrder(order.id);
+                            }}
+                        />
+                    )}
+                </AnimatePresence>
+
+                <div className="p-6 border-t border-[var(--border)] flex justify-between items-center bg-slate-50 dark:bg-slate-800/30">
+                    <button onClick={() => onRefresh()} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold transition-colors">
+                        <RotateCcw size={14} /> Deshacer cambios
+                    </button>
+                    <button
+                        disabled={saving}
+                        onClick={handleSave}
+                        className="flex items-center gap-2 px-8 py-3 bg-indigo-500 text-white rounded-2xl text-sm font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-600 transition-all disabled:opacity-50"
+                    >
+                        <Save size={18} /> {saving ? 'Guardando...' : 'Guardar y Cerrar'}
+                    </button>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+}
+
+function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh }: any) {
+    const [localOrders, setLocalOrders] = useState(
+        orders.map((o: any) => ({
+            ...o,
+            estado_rendicion: 'Entregado', // 'Entregado', 'Rechazado', 'Parcial'
+            total_original: parseFloat(o.total),
+            total_final: parseFloat(o.total),
+            items_originales: JSON.parse(JSON.stringify(o.items || []))
+        }))
+    );
+    const [pagos, setPagos] = useState({ efectivo: 0, transferencia: 0 });
+    const [gastos, setGastos] = useState<{ desc: string, monto: number }[]>([]);
+    const [chofer, setChofer] = useState("");
+    const [saving, setSaving] = useState(false);
+    const [editingPartialId, setEditingPartialId] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const filteredOrders = useMemo(() => {
+        if (!searchTerm.trim()) return localOrders;
+
+        const terms = searchTerm.toLowerCase().trim().split(/\s+/);
+
+        return localOrders.filter((o: any) => {
+            const searchableText = [
+                o.cliente_nombre,
+                o.id,
+                o.direccion,
+                o.vendedor
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            return terms.every(term => searchableText.includes(term));
+        });
+    }, [localOrders, searchTerm]);
+
+    const totalRendicion = localOrders.reduce((acc: number, o: any) => {
+        if (o.estado_rendicion === 'Rechazado') return acc;
+        return acc + o.total_final;
+    }, 0);
+
+    const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+    const totalCaja = pagos.efectivo + pagos.transferencia;
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            const payload = {
+                reparto: routeName,
+                chofer,
+                ordenes: localOrders.map((o: any) => ({
+                    id: o.id,
+                    estado: o.estado_rendicion,
+                    total: o.total_final,
+                    items: o.items
+                })),
+                pagos,
+                gastos,
+                notas: `Liquidación de ruta ${routeName}`
+            };
+
+            const res = await wandaApi.liquidarRuta(payload);
+            if (res === 'OK') {
+                alert("Ruta liquidada con éxito");
+                onRefresh();
+                onClose();
+            } else {
+                alert("Error al liquidar: " + res);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error de conexión");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const toggleStatus = (orderId: string, status: string) => {
+        setLocalOrders((prev: any[]) => prev.map((o: any) => {
+            if (o.id === orderId) {
+                let totalFinal = o.total_original;
+                if (status === 'Rechazado') totalFinal = 0;
+                return { ...o, estado_rendicion: status, total_final: totalFinal };
+            }
+            return o;
+        }));
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+        >
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
+                className="bg-white dark:bg-slate-900 w-full max-w-5xl h-[95vh] sm:h-[90vh] rounded-[30px] sm:rounded-[40px] overflow-hidden shadow-2xl flex flex-col border border-white/20"
+            >
+                {/* Header */}
+                <div className="p-4 sm:p-5 border-b border-[var(--border)] flex justify-between items-center bg-gradient-to-r from-slate-900 to-indigo-950 text-white">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white border border-white/10 shadow-inner">
+                            <Check size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black tracking-tight leading-none">Rendición de Ruta</h3>
+                            <div className="flex items-center gap-3 mt-1">
+                                <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest">{routeName}</p>
+                                <span className="text-slate-500 text-[10px] opacity-30">|</span>
+                                <input
+                                    type="text"
+                                    placeholder="NOMBRE CHOFER"
+                                    value={chofer}
+                                    onChange={e => setChofer(e.target.value)}
+                                    className="bg-white/10 border-none rounded-lg px-2 py-1 text-[10px] font-black text-white placeholder:text-white/30 focus:ring-1 ring-white/20 w-32 sm:w-48"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                    <div className="flex-[1.5] overflow-auto p-6 space-y-4 border-r border-[var(--border)]">
+                        <div className="flex flex-col gap-3 mb-6 px-2">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <LayoutGrid size={14} className="text-indigo-500" /> Detalle de Entregas
+                            </h4>
+                            <div className="flex items-center gap-3">
+                                <div className="relative group flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar por cliente, ID o ruta..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl py-2 pl-9 pr-4 text-[11px] font-bold focus:ring-2 ring-indigo-500/20 transition-all shadow-sm"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                                        <button
+                                            onClick={() => setViewMode('grid')}
+                                            className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
+                                        >
+                                            <LayoutGrid size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('list')}
+                                            className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
+                                        >
+                                            <List size={14} />
+                                        </button>
+                                    </div>
+                                    <span className="text-[10px] font-black py-1.5 px-3 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 rounded-lg hidden sm:block">
+                                        {localOrders.length}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {viewMode === 'grid' ? (
+                            <div className="space-y-4">
+                                {filteredOrders.map((order: any) => (
+                                    <div key={order.id} className={`p-5 rounded-3xl border transition-all ${order.estado_rendicion === 'Rechazado' ? 'bg-rose-50/50 border-rose-100 dark:bg-rose-500/5 dark:border-rose-500/20 grayscale' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-800 shadow-sm'}`}>
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <p className="font-black text-sm text-slate-800 dark:text-slate-100">{order.cliente_nombre}</p>
+                                                <p className="text-[10px] text-slate-400 font-mono">#{order.id.slice(-8)}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`font-black text-sm ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
+                                                    ${order.total_final.toLocaleString()}
+                                                </p>
+                                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter line-through">
+                                                    Orig: ${order.total_original.toLocaleString()}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            {['Entregado', 'Parcial', 'Rechazado'].map(st => (
+                                                <button
+                                                    key={st}
+                                                    onClick={() => toggleStatus(order.id, st)}
+                                                    className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${order.estado_rendicion === st
+                                                        ? (st === 'Entregado' ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                            : st === 'Rechazado' ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20'
+                                                                : 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20')
+                                                        : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-indigo-300'
+                                                        }`}
+                                                >
+                                                    {st}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {order.estado_rendicion === 'Parcial' && (
+                                            <button
+                                                onClick={() => setEditingPartialId(order.id)}
+                                                className="w-full mt-3 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-[9px] font-black uppercase border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <Edit2 size={12} /> Ajustar Cantidades
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="bg-white dark:bg-slate-900 rounded-[30px] border border-[var(--border)] overflow-hidden">
+                                <table className="w-full text-left">
+                                    <thead className="bg-slate-50 dark:bg-slate-800/50">
+                                        <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                            <th className="px-6 py-4">Cliente / ID</th>
+                                            <th className="px-6 py-4">Importe</th>
+                                            <th className="px-6 py-4 text-center">Estado</th>
+                                            <th className="px-6 py-4 text-right">Ajuste</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        {filteredOrders.map((order: any) => (
+                                            <tr key={order.id} className={`group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors ${order.estado_rendicion === 'Rechazado' ? 'opacity-50' : ''}`}>
+                                                <td className="px-6 py-4">
+                                                    <p className="font-bold text-xs">{order.cliente_nombre}</p>
+                                                    <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <p className={`font-black text-xs ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
+                                                        ${order.total_final.toLocaleString()}
+                                                    </p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex justify-center">
+                                                        <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
+                                                            {['E', 'P', 'R'].map((label, idx) => {
+                                                                const statuses = ['Entregado', 'Parcial', 'Rechazado'];
+                                                                const st = statuses[idx];
+                                                                const isActive = order.estado_rendicion === st;
+                                                                return (
+                                                                    <button
+                                                                        key={st}
+                                                                        onClick={() => toggleStatus(order.id, st)}
+                                                                        title={st}
+                                                                        className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-black transition-all ${isActive
+                                                                            ? (st === 'Entregado' ? 'bg-emerald-500 text-white' : st === 'Rechazado' ? 'bg-rose-500 text-white' : 'bg-indigo-500 text-white')
+                                                                            : 'text-slate-400 hover:text-slate-600'
+                                                                            }`}
+                                                                    >
+                                                                        {label}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    {order.estado_rendicion === 'Parcial' && (
+                                                        <button
+                                                            onClick={() => setEditingPartialId(order.id)}
+                                                            className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 rounded-lg hover:bg-indigo-500 hover:text-white transition-all"
+                                                        >
+                                                            <Edit2 size={12} />
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Resumen y Caja */}
+                    <div className="flex-1 bg-slate-50 dark:bg-slate-950 p-6 space-y-6 overflow-auto border-l border-white dark:border-white/5 shadow-2xl relative">
+                        <div>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+                                <DollarSign size={14} className="text-indigo-500" /> Conciliación de Caja
+                            </h4>
+
+                            <div className="space-y-3">
+                                <div className="p-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-inner">
+                                            <DollarSign size={20} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Efectivo Recibido</label>
+                                            <input
+                                                type="number"
+                                                value={pagos.efectivo || ''}
+                                                onChange={e => setPagos({ ...pagos, efectivo: parseFloat(e.target.value) || 0 })}
+                                                className="w-full bg-transparent border-none p-0 focus:ring-0 text-xl font-black text-slate-800 dark:text-slate-100"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-2" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner">
+                                            <CreditCard size={20} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Transferencias / Otros</label>
+                                            <input
+                                                type="number"
+                                                value={pagos.transferencia || ''}
+                                                onChange={e => setPagos({ ...pagos, transferencia: parseFloat(e.target.value) || 0 })}
+                                                className="w-full bg-transparent border-none p-0 focus:ring-0 text-xl font-black text-slate-800 dark:text-slate-100"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                    <RotateCcw size={14} className="text-rose-500" /> Gastos de Ruta
+                                </h4>
+                                <button
+                                    onClick={() => setGastos([...gastos, { desc: '', monto: 0 }])}
+                                    className="p-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition-all"
+                                >
+                                    <Plus size={14} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                {gastos.map((g, idx) => (
+                                    <div key={idx} className="flex gap-2 animate-in slide-in-from-right-4">
+                                        <input
+                                            placeholder="Descripción"
+                                            value={g.desc}
+                                            onChange={e => {
+                                                const next = [...gastos];
+                                                next[idx].desc = e.target.value;
+                                                setGastos(next);
+                                            }}
+                                            className="flex-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Monto"
+                                            value={g.monto || ''}
+                                            onChange={e => {
+                                                const next = [...gastos];
+                                                next[idx].monto = parseFloat(e.target.value) || 0;
+                                                setGastos(next);
+                                            }}
+                                            className="w-24 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-black text-rose-500"
+                                        />
+                                        <button
+                                            onClick={() => setGastos(gastos.filter((_, i) => i !== idx))}
+                                            className="p-2 text-slate-300 hover:text-rose-500"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="pt-6 border-t border-[var(--border)] mt-auto space-y-4">
+                            <div className="flex justify-between items-center text-slate-400 text-[10px] font-black uppercase tracking-widest px-2">
+                                <span>Total Vendido</span>
+                                <span className="text-slate-600 dark:text-slate-100">${totalRendicion.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-slate-400 text-[10px] font-black uppercase tracking-widest px-2">
+                                <span>Gastos de Ruta</span>
+                                <span className="text-rose-500">-${totalGastos.toLocaleString()}</span>
+                            </div>
+
+                            <div className="p-6 bg-slate-900 dark:bg-white rounded-[32px] text-white dark:text-slate-900 shadow-2xl shadow-indigo-500/10">
+                                <div className="flex justify-between items-end mb-1">
+                                    <p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Saldo Neto a Rendir</p>
+                                    <div className="text-right">
+                                        <p className={`text-[10px] font-black px-2 py-0.5 rounded-full ${Math.abs(totalCaja - (totalRendicion - totalGastos)) < 10 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                            {Math.abs(totalCaja - (totalRendicion - totalGastos)) < 10
+                                                ? 'BALANCEADO'
+                                                : `${totalCaja - (totalRendicion - totalGastos) > 0 ? 'SOBRANTE' : 'FALTANTE'}: $${Math.abs(totalCaja - (totalRendicion - totalGastos)).toLocaleString()}`
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                                <h3 className="text-3xl font-black mb-4">
+                                    ${(totalRendicion - totalGastos).toLocaleString()}
+                                </h3>
+
+                                <div className="flex justify-between items-center">
+                                    <div className="text-[9px] font-black uppercase opacity-60 tracking-tighter">Entregado por Chofer</div>
+                                    <div className="text-lg font-black">${totalCaja.toLocaleString()}</div>
+                                </div>
+                            </div>
+
+                            <button
+                                disabled={saving}
+                                onClick={handleSave}
+                                className="w-full py-5 bg-indigo-600 text-white rounded-[32px] text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-500/30 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+                            >
+                                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check size={20} />}
+                                {saving ? 'Liquidando...' : 'Finalizar y Cerrar Ruta'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sub-Modal para Entrega Parcial */}
+                <AnimatePresence>
+                    {editingPartialId && (
+                        <PartialDeliveryEditor
+                            order={localOrders.find((o: any) => o.id === editingPartialId)}
+                            products={products}
+                            onClose={() => setEditingPartialId(null)}
+                            onSave={(updatedOrder: any) => {
+                                setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === updatedOrder.id ? { ...updatedOrder, estado_rendicion: 'Parcial' } : o));
+                                setEditingPartialId(null);
+                            }}
+                        />
+                    )}
+                </AnimatePresence>
+            </motion.div>
+        </motion.div>
+    );
+}
+
+function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
+    const [items, setItems] = useState(JSON.parse(JSON.stringify(order.items)));
+
+    const handleQtyChange = (idx: number, newQty: number) => {
+        const next = [...items];
+        next[idx].cantidad = Math.max(0, newQty);
+        next[idx].subtotal = next[idx].cantidad * next[idx].precio;
+        setItems(next);
+    };
+
+    const newTotal = items.reduce((acc: number, item: any) => acc + item.subtotal, 0);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xl"
+        >
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl overflow-hidden shadow-2xl"
+            >
+                <div className="p-6 border-b border-[var(--border)] bg-indigo-600 text-white flex justify-between items-center">
+                    <h5 className="text-sm font-black uppercase tracking-widest">Ajuste de Entrega Parcial</h5>
+                    <button onClick={onClose}><X size={20} /></button>
+                </div>
+                <div className="p-6 space-y-4 max-h-[60vh] overflow-auto">
+                    {items.map((item: any, idx: number) => {
+                        const originalItem = order.items_originales.find((oi: any) => oi.id_prod === item.id_prod);
+                        const maxQty = originalItem?.cantidad || 9999;
+
+                        return (
+                            <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex justify-between items-center border border-slate-100 dark:border-slate-800">
+                                <div className="flex-1 pr-4">
+                                    <p className="font-black text-xs text-slate-800 dark:text-slate-100">{item.nombre}</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase">Máx original: {maxQty}</p>
+                                </div>
+                                <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                                    <button onClick={() => handleQtyChange(idx, item.cantidad - 1)} className="p-1 text-indigo-500 hover:bg-slate-50 rounded"><Minus size={14} /></button>
+                                    <input
+                                        type="number"
+                                        value={item.cantidad}
+                                        onChange={(e) => handleQtyChange(idx, parseFloat(e.target.value) || 0)}
+                                        className="w-12 text-center text-sm font-black bg-transparent border-none p-0 focus:ring-0"
+                                    />
+                                    <button onClick={() => handleQtyChange(idx, item.cantidad + 1)} className="p-1 text-indigo-500 hover:bg-slate-50 rounded"><Plus size={14} /></button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center border-t border-[var(--border)]">
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase">Nuevo Total</p>
+                        <p className="font-black text-xl text-indigo-600">${newTotal.toLocaleString()}</p>
+                    </div>
+                    <button
+                        onClick={() => onSave({ ...order, items, total: newTotal, total_final: newTotal })}
+                        className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95"
+                    >
+                        Confirmar Ajuste
+                    </button>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+}
+
+function OrderDetailModal({ order, products, config, onClose, onPrint }: any) {
+    if (!order) return null;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+        >
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+            >
+                <div className="p-6 border-b border-[var(--border)] flex justify-between items-center bg-indigo-500 text-white">
+                    <div>
+                        <h4 className="text-xl font-black">Detalle del Pedido</h4>
+                        <p className="text-xs opacity-80 font-bold uppercase tracking-widest">{order.cliente_nombre}</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="p-6 overflow-auto max-h-[60vh] space-y-4">
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-[var(--border)]">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">ID Pedido</p>
+                            <p className="font-mono text-xs font-bold">{order.id}</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-[var(--border)]">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Estado</p>
+                            <span className="text-xs font-black text-indigo-500">{order.estado}</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Items del pedido</p>
+                        {order.items?.map((item: any, idx: number) => {
+                            return (
+                                <div key={idx} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-xl shadow-sm">
+                                    <div>
+                                        <p className="font-bold text-sm">{item.nombre}</p>
+                                        <p className="text-[10px] text-slate-400 font-medium">
+                                            {item.cantidad} {item._formato || 'UNID'} x ${parseFloat(item.precio).toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <p className="font-black text-slate-700">${(parseFloat(item.cantidad) * parseFloat(item.precio)).toLocaleString()}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-[var(--border)] bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
+                    <div className="text-right">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Total del Pedido</p>
+                        <p className="text-2xl font-black text-indigo-600">${parseFloat(order.total).toLocaleString()}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={onPrint}
+                            className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-lg"
+                        >
+                            <Printer size={16} /> Imprimir Remito
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="px-6 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+}
+
+function OrderCard({ order, isSelected, onSelect, onViewDetail, onPrint }: any) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`tech-card p-4 flex gap-4 cursor-pointer transition-all border-2 ${isSelected ? 'border-indigo-500 bg-indigo-500/5 shadow-2xl shadow-indigo-500/5' : 'border-transparent'}`}
+            onClick={onSelect}
+        >
+            <div className="flex-shrink-0 pt-1">
+                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}>
+                    {isSelected && <CheckCircle2 size={16} />}
+                </div>
+            </div>
+
+            <div className="flex-1 space-y-2">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="font-bold text-sm leading-tight">{order.cliente_nombre}</p>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">#{order.id}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="font-black text-xs text-indigo-600">${parseFloat(order.total).toLocaleString()}</p>
+                        <span className="text-[8px] font-bold uppercase py-0.5 px-1.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                            {order.estado}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="pt-2 border-t border-dashed border-[var(--border)] flex items-center justify-between text-[10px]">
+                    <div className="flex items-center gap-3">
+                        <span className="text-slate-500 flex items-center gap-1 font-medium">
+                            <Package size={12} /> {order.items?.length || 0} items
+                        </span>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onPrint(); }}
+                            className="text-slate-400 hover:text-indigo-500 transition-colors flex items-center gap-1 font-bold"
+                        >
+                            <Printer size={12} /> Imprimir
+                        </button>
+                    </div>
+                    <span
+                        className="text-indigo-500 font-bold flex items-center gap-1 hover:underline active:scale-95 transition-all"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDetail();
+                        }}
+                    >
+                        Ver detalle <ChevronRight size={12} />
+                    </span>
+                </div>
+            </div>
+        </motion.div>
+    );
+}
+
+function RouteCard({ name, orderCount, onManage, onDelete, onPrintRemitos, onPrintRouteSheet, onPrintPicking, onSettlement }: any) {
+    const [showPrintOptions, setShowPrintOptions] = useState(false);
+
+    return (
+        <div className="tech-card overflow-hidden group">
+            <div className="p-5 flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 shadow-inner">
+                        <Truck size={24} />
+                    </div>
+                    <div>
+                        <h4 className="font-black text-lg group-hover:text-indigo-500 transition-colors">{name}</h4>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{orderCount} entregas</p>
+                    </div>
+                </div>
+                <div className="flex gap-2 relative">
+                    <button
+                        onClick={() => setShowPrintOptions(!showPrintOptions)}
+                        className={`p-2.5 rounded-xl transition-all ${showPrintOptions ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200'}`}
+                        title="Opciones de Impresión"
+                    >
+                        <Printer size={16} />
+                    </button>
+
+                    <AnimatePresence>
+                        {showPrintOptions && (
+                            <>
+                                <motion.div
+                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                    className="fixed inset-0 z-10" onClick={() => setShowPrintOptions(false)}
+                                />
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute right-0 top-12 w-56 bg-white dark:bg-slate-900 border border-[var(--border)] rounded-2xl shadow-2xl z-20 p-2 overflow-hidden"
+                                >
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowPrintOptions(false); onPrintRemitos(); }}
+                                        className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-left group/print"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 group-hover/print:bg-indigo-500 group-hover/print:text-white transition-all">
+                                            <Printer size={14} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-black">Remitos Masivos</p>
+                                            <p className="text-[9px] text-slate-400">Todos los de la ruta</p>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowPrintOptions(false); onPrintPicking(); }}
+                                        className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-left group/print"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 group-hover/print:bg-emerald-500 group-hover/print:text-white transition-all">
+                                            <Package size={14} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-black">Picking List</p>
+                                            <p className="text-[9px] text-slate-400">Consolidado pesables/otros</p>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowPrintOptions(false); onPrintRouteSheet(); }}
+                                        className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-left group/print"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500 group-hover/print:bg-amber-500 group-hover/print:text-white transition-all">
+                                            <MapPin size={14} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-black">Hoja de Ruta</p>
+                                            <p className="text-[9px] text-slate-400">Planilla de control</p>
+                                        </div>
+                                    </button>
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>
+
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                        className="p-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 hover:bg-red-500 hover:text-white transition-all text-red-500"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </div>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 border-t border-[var(--border)] flex justify-between items-center">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                    <MapPin size={12} /> Actualizado recientemente
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={onManage}
+                        className="p-2 px-4 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-tight hover:bg-indigo-500 hover:text-white transition-all"
+                    >
+                        Gestionar
+                    </button>
+                    <button
+                        onClick={onSettlement}
+                        className="px-4 py-2 bg-slate-900 dark:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg"
+                    >
+                        <Check size={14} /> Rendir Ruta
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
