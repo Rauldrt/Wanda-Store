@@ -1,0 +1,10 @@
+{
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Wanda Pro",
+        "supportEmail": "rauldrt5@gmail.com"
+      }
+    }
+  }
+}

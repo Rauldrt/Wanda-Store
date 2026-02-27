@@ -492,7 +492,7 @@ export default function PreventaPage() {
             </div>
             <button
                 onClick={(e) => { e.stopPropagation(); setSelectedClient(c); setIsClientDetailOpen(true); }}
-                className="p-2 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800 text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="p-2 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800 text-indigo-500 transition-opacity"
             >
                 <Store size={16} />
             </button>

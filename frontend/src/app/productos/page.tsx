@@ -806,7 +806,7 @@ function ProductCard({ product, idx, onEdit }: any) {
                 </div>
             </div>
 
-            <div className="bg-slate-50/50 dark:bg-slate-900/30 px-5 py-3 border-t border-[var(--border)] flex justify-between items-center opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 text-slate-400">
+            <div className="bg-slate-50/50 dark:bg-slate-900/30 px-5 py-3 border-t border-[var(--border)] flex justify-between items-center transition-all text-slate-400">
                 <div className="flex gap-4 text-[8px] font-bold text-slate-400 uppercase tracking-widest overflow-hidden">
                     <span className="truncate flex items-center gap-1"><ScaleIcon size={10} /> {totalWeight} Kg Est.</span>
                 </div>
@@ -874,9 +874,9 @@ function ProductRow({ product, onEdit }: any) {
             <td className="px-6 py-4 text-right">
                 <div className="space-y-0.5">
                     <p className="font-black text-sm text-indigo-600">${parseFloat(product.Precio_Unitario || 0).toLocaleString()}</p>
-                    <div className="flex items-center justify-end gap-1.5 grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all">
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Costo:</span>
-                        <span className="text-[9px] font-black text-slate-600 dark:text-slate-300">${product.Costo || 0}</span>
+                    <div className="flex items-center justify-end gap-1.5 transition-all text-slate-500">
+                        <span className="text-[8px] font-bold uppercase tracking-tighter">Costo:</span>
+                        <span className="text-[9px] font-black">${product.Costo || 0}</span>
                     </div>
                 </div>
             </td>
@@ -909,7 +909,7 @@ function ProductRow({ product, onEdit }: any) {
                 </div>
             </td>
             <td className="px-6 py-4 text-center">
-                <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex justify-center gap-2 transition-opacity">
                     <button
                         onClick={() => onEdit(product)}
                         className="p-2.5 rounded-xl bg-[var(--card)] border border-[var(--border)] text-slate-500 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 transition-all shadow-sm active:scale-95"

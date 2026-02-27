@@ -168,7 +168,7 @@ export default function Home() {
                         <p className="font-black text-sm text-indigo-600">${parseFloat(p.total).toLocaleString()}</p>
                       </div>
                       <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900 group-hover:bg-indigo-500 transition-all group-hover:text-white">
-                        <ExternalLink className="w-4 h-4 opacity-50 group-hover:opacity-100" />
+                        <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-white" />
                       </div>
                     </div>
                   </motion.div>
