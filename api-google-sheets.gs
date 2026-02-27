@@ -33,7 +33,8 @@ function doGet(e) {
           products: obtenerCatalogoProductos(),
           clients: getClientes(),
           orders: getPedidosCompletos(),
-          config: obtenerConfiguracion()
+          config: obtenerConfiguracion(),
+          liquidaciones: getLiquidaciones()
         });
       case 'get_config':
         return createResponse(obtenerConfiguracion());
@@ -75,6 +76,8 @@ function doPost(e) {
         return createResponse({ result: guardarCorreccionPedido(data) });
       case 'liquidar_ruta':
         return createResponse({ result: liquidarRuta(data) });
+      case 'revert_liquidacion':
+        return createResponse({ result: revertirLiquidacion(data.id) });
       case 'save_config':
         return createResponse({ result: guardarConfiguracion(data) });
       case 'delete_client':
@@ -512,7 +515,7 @@ function liquidarRuta(data) {
     
     if (!sheetL) {
       sheetL = SS.insertSheet("LIQUIDACIONES");
-      sheetL.appendRow(["ID_LIQ", "FECHA", "REPARTO", "CHOFER", "EFECTIVO", "TRANSF", "GASTOS", "TOTAL_NETO", "OBS"]);
+      sheetL.appendRow(["ID_LIQ", "FECHA", "REPARTO", "CHOFER", "EFECTIVO", "TRANSF", "GASTOS", "TOTAL_NETO", "OBS", "ORDENES_JSON"]);
     }
 
     const liqId = "LIQ-" + new Date().getTime();
@@ -547,7 +550,8 @@ function liquidarRuta(data) {
       transferencia, 
       gastosTotal,
       (efectivo + transferencia) - gastosTotal,
-      data.notas || ""
+      data.notas || "",
+      JSON.stringify({ ordenes: data.ordenes || [] })
     ]);
 
     return "OK";
@@ -644,3 +648,85 @@ function eliminarCliente(id) {
   }
 }
 
+function getLiquidaciones() {
+  const sheet = SS.getSheetByName("LIQUIDACIONES");
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  const startIdx = Math.max(1, data.length - 50); // Get last 50
+  return data.slice(startIdx).map(row => {
+    let ordenesParsed = [];
+    try {
+      if (row[9]) ordenesParsed = JSON.parse(row[9]).ordenes || [];
+    } catch(e) {}
+    return {
+      id_liq: row[0],
+      fecha: row[1],
+      reparto: row[2],
+      chofer: row[3],
+      efectivo: row[4],
+      transf: row[5],
+      gastos: row[6],
+      total_neto: row[7],
+      obs: row[8],
+      ordenes: ordenesParsed
+    };
+  }).reverse();
+}
+
+function revertirLiquidacion(id) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+    const sheetL = SS.getSheetByName("LIQUIDACIONES");
+    if (!sheetL) return "Error: No existe la pestaña LIQUIDACIONES";
+    const dataL = sheetL.getDataRange().getValues();
+    
+    let liqRowIdx = -1;
+    let liqData = null;
+    for (let i = 1; i < dataL.length; i++) {
+      if (String(dataL[i][0]) === String(id)) {
+        liqRowIdx = i + 1;
+        liqData = dataL[i];
+        break;
+      }
+    }
+    if (liqRowIdx === -1) return "Error: Liquidación no encontrada";
+    
+    const reparto = liqData[2];
+    let ordenesJson = [];
+    try {
+      if (liqData[9]) ordenesJson = JSON.parse(liqData[9]).ordenes || [];
+    } catch(e) {}
+    
+    const sheetP = SS.getSheetByName("PEDIDOS");
+    const sheetD = SS.getSheetByName("DETALLE_PEDIDOS");
+    
+    ordenesJson.forEach(ord => {
+       if (ord.estado === 'Rechazado') {
+         // Se sumó al stock, ahora lo restamos
+         const items = obtenerItemsPedido(ord.id, sheetD);
+         actualizarStock(items, -1);
+       }
+       actualizarEstadoDirectoRevert(ord.id, "En Preparación", reparto, sheetP);
+    });
+    
+    sheetL.deleteRow(liqRowIdx);
+    return "OK";
+  } catch(e) {
+    return "Error: " + e.toString();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function actualizarEstadoDirectoRevert(id, status, routeName, sheetP) {
+  const data = sheetP.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      sheetP.getRange(i + 1, 7).setValue(status);
+      sheetP.getRange(i + 1, 9).setValue(routeName);
+      break;
+    }
+  }
+}

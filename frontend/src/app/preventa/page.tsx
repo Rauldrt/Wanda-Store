@@ -12,12 +12,15 @@ import {
     Mic,
     X,
     ChevronUp,
+    ChevronDown,
     CheckCircle2,
     Package,
     Store,
     ImageIcon,
     Trash2,
-    MessageCircle
+    MessageCircle,
+    LayoutList,
+    FolderTree
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
@@ -70,6 +73,8 @@ export default function PreventaPage() {
     const [viewingOrder, setViewingOrder] = useState<any>(null);
     const [activeSearch, setActiveSearch] = useState<'client' | 'product' | null>(null);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
+    const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
     const clientInputRef = useRef<HTMLInputElement>(null);
     const productInputRef = useRef<HTMLInputElement>(null);
     const clientDropdownRef = useRef<HTMLDivElement>(null);
@@ -499,7 +504,24 @@ export default function PreventaPage() {
         </div>
     );
 
-    const productList = filteredProducts.map(p => {
+    const groupedProducts = useMemo(() => {
+        const groups: { [key: string]: typeof filteredProducts } = {};
+        filteredProducts.forEach(p => {
+            const cat = p.Categoria || 'SIN CATEGORIA';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(p);
+        });
+        return Object.keys(groups).sort().reduce((acc, key) => {
+            acc[key] = groups[key];
+            return acc;
+        }, {} as typeof groups);
+    }, [filteredProducts]);
+
+    const toggleCategory = (cat: string) => {
+        setExpandedCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+    };
+
+    const renderProductCard = (p: any) => {
         const pid = String(p.ID_Producto);
         const qty = carrito[pid] || 0;
         const isBulto = !!modoBulto[pid];
@@ -542,9 +564,16 @@ export default function PreventaPage() {
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
-                            <div className="flex items-center gap-1.5 mb-1">
-                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase tracking-wider">{p.Categoria}</span>
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase tracking-wider">{p.Categoria || 'S/C'}</span>
                                 {isKg && <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 uppercase">Pesable</span>}
+                                {parseFloat(p.Stock_Actual || "0") < 1 ? (
+                                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 uppercase">Sin Stock</span>
+                                ) : (
+                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${parseFloat(p.Stock_Actual || "0") <= 10 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
+                                        Stock: {p.Stock_Actual}
+                                    </span>
+                                )}
                             </div>
                             <h3 className="font-bold text-[15px] leading-tight text-slate-800 dark:text-slate-100 line-clamp-2">{p.Nombre}</h3>
                             {isKg && (
@@ -554,13 +583,13 @@ export default function PreventaPage() {
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between mt-3">
-                            <div className="flex flex-col">
-                                <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">${finalPrice.toLocaleString()}</span>
-                                <span className="text-[9px] font-bold text-slate-400 uppercase">{isBulto ? `Bulto (${unitsPerBulk}u)` : unitLabel}</span>
+                        <div className="flex items-center justify-between mt-3 gap-2">
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 truncate">${finalPrice.toLocaleString()}</span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase truncate">{isBulto ? `Bulto (${unitsPerBulk}u)` : unitLabel}</span>
                             </div>
 
-                            <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-800 p-1 rounded-2xl">
+                            <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-800 p-1 rounded-2xl shrink-0">
                                 {qty > 0 ? (
                                     <>
                                         <button onClick={() => updateQty(pid, -1)} className="w-9 h-9 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
@@ -595,7 +624,44 @@ export default function PreventaPage() {
                 )}
             </div>
         );
-    });
+    };
+
+    const contentToRender = viewMode === 'list'
+        ? filteredProducts.map(renderProductCard)
+        : Object.entries(groupedProducts).map(([cat, prods]) => {
+            const isExpanded = expandedCategories.includes(cat);
+            return (
+                <div key={cat} className="mb-4">
+                    <button
+                        onClick={() => toggleCategory(cat)}
+                        className="w-full bg-white dark:bg-slate-900 py-3 px-4 mb-2 text-[12px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-[0.2em] border border-indigo-100 dark:border-indigo-900/30 shadow-sm rounded-[20px] flex justify-between items-center transition-all active:scale-95"
+                    >
+                        <div className="flex items-center gap-2">
+                            <FolderTree size={16} className="text-indigo-400" />
+                            {cat}
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="opacity-80 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full text-[10px] tracking-widest">{prods.length}</span>
+                            <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </div>
+                    </button>
+                    <AnimatePresence>
+                        {isExpanded && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="grid grid-cols-1 gap-4 pt-2 pb-4">
+                                    {prods.map(renderProductCard)}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )
+        });
 
     const cartItemList = Object.entries(carrito).map(([id, qty]) => {
         const p = products.find(prod => String(prod.ID_Producto) === String(id));
@@ -651,7 +717,7 @@ export default function PreventaPage() {
                 )}
             </AnimatePresence>
 
-            <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 p-4 shadow-sm border-b border-black/5">
+            <header className="bg-white dark:bg-slate-900 pt-4 px-4 pb-0">
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white">
@@ -675,13 +741,15 @@ export default function PreventaPage() {
                         <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
                     </div>
                 </div>
+            </header>
 
+            <div className="sticky top-0 z-40 bg-white dark:bg-slate-900 px-4 pt-4 pb-4 border-b border-black/5 shadow-sm">
                 <div className="flex items-center gap-2">
                     <motion.div
                         layout
                         initial={false}
                         animate={{ flex: activeSearch === 'client' ? 3 : (activeSearch === 'product' ? 0.3 : 1) }}
-                        transition={{ type: "spring", damping: 25, stiffness: 120 }}
+                        transition={{ type: "spring", damping: 20, stiffness: 300 }}
                         className="relative"
                         ref={clientDropdownRef}
                     >
@@ -727,7 +795,7 @@ export default function PreventaPage() {
                         layout
                         initial={false}
                         animate={{ flex: activeSearch === 'product' ? 3 : (activeSearch === 'client' ? 0.3 : 1) }}
-                        transition={{ type: "spring", damping: 25, stiffness: 120 }}
+                        transition={{ type: "spring", damping: 20, stiffness: 300 }}
                         onClick={() => { setActiveSearch('product'); productInputRef.current?.focus(); }}
                         className={`flex items-center gap-2 p-3.5 rounded-[28px] border transition-all cursor-pointer ${activeSearch === 'product' ? 'border-indigo-500 bg-indigo-50/50' : 'bg-slate-100 dark:bg-slate-800 border-transparent shadow-sm'}`}
                     >
@@ -749,8 +817,10 @@ export default function PreventaPage() {
                         )}
                     </motion.div>
                 </div>
+            </div>
 
-                <div className="mt-4 px-1">
+            <div className="pt-4 px-4 max-w-full overflow-hidden">
+                <div className="px-1">
                     <div className="flex overflow-x-auto gap-3 pb-3 no-scrollbar snap-x snap-mandatory">
                         {carouselBanners.map((banner) => (
                             <motion.div
@@ -762,7 +832,7 @@ export default function PreventaPage() {
                                     width: expandedBanner === banner.id ? '280px' : '140px',
                                     height: expandedBanner === banner.id ? '110px' : '64px'
                                 }}
-                                transition={{ type: "spring", damping: 25, stiffness: 120 }}
+                                transition={{ type: "spring", damping: 20, stiffness: 300 }}
                                 className={`snap-start flex-shrink-0 flex items-center gap-3 p-3 rounded-[28px] ${banner.color} text-white cursor-pointer shadow-lg shadow-black/5 relative overflow-hidden`}
                             >
                                 <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">
@@ -791,11 +861,36 @@ export default function PreventaPage() {
                         ))}
                     </div>
                 </div>
-            </header>
+            </div>
 
-            <main className="flex-1 p-4 pb-32 space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                    {productList}
+            <main className="flex-1 p-4 pb-32">
+                <div className="flex justify-between items-center mb-4 px-2">
+                    <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {filteredProducts.length} Productos
+                    </h2>
+                    <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-[16px] flex gap-1 shadow-inner">
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-2 rounded-[12px] transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600' : 'text-slate-400'}`}
+                        >
+                            <LayoutList size={16} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('grouped')}
+                            className={`p-2 rounded-[12px] transition-all ${viewMode === 'grouped' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600' : 'text-slate-400'}`}
+                        >
+                            <FolderTree size={16} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className={viewMode === 'list' ? "grid grid-cols-1 gap-4" : ""}>
+                    {contentToRender.length > 0 ? contentToRender : (
+                        <div className="p-10 text-center text-slate-400 flex flex-col items-center gap-2">
+                            <Search size={32} className="opacity-20" />
+                            <p className="text-xs font-bold uppercase tracking-widest mt-2 justify-center">No se encontraron productos</p>
+                        </div>
+                    )}
                 </div>
             </main>
 
@@ -1107,6 +1202,6 @@ export default function PreventaPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 }

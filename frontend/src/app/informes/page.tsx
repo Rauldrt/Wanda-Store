@@ -58,55 +58,50 @@ export default function InformesPage() {
         filteredOrders.forEach((order: any) => {
             const revenue = parseFloat(order.total) || 0;
 
-            if (order.estado === 'Cancelado') {
+            if (order.estado === 'Cancelado' || order.estado === 'Rechazado') {
                 cancelledRevenue += revenue;
                 return;
             }
 
-            if (order.estado !== 'Entregado') {
-                pendingRevenue += revenue;
-            }
+            const isFinalized = order.estado === 'Entregado' || order.estado === 'Entregado Parcial';
 
-            if (order.estado === 'Entregado' || order.estado === 'En Preparación' || !order.reparto) {
+            if (!isFinalized) {
+                pendingRevenue += revenue;
+            } else {
                 totalRevenue += revenue;
 
                 // Intentar calcular costos basados en el listado de productos de la DB
-                // Asumimos que guardamos el detalle_pedido o lo extrapolamos si está disponible
-                // Para este caso, vamos a simular un costo promedio del 60% si no tenemos el dato exacto 
-                // del costo en el pedido mismo.
                 let costForOrder = 0;
                 let hasDetails = false;
 
                 try {
-                    if (order.detalle_pedido) {
-                        const items = JSON.parse(order.detalle_pedido);
-                        items.forEach((item: any) => {
-                            hasDetails = true;
-                            // Buscar el producto en el catálogo para sacar su costo_promedio o usar un % estimado
-                            const prodInfo = products.find((p: any) => p.ID_Producto === item.id);
-                            const unitCost = prodInfo && parseFloat(prodInfo.Costo_Promedio) > 0
-                                ? parseFloat(prodInfo.Costo_Promedio)
-                                : (item.precio * 0.6); // 60% estimado si no hay costo
+                    if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+                        hasDetails = true;
+                        order.items.forEach((item: any) => {
+                            // Buscar el producto en el catálogo para sacar su Costo o usar un % estimado
+                            const prodInfo = products.find((p: any) => String(p.ID_Producto) === String(item.id_prod || item.id));
+                            const costoPro = prodInfo && prodInfo.Costo ? parseFloat(prodInfo.Costo) : 0;
+                            const unitCost = costoPro > 0 ? costoPro : (item.precio * 0.6); // 60% estimado si no hay costo definido
 
                             const itemCosto = unitCost * item.cantidad;
-
                             costForOrder += itemCosto;
 
-                            // Acumular ventas por producto
-                            if (!productSales[item.id]) {
-                                productSales[item.id] = { name: item.nombre, qty: 0, revenue: 0, totalCost: 0, unitCost: unitCost };
+                            const itemKey = item.id_prod || item.id || 'N/A';
+                            // Acumular ventas por producto (SOLO para pedidos finalizados/entregados)
+                            if (!productSales[itemKey]) {
+                                productSales[itemKey] = { name: item.nombre || 'Desconocido', qty: 0, revenue: 0, totalCost: 0, unitCost: unitCost };
                             }
-                            productSales[item.id].qty += item.cantidad;
-                            productSales[item.id].revenue += (item.precio * item.cantidad);
-                            productSales[item.id].totalCost += itemCosto;
+                            productSales[itemKey].qty += item.cantidad;
+                            productSales[itemKey].revenue += (item.precio * item.cantidad);
+                            productSales[itemKey].totalCost += itemCosto;
                         });
                     }
                 } catch (e) {
-                    console.error("Error al parsear detalle del pedido", e);
+                    console.error("Error al procesar detalle del pedido", e);
                 }
 
                 if (!hasDetails) {
-                    costForOrder = revenue * 0.6; // Valor estimado por defecto
+                    costForOrder = revenue * 0.6; // Valor estimado por defecto si no tenemos ítems
                 }
 
                 totalCost += costForOrder;

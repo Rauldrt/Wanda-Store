@@ -42,4 +42,5 @@ export const wandaApi = {
     liberarReparto: (reparto: string) => fetchGS('liberar_reparto', { reparto }),
     saveOrderCorrection: (order: any) => fetchGS('guardar_correccion_pedido', order),
     liquidarRuta: (data: any) => fetchGS('liquidar_ruta', data),
+    revertLiquidacion: (id: string) => fetchGS('revert_liquidacion', { id }),
 };

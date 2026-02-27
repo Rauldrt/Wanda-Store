@@ -48,9 +48,10 @@ export default function LogisticaPage() {
     const orders: any[] = data?.orders || [];
     const products: any[] = data?.products || [];
     const clients: any[] = data?.clients || [];
+    const liquidaciones: any[] = data?.liquidaciones || [];
 
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-    const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas'>('pendientes');
+    const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial'>('pendientes');
     const [editingRoute, setEditingRoute] = useState<string | null>(null);
     const [settlingRoute, setSettlingRoute] = useState<string | null>(null);
     const [viewingDetailId, setViewingDetailId] = useState<string | null>(null);
@@ -548,12 +549,18 @@ export default function LogisticaPage() {
                     >
                         Hojas de Ruta ({routeNames.length})
                     </button>
+                    <button
+                        onClick={() => setActiveTab('historial')}
+                        className={`px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'historial' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
+                    >
+                        Historial ({liquidaciones.length})
+                    </button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <div className="lg:col-span-3 space-y-4">
-                    {activeTab === 'pendientes' ? (
+                    {activeTab === 'pendientes' && (
                         <>
                             <div className="bg-[var(--card)] border border-[var(--border)] p-4 rounded-2xl shadow-sm space-y-4 mb-6">
                                 <div className="flex flex-col md:flex-row gap-4">
@@ -765,7 +772,9 @@ export default function LogisticaPage() {
                                 </div>
                             )}
                         </>
-                    ) : (
+                    )}
+
+                    {activeTab === 'rutas' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {routeNames.map(routeName => (
                                 <RouteCard
@@ -780,6 +789,37 @@ export default function LogisticaPage() {
                                     onSettlement={() => setSettlingRoute(routeName as string)}
                                 />
                             ))}
+                        </div>
+                    )}
+
+                    {activeTab === 'historial' && (
+                        <div className="space-y-4">
+                            {liquidaciones.length === 0 ? (
+                                <div className="p-8 text-center text-slate-500 bg-[var(--card)] rounded-2xl border border-[var(--border)]">
+                                    No hay liquidaciones en el historial.
+                                </div>
+                            ) : (
+                                liquidaciones.map((liq) => (
+                                    <SettlementHistoryCard
+                                        key={liq.id_liq}
+                                        liquidacion={liq}
+                                        onRevert={async () => {
+                                            if (!confirm(`¿Estás seguro de REVERTIR la liquidación ${liq.id_liq}? Esto restaurará los estados de los pedidos y borrará este registro.`)) return;
+                                            try {
+                                                const res = await wandaApi.revertLiquidacion(liq.id_liq);
+                                                if (res.result === 'OK') {
+                                                    alert("Liquidación revertida con éxito.");
+                                                    refreshData(true);
+                                                } else {
+                                                    alert("Error al revertir: " + JSON.stringify(res));
+                                                }
+                                            } catch (e) {
+                                                alert("Error de conexión");
+                                            }
+                                        }}
+                                    />
+                                ))
+                            )}
                         </div>
                     )}
                 </div>
@@ -1364,12 +1404,12 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             };
 
             const res = await wandaApi.liquidarRuta(payload);
-            if (res === 'OK') {
+            if (res.result === 'OK') {
                 alert("Ruta liquidada con éxito");
                 onRefresh();
                 onClose();
             } else {
-                alert("Error al liquidar: " + res);
+                alert("Error al liquidar: " + (res.error || res.result || JSON.stringify(res)));
             }
         } catch (err) {
             console.error(err);
@@ -2037,6 +2077,48 @@ function RouteCard({ name, orderCount, onManage, onDelete, onPrintRemitos, onPri
                         <Check size={14} /> Rendir Ruta
                     </button>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, onRevert: () => void }) {
+    return (
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden p-6 gap-4 flex flex-col sm:flex-row sm:items-center justify-between transition-all hover:bg-slate-50 dark:hover:bg-slate-900/50">
+            <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-black px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 rounded-lg">{liquidacion.id_liq}</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(liquidacion.fecha).toLocaleString()}</span>
+                </div>
+                <h4 className="font-black text-lg">{liquidacion.reparto} {liquidacion.chofer ? `- ${liquidacion.chofer}` : ''}</h4>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold mt-2">
+                    <Package size={14} className="text-slate-400" />
+                    {liquidacion.ordenes?.length || 0} Registros afectados
+                </div>
+                {liquidacion.obs && (
+                    <div className="text-xs text-slate-500 mt-2 bg-orange-50 dark:bg-orange-500/10 p-2 rounded-lg inline-block text-orange-600 dark:text-orange-400">
+                        <b>Obs:</b> {liquidacion.obs}
+                    </div>
+                )}
+            </div>
+
+            <div className="flex flex-col items-end gap-2">
+                <div className="flex gap-4">
+                    <div className="text-right">
+                        <p className="text-[10px] uppercase text-slate-400 font-bold mb-1 border-b border-[var(--border)] pb-1">Efectivo</p>
+                        <p className="text-sm font-black text-emerald-600">${parseFloat(liquidacion.efectivo || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[10px] uppercase text-slate-400 font-bold mb-1 border-b border-[var(--border)] pb-1">Total Neto</p>
+                        <p className="text-sm font-black text-indigo-600">${parseFloat(liquidacion.total_neto || 0).toLocaleString()}</p>
+                    </div>
+                </div>
+                <button
+                    onClick={onRevert}
+                    className="mt-2 px-4 py-2 bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                >
+                    <RotateCcw size={14} /> Revertir Liquidación
+                </button>
             </div>
         </div>
     );
