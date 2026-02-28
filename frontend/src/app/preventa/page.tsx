@@ -49,7 +49,16 @@ type Client = {
 
 export default function PreventaPage() {
     const { data } = useData();
-    const products: Product[] = data?.products || [];
+    const products: Product[] = useMemo(() => {
+        let prods = data?.products || [];
+        const config = data?.config || {};
+        const hideLowPrice = config.HIDE_LOW_PRICE === 'true' || config.HIDE_LOW_PRICE === true;
+        const hideNoStock = config.HIDE_NO_STOCK === 'true' || config.HIDE_NO_STOCK === true;
+
+        if (hideLowPrice) prods = prods.filter((p: any) => parseFloat(p.Precio_Unitario || 0) >= 1);
+        if (hideNoStock) prods = prods.filter((p: any) => parseFloat(p.Stock_Actual || 0) > 0);
+        return prods;
+    }, [data]);
     const clients: Client[] = data?.clients || [];
 
     const [searchTerm, setSearchTerm] = useState("");

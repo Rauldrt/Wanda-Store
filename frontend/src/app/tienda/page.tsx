@@ -30,7 +30,16 @@ import { useRouter } from "next/navigation";
 export default function TiendaOnlinePage() {
     const { data } = useData();
     const router = useRouter();
-    const products: any[] = data?.products || [];
+    const products: any[] = useMemo(() => {
+        let prods = data?.products || [];
+        const config = data?.config || {};
+        const hideLowPrice = config.HIDE_LOW_PRICE === 'true' || config.HIDE_LOW_PRICE === true;
+        const hideNoStock = config.HIDE_NO_STOCK === 'true' || config.HIDE_NO_STOCK === true;
+
+        if (hideLowPrice) prods = prods.filter((p: any) => parseFloat(p.Precio_Unitario || 0) >= 1);
+        if (hideNoStock) prods = prods.filter((p: any) => parseFloat(p.Stock_Actual || 0) > 0);
+        return prods;
+    }, [data]);
 
     const [searchTerm, setSearchTerm] = useState("");
     const deferredSearchTerm = useDeferredValue(searchTerm);

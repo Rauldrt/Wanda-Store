@@ -80,6 +80,10 @@ function doPost(e) {
         return createResponse({ result: revertirLiquidacion(data.id) });
       case 'save_config':
         return createResponse({ result: guardarConfiguracion(data) });
+      case 'delete_product':
+        return createResponse({ result: eliminarProducto(data.id) });
+      case 'bulk_update_products':
+        return createResponse({ result: guardarCambiosMasivosProductos(data) });
       case 'delete_client':
         return createResponse({ result: eliminarCliente(data.id) });
       default:

@@ -84,6 +84,23 @@ export default function ProductosPage() {
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: 'Nombre', direction: 'asc' });
     const [quickStatus, setQuickStatus] = useState<'all' | 'no_stock' | 'low_margin' | 'weighable'>('all');
 
+    // Nuevos filtros de ocultamiento globales
+    const config = data?.config || {};
+    const [hideLowPrice, setHideLowPrice] = useState(config.HIDE_LOW_PRICE === 'true' || config.HIDE_LOW_PRICE === true);
+    const [hideNoStock, setHideNoStock] = useState(config.HIDE_NO_STOCK === 'true' || config.HIDE_NO_STOCK === true);
+
+    const handleToggleHideLowPrice = async (checked: boolean) => {
+        setHideLowPrice(checked);
+        await wandaApi.saveConfig({ HIDE_LOW_PRICE: checked });
+        refreshData(true);
+    };
+
+    const handleToggleHideNoStock = async (checked: boolean) => {
+        setHideNoStock(checked);
+        await wandaApi.saveConfig({ HIDE_NO_STOCK: checked });
+        refreshData(true);
+    };
+
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
@@ -105,6 +122,10 @@ export default function ProductosPage() {
                 matchesStatus = m < 15;
             }
             if (quickStatus === 'weighable') matchesStatus = p.Unidad === 'Kg';
+
+            // Criterios de ocultamiento
+            if (hideLowPrice && parseFloat(p.Precio_Unitario || 0) < 1) return false;
+            if (hideNoStock && parseFloat(p.Stock_Actual || 0) <= 0) return false;
 
             return matchesSearch && matchesCat && matchesStatus;
         });
@@ -131,7 +152,7 @@ export default function ProductosPage() {
             });
         }
         return result;
-    }, [products, searchTerm, categoryFilter, quickStatus, sortConfig]);
+    }, [products, searchTerm, categoryFilter, quickStatus, sortConfig, hideLowPrice, hideNoStock]);
 
     // KPIs de Inventario
     const stats = useMemo(() => {
@@ -533,6 +554,31 @@ export default function ProductosPage() {
                                 <btn.icon size={12} className="hidden xs:block" /> {btn.label}
                             </button>
                         ))}
+                    </div>
+
+                    {/* Toggles de Ocultamiento */}
+                    <div className="flex w-full sm:w-auto items-center gap-4 bg-[var(--card)] border border-[var(--border)] p-1.5 rounded-2xl shadow-sm px-4">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">Ocultar:</span>
+
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                            <div className="relative flex items-center">
+                                <input type="checkbox" className="sr-only" checked={hideLowPrice} onChange={(e) => handleToggleHideLowPrice(e.target.checked)} />
+                                <div className={`block w-6 h-3.5 rounded-full transition-colors ${hideLowPrice ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
+                                <div className={`absolute left-0.5 w-2.5 h-2.5 bg-white rounded-full transition-transform ${hideLowPrice ? 'translate-x-[10px]' : 'translate-x-0'}`}></div>
+                            </div>
+                            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 group-hover:text-rose-500 transition-colors">Menor a $1</span>
+                        </label>
+
+                        <div className="w-[1px] h-3 bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                            <div className="relative flex items-center">
+                                <input type="checkbox" className="sr-only" checked={hideNoStock} onChange={(e) => handleToggleHideNoStock(e.target.checked)} />
+                                <div className={`block w-6 h-3.5 rounded-full transition-colors ${hideNoStock ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
+                                <div className={`absolute left-0.5 w-2.5 h-2.5 bg-white rounded-full transition-transform ${hideNoStock ? 'translate-x-[10px]' : 'translate-x-0'}`}></div>
+                            </div>
+                            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 group-hover:text-rose-500 transition-colors">Sin Stock</span>
+                        </label>
                     </div>
 
                     <div className="flex w-full sm:w-auto items-center gap-2 bg-[var(--card)] border border-[var(--border)] p-1.5 rounded-2xl shadow-sm text-slate-800 dark:text-slate-100">
