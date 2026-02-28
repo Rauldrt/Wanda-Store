@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useDeferredValue } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search,
@@ -33,6 +33,7 @@ export default function TiendaOnlinePage() {
     const products: any[] = data?.products || [];
 
     const [searchTerm, setSearchTerm] = useState("");
+    const deferredSearchTerm = useDeferredValue(searchTerm);
     const [carrito, setCarrito] = useState<{ [key: string]: number }>({});
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -156,13 +157,22 @@ export default function TiendaOnlinePage() {
         return banners;
     }, [data, products]);
 
-    const normalizeText = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const normalizeText = (text: string) => String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const smartSearch = (text: string, query: string) => {
+        if (!query) return true;
+        const normText = normalizeText(text);
+        const terms = normalizeText(query).split(/\s+/).filter(t => t.length > 0);
+        return terms.every(t => normText.includes(t));
+    };
 
     const filteredProducts = useMemo(() => {
-        if (!searchTerm) return products;
-        const normQuery = normalizeText(searchTerm);
-        return products.filter(p => normalizeText(p.Nombre).includes(normQuery) || normalizeText(p.Categoria).includes(normQuery));
-    }, [products, searchTerm]);
+        if (!deferredSearchTerm) return products;
+        return products.filter(p => {
+            const searchPayload = `${p.Nombre} ${p.Categoria || ''} ${p.Nota_Oferta || ''}`;
+            return smartSearch(searchPayload, deferredSearchTerm);
+        });
+    }, [products, deferredSearchTerm]);
 
     const addToCart = (id: string, qty: number = 1) => {
         setCarrito(prev => ({ ...prev, [id]: (prev[id] || 0) + qty }));

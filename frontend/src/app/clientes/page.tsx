@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import {
     Users,
     Search,
@@ -48,6 +48,7 @@ export default function ClientesPage() {
 
     // Estados principales
     const [searchTerm, setSearchTerm] = useState("");
+    const deferredSearchTerm = useDeferredValue(searchTerm);
     const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('list');
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [drawerMode, setDrawerMode] = useState<'view' | 'edit' | 'create'>('view');
@@ -62,7 +63,7 @@ export default function ClientesPage() {
     const filteredClients = useMemo(() => {
         return clients.filter((c: any) => {
             const searchPayload = `${c.Nombre_Negocio} ${c.ID_Cliente} ${c.Direccion} ${c.Zona} ${c.Contacto}`;
-            const matchesSearch = smartSearch(searchPayload, searchTerm);
+            const matchesSearch = smartSearch(searchPayload, deferredSearchTerm);
 
             if (activeFilter === 'no_gps') return matchesSearch && !c.Coordenadas_GPS;
             if (activeFilter === 'recent') {
@@ -72,7 +73,7 @@ export default function ClientesPage() {
             }
             return matchesSearch;
         });
-    }, [clients, searchTerm, activeFilter, orders]);
+    }, [clients, deferredSearchTerm, activeFilter, orders]);
 
     // Estadísticas
     const stats = {

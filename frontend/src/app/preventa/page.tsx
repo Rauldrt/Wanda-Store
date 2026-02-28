@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useDeferredValue } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search,
@@ -53,7 +53,9 @@ export default function PreventaPage() {
     const clients: Client[] = data?.clients || [];
 
     const [searchTerm, setSearchTerm] = useState("");
+    const deferredSearchTerm = useDeferredValue(searchTerm);
     const [clientSearch, setClientSearch] = useState("");
+    const deferredClientSearch = useDeferredValue(clientSearch);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
     const [carrito, setCarrito] = useState<{ [key: string]: number }>({});
@@ -216,17 +218,17 @@ export default function PreventaPage() {
     const filteredProducts = useMemo(() => {
         return products.filter(p => {
             const payload = [p.Nombre, p.Categoria, p.ID_Producto].join(" ");
-            return smartSearch(payload, searchTerm);
+            return smartSearch(payload, deferredSearchTerm);
         });
-    }, [products, searchTerm]);
+    }, [products, deferredSearchTerm]);
 
     const filteredClients = useMemo(() => {
-        if (!clientSearch && !isClientDropdownOpen) return [];
+        if (!deferredClientSearch && !isClientDropdownOpen) return [];
         return allClients.filter(c => {
             const payload = [c.Nombre_Negocio, c.Dueño, c.Direccion, c.ID_Cliente].join(" ");
-            return smartSearch(payload, clientSearch);
+            return smartSearch(payload, deferredClientSearch);
         });
-    }, [allClients, clientSearch, isClientDropdownOpen]);
+    }, [allClients, deferredClientSearch, isClientDropdownOpen]);
 
     const updateQty = (id: string, delta: number) => {
         setCarrito(prev => {
