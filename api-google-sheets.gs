@@ -408,8 +408,12 @@ function procesarPedido(datos) {
     }
     
     let notas = datos.notas || "";
-    if (datos.cliente.Email) {
-       notas = "[ONLINE: " + datos.cliente.Email + "] " + notas;
+    if (datos.cliente.Es_Online) {
+       notas = "[ONLINE] " + 
+               " Tel: " + (datos.cliente.Telefono || "-") + 
+               " | Dir: " + (datos.cliente.Direccion || "-") + 
+               " | GPS: " + (datos.cliente.Ubicacion || "-") + 
+               " | Notas: " + notas;
     }
     
     sheetP.appendRow([idPedido, new Date(), clienteId, clienteNombre, datos.vendedor || "Web", datos.total, "Pendiente", notas, ""]);

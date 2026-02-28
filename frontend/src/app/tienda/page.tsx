@@ -18,7 +18,10 @@ import {
     Trash2,
     MessageCircle,
     LogOut,
-    ShoppingBag
+    ShoppingBag,
+    MapPin,
+    Settings,
+    LocateFixed
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
@@ -33,6 +36,7 @@ export default function TiendaOnlinePage() {
     const [carrito, setCarrito] = useState<{ [key: string]: number }>({});
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [modoBulto, setModoBulto] = useState<{ [key: string]: boolean }>({});
@@ -47,6 +51,38 @@ export default function TiendaOnlinePage() {
         photo: ""
     });
 
+    const [checkoutData, setCheckoutData] = useState({
+        telefono: "",
+        direccion: "",
+        ubicacion: ""
+    });
+
+    const [isLocating, setIsLocating] = useState(false);
+
+    const handleGetLocation = () => {
+        if (!navigator.geolocation) {
+            alert("Tu navegador no soporta geolocalización.");
+            return;
+        }
+
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+                setCheckoutData(prev => ({ ...prev, ubicacion: mapsLink }));
+                localStorage.setItem("user_location", mapsLink);
+                setIsLocating(false);
+            },
+            (error) => {
+                console.error(error);
+                alert("No pudimos obtener tu ubicación. Asegúrate de permitir el acceso en tu navegador.");
+                setIsLocating(false);
+            },
+            { enableHighAccuracy: true }
+        );
+    };
+
     useEffect(() => {
         const role = localStorage.getItem("user_role");
         if (role !== "cliente") {
@@ -58,6 +94,12 @@ export default function TiendaOnlinePage() {
             name: localStorage.getItem("user_name") || "Cliente Online",
             email: localStorage.getItem("user_email") || "",
             photo: localStorage.getItem("user_photo") || ""
+        });
+
+        setCheckoutData({
+            telefono: localStorage.getItem("user_phone") || "",
+            direccion: localStorage.getItem("user_address") || "",
+            ubicacion: localStorage.getItem("user_location") || ""
         });
 
         const savedHistory = localStorage.getItem("order_history_online");
@@ -153,13 +195,27 @@ export default function TiendaOnlinePage() {
 
     const handleConfirmOrder = async () => {
         if (Object.keys(carrito).length === 0) return;
+
+        if (!checkoutData.telefono || !checkoutData.direccion || !checkoutData.ubicacion) {
+            alert("Por favor, completa tu teléfono, dirección y ubicación para el envío.");
+            return;
+        }
+
         setIsSubmitting(true);
+
+        // Guardar para futuros pedidos
+        localStorage.setItem("user_phone", checkoutData.telefono);
+        localStorage.setItem("user_address", checkoutData.direccion);
+        localStorage.setItem("user_location", checkoutData.ubicacion);
 
         const orderData = {
             cliente: {
                 ID_Cliente: "ONLINE",
                 Nombre_Negocio: userInfo.name,
                 Email: userInfo.email,
+                Telefono: checkoutData.telefono,
+                Direccion: checkoutData.direccion,
+                Ubicacion: checkoutData.ubicacion,
                 Es_Online: true
             },
             items: Object.entries(carrito).map(([id, qty]) => {
@@ -243,10 +299,13 @@ export default function TiendaOnlinePage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => setIsHistoryOpen(true)} className="w-11 h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500">
+                    <button onClick={() => setIsProfileOpen(true)} className="w-11 h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-500 transition-colors">
+                        <Settings size={20} />
+                    </button>
+                    <button onClick={() => setIsHistoryOpen(true)} className="w-11 h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
                         <Clock size={20} />
                     </button>
-                    <button onClick={logout} className="w-11 h-11 rounded-full bg-rose-50 dark:bg-rose-900/10 flex items-center justify-center text-rose-500">
+                    <button onClick={logout} className="w-11 h-11 rounded-full bg-rose-50 dark:bg-rose-900/10 flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-colors">
                         <LogOut size={20} />
                     </button>
                 </div>
@@ -464,6 +523,31 @@ export default function TiendaOnlinePage() {
                             </div>
 
                             <div className="pt-8 border-t border-slate-100 dark:border-slate-800 space-y-6">
+                                {/* Datos de envío */}
+                                <div className="space-y-4 bg-slate-50 dark:bg-slate-800 p-5 rounded-[28px]">
+                                    <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest flex items-center gap-2 mb-4"><MapPin size={16} /> Datos de Entrega</h3>
+
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Teléfono / WhatsApp</label>
+                                            <input type="tel" value={checkoutData.telefono} onChange={e => setCheckoutData({ ...checkoutData, telefono: e.target.value })} placeholder="Ej. 3764 123456" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Dirección de Entrega</label>
+                                            <input type="text" value={checkoutData.direccion} onChange={e => setCheckoutData({ ...checkoutData, direccion: e.target.value })} placeholder="Calle y Número, Barrio" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ubicación Geográfica (GPS)</label>
+                                            <div className="flex gap-2">
+                                                <input type="text" value={checkoutData.ubicacion} readOnly placeholder="Ubicación no establecida" className="flex-1 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl px-4 py-3 text-sm font-bold text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap outline-none cursor-default" />
+                                                <button onClick={handleGetLocation} disabled={isLocating} className="bg-indigo-500 text-white p-3 rounded-xl flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 min-w-[3rem] transition-colors">
+                                                    {isLocating ? <Loader2 className="animate-spin" size={20} /> : <LocateFixed size={20} />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="flex justify-between items-center px-2">
                                     <span className="text-sm font-black uppercase text-slate-400 tracking-widest">Total a pagar</span>
                                     <span className="text-4xl font-black text-slate-900 dark:text-white">${cartTotal.toLocaleString()}</span>
@@ -476,6 +560,72 @@ export default function TiendaOnlinePage() {
                                     {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />}
                                     {isSubmitting ? "Procesando..." : "Confirmar mi Pedido"}
                                 </button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Profile Sliding Panel */}
+            <AnimatePresence>
+                {isProfileOpen && (
+                    <>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsProfileOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80]" />
+                        <motion.div
+                            initial={{ x: "100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "100%" }}
+                            className="fixed inset-y-0 right-0 w-full max-w-sm bg-slate-50 dark:bg-slate-950 z-[90] shadow-2xl flex flex-col"
+                        >
+                            <div className="p-8 flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+                                <h2 className="text-xl font-black flex items-center gap-3"><Settings size={24} className="text-indigo-500" /> Mi Perfil</h2>
+                                <button onClick={() => setIsProfileOpen(false)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500"><X size={20} /></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                                <div className="flex flex-col items-center gap-4 text-center">
+                                    {userInfo.photo ? (
+                                        <img src={userInfo.photo} className="w-24 h-24 rounded-full border-4 border-indigo-500/20 shadow-md" alt="User" />
+                                    ) : (
+                                        <div className="w-24 h-24 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                                            <User size={40} />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <h3 className="text-lg font-black text-slate-900 dark:text-white">{userInfo.name}</h3>
+                                        <p className="text-sm font-bold text-slate-400">{userInfo.email}</p>
+                                    </div>
+                                </div>
+                                <div className="space-y-4 bg-white dark:bg-slate-900 p-6 rounded-[28px] shadow-sm border border-slate-100 dark:border-slate-800">
+                                    <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest flex items-center gap-2 mb-4"><MapPin size={16} /> Mis Datos Frecuentes</h3>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Teléfono / WhatsApp</label>
+                                        <input type="tel" value={checkoutData.telefono} onChange={e => {
+                                            const newVal = e.target.value;
+                                            setCheckoutData(prev => ({ ...prev, telefono: newVal }));
+                                            localStorage.setItem("user_phone", newVal);
+                                        }} placeholder="Ej. 3764 123456" className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Dirección de Entrega</label>
+                                        <input type="text" value={checkoutData.direccion} onChange={e => {
+                                            const newVal = e.target.value;
+                                            setCheckoutData(prev => ({ ...prev, direccion: newVal }));
+                                            localStorage.setItem("user_address", newVal);
+                                        }} placeholder="Calle y Número, Barrio" className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ubicación Geográfica (GPS)</label>
+                                        <div className="flex gap-2">
+                                            <input type="text" value={checkoutData.ubicacion} readOnly placeholder="Ubicación no establecida" className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap outline-none cursor-default" />
+                                            <button onClick={handleGetLocation} disabled={isLocating} className="bg-indigo-500 text-white p-3 rounded-xl flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 min-w-[3rem] transition-colors">
+                                                {isLocating ? <Loader2 className="animate-spin" size={20} /> : <LocateFixed size={20} />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 text-center font-bold mt-4 leading-relaxed">
+                                        Estos datos se guardan en tu dispositivo y se usarán para autocompletar tus próximos pedidos.
+                                    </p>
+                                </div>
                             </div>
                         </motion.div>
                     </>

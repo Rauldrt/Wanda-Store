@@ -1138,6 +1138,12 @@ export default function PreventaPage() {
                             </div>
 
                             <div className="flex-1 overflow-y-auto space-y-3 pb-6">
+                                {viewingOrder.notas && (
+                                    <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-500/10 rounded-3xl border border-orange-100 dark:border-orange-500/20">
+                                        <p className="text-[10px] text-orange-400 font-bold uppercase mb-1">Notas / Detalles Delivery</p>
+                                        <p className="text-sm font-black text-orange-600 dark:text-orange-400">{viewingOrder.notas}</p>
+                                    </div>
+                                )}
                                 {viewingOrder.items.map((item: any, idx: number) => (
                                     <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-4 rounded-3xl">
                                         <div className="flex flex-col gap-0.5">

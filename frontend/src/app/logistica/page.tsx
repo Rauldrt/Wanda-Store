@@ -219,6 +219,7 @@ export default function LogisticaPage() {
                                     <div class="info-block">
                                         <div><strong>CLIENTE:</strong> ${order.cliente_nombre}</div>
                                         <div><strong>DIRECCIÓN:</strong> ${order.direccion || 'Sin dirección registrada'}</div>
+                                        ${order.notas ? `<div style="margin-top:2px;font-size:9px;color:#d97706;"><strong>NOTAS:</strong> ${order.notas}</div>` : ''}
                                     </div>
                                 </div>
                                 <table>
@@ -491,6 +492,7 @@ export default function LogisticaPage() {
                                 <td>
                                     <div style="font-weight: 900; font-size: 11px; line-height: 1;">${order.cliente_nombre}</div>
                                     <div style="color: #64748b; font-size: 9px; margin-top: 1px;">${order.direccion || 'Sin dirección'}</div>
+                                    ${order.notas ? `<div style="color: #d97706; font-size: 8px; margin-top: 2px; font-weight: bold;">${order.notas}</div>` : ''}
                                 </td>
                                 <td style="font-weight: bold; text-transform: uppercase; color: #475569; font-size: 9px;"></td>
                                 <td style="font-weight: 900; font-size: 12px;">$${parseFloat(order.total).toLocaleString()}</td>
@@ -1873,6 +1875,12 @@ function OrderDetailModal({ order, products, config, onClose, onPrint }: any) {
                             <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Estado</p>
                             <span className="text-xs font-black text-indigo-500">{order.estado}</span>
                         </div>
+                        {order.notas && (
+                            <div className="col-span-2 p-3 bg-orange-50 dark:bg-orange-500/10 rounded-2xl border border-orange-100 dark:border-orange-500/20">
+                                <p className="text-[10px] text-orange-400 font-bold uppercase mb-1">Notas / Detalles Delivery</p>
+                                <p className="text-xs font-black text-orange-600 dark:text-orange-400">{order.notas}</p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2">
