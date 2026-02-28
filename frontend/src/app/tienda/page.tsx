@@ -8,6 +8,7 @@ import {
     User,
     Clock,
     Plus,
+    Minus,
     Mic,
     X,
     ChevronUp,
@@ -185,6 +186,35 @@ export default function TiendaOnlinePage() {
 
     const addToCart = (id: string, qty: number = 1) => {
         setCarrito(prev => ({ ...prev, [id]: (prev[id] || 0) + qty }));
+    };
+
+    const updateQty = (id: string, delta: number) => {
+        setCarrito(prev => {
+            const next = (prev[id] || 0) + delta;
+            if (next <= 0) {
+                const { [id]: _, ...rest } = prev;
+                return rest;
+            }
+            return { ...prev, [id]: next };
+        });
+    };
+
+    const setQtyExact = (id: string, qty: number) => {
+        setCarrito(prev => {
+            if (qty <= 0) {
+                const { [id]: _, ...rest } = prev;
+                return rest;
+            }
+            return { ...prev, [id]: qty };
+        });
+    };
+
+    const emptyCart = () => {
+        if (window.confirm('¿Seguro que deseas vaciar tu carrito?')) {
+            setCarrito({});
+            setModoBulto({});
+            setIsCartOpen(false);
+        }
     };
 
     const toggleBulto = (id: string) => {
@@ -434,13 +464,21 @@ export default function TiendaOnlinePage() {
                                     </div>
                                 )}
 
-                                <button
-                                    onClick={() => addToCart(pid)}
-                                    className={`w-full py-3 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 mt-auto ${qty > 0 ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white'}`}
-                                >
-                                    {qty > 0 ? <CheckCircle2 size={16} /> : <Plus size={16} />}
-                                    <span className="text-[10px] font-black uppercase tracking-widest">{qty > 0 ? `En Carrito (${qty})` : 'Comprar'}</span>
-                                </button>
+                                {qty > 0 ? (
+                                    <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-800 p-1 rounded-2xl mt-auto py-1 shadow-inner">
+                                        <button onClick={() => updateQty(pid, -1)} className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm text-slate-400 hover:text-rose-500 transition-colors shrink-0"><Minus size={16} /></button>
+                                        <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(pid, v); else setQtyExact(pid, 0); }} className="flex-1 w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
+                                        <button onClick={() => updateQty(pid, 1)} className="w-10 h-10 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all shrink-0"><Plus size={16} /></button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => addToCart(pid)}
+                                        className="w-full py-3 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 mt-auto bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                                    >
+                                        <Plus size={16} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Comprar</span>
+                                    </button>
+                                )}
                             </motion.div>
                         );
                     })}
@@ -486,9 +524,12 @@ export default function TiendaOnlinePage() {
                         >
                             <div className="flex items-center justify-between mb-8">
                                 <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-3">
-                                    <ShoppingCart size={28} className="text-indigo-500" /> Confirmar Pedido
+                                    <ShoppingCart size={28} className="text-indigo-500" /> Tu Pedido
                                 </h2>
-                                <button onClick={() => setIsCartOpen(false)} className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center"><X size={24} /></button>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={emptyCart} title="Vaciar Carrito" className="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-900/30 text-rose-500 flex items-center justify-center hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors cursor-pointer"><Trash2 size={24} /></button>
+                                    <button onClick={() => setIsCartOpen(false)} className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><X size={24} /></button>
+                                </div>
                             </div>
 
                             <div className="flex-1 overflow-y-auto space-y-4 pb-8">
@@ -515,16 +556,9 @@ export default function TiendaOnlinePage() {
                                                     <h3 className="text-sm font-black leading-tight text-slate-800 dark:text-white">{p.Nombre}</h3>
                                                     <div className="flex items-center gap-3 mt-1">
                                                         <div className="flex items-center gap-2 bg-white dark:bg-slate-700 rounded-full px-2 py-1 shadow-sm border border-slate-100 dark:border-slate-600">
-                                                            <button onClick={() => setCarrito(prev => {
-                                                                const newVal = Math.max(0, prev[id] - 1);
-                                                                if (newVal === 0) {
-                                                                    const { [id]: _, ...rest } = prev;
-                                                                    return rest;
-                                                                }
-                                                                return { ...prev, [id]: newVal };
-                                                            })} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400">-</button>
-                                                            <span className="text-[10px] font-black w-4 text-center">{qty}</span>
-                                                            <button onClick={() => setCarrito(prev => ({ ...prev, [id]: prev[id] + 1 }))} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400">+</button>
+                                                            <button onClick={() => updateQty(id, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500">-</button>
+                                                            <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(id, v); else setQtyExact(id, 0); }} className="w-8 text-center text-[10px] font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded" onFocus={(e) => e.target.select()} />
+                                                            <button onClick={() => updateQty(id, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-500">+</button>
                                                         </div>
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase">
                                                             {isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unid.')}

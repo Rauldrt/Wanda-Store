@@ -250,6 +250,24 @@ export default function PreventaPage() {
         });
     };
 
+    const setQtyExact = (id: string, qty: number) => {
+        setCarrito(prev => {
+            if (qty <= 0) {
+                const { [id]: _, ...rest } = prev;
+                return rest;
+            }
+            return { ...prev, [id]: qty };
+        });
+    };
+
+    const emptyCart = () => {
+        if (window.confirm('¿Seguro que deseas vaciar todo el carrito?')) {
+            setCarrito({});
+            setModoBulto({});
+            setIsCartOpen(false);
+        }
+    };
+
     const toggleBulto = (id: string) => {
         setModoBulto(prev => ({ ...prev, [id]: !prev[id] }));
     };
@@ -604,7 +622,7 @@ export default function PreventaPage() {
                                 {qty > 0 ? (
                                     <>
                                         <button onClick={() => updateQty(pid, -1)} className="w-9 h-9 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                                        <span className="w-8 text-center text-sm font-black">{qty}</span>
+                                        <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(pid, v); else setQtyExact(pid, 0) }} className="w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
                                         <button onClick={() => updateQty(pid, 1)} className="w-9 h-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"><Plus size={16} /></button>
                                     </>
                                 ) : (
@@ -698,7 +716,7 @@ export default function PreventaPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <button onClick={() => updateQty(id, -1)} className="text-rose-500"><Trash2 size={16} /></button>
-                    <span className="font-black text-sm">{qty}</span>
+                    <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(id, v); else setQtyExact(id, 0) }} className="w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
                     <button onClick={() => updateQty(id, 1)} className="text-indigo-500"><Plus size={16} /></button>
                 </div>
             </div>
@@ -939,7 +957,10 @@ export default function PreventaPage() {
                                     <h2 className="text-2xl font-black tracking-tight">Tu Pedido</h2>
                                     <p className="text-[10px] font-black text-slate-400 uppercase">{selectedClient?.Nombre_Negocio || 'Sin Cliente'}</p>
                                 </div>
-                                <button onClick={() => setIsCartOpen(false)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500"><X size={20} /></button>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={emptyCart} title="Vaciar Carrito" className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-900/30 text-rose-500 flex items-center justify-center hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors"><Trash2 size={20} /></button>
+                                    <button onClick={() => setIsCartOpen(false)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><X size={20} /></button>
+                                </div>
                             </div>
                             <div className="flex-1 overflow-y-auto space-y-4 pr-1">
                                 {cartItemList}
