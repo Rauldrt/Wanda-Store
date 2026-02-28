@@ -236,6 +236,7 @@ export default function ClientesPage() {
                         saving={saving}
                         onDelete={() => handleDelete(formData.ID_Cliente)}
                         onEdit={() => setDrawerMode('edit')}
+                        clientOrders={orders.filter((o: any) => o.cliente_id === formData.ID_Cliente)}
                     />
                 )}
             </AnimatePresence>
@@ -393,8 +394,9 @@ function ClientCard({ client, onView, onEdit, onDelete, isList }: any) {
     );
 }
 
-function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, onEdit }: any) {
+function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, onEdit, clientOrders = [] }: any) {
     const isEditing = mode === 'edit' || mode === 'create';
+    const [showOrders, setShowOrders] = useState(false);
 
     return (
         <>
@@ -519,11 +521,39 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
                                     <MessageSquare size={24} className="mb-2" />
                                     <span className="text-[10px] font-black uppercase tracking-widest">WhatsApp</span>
                                 </button>
-                                <button className="flex flex-col items-center justify-center p-6 bg-slate-500/5 border border-slate-500/10 rounded-3xl text-slate-600 hover:bg-slate-500/10 transition-all">
+                                <button onClick={() => setShowOrders(!showOrders)} className="flex flex-col items-center justify-center p-6 bg-slate-500/5 border border-slate-500/10 rounded-3xl text-slate-600 hover:bg-slate-500/10 transition-all">
                                     <BookCopy size={24} className="mb-2" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Ver Pedidos</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest">{showOrders ? 'Ocultar Pedidos' : 'Ver Pedidos'}</span>
                                 </button>
                             </div>
+
+                            {showOrders && (
+                                <div className="mt-6 space-y-3 animate-in fade-in slide-in-from-top-4">
+                                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mt-6 mb-4">Historial de Pedidos ({clientOrders.length})</h5>
+                                    {clientOrders.length === 0 ? (
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-[var(--border)] text-center text-slate-400 text-xs">
+                                            No hay pedidos registrados para este cliente.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {clientOrders.slice(0, 10).map((order: any) => (
+                                                <div key={order.id} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-[var(--border)] flex justify-between items-center group hover:border-indigo-500/50 transition-all">
+                                                    <div>
+                                                        <p className="font-bold text-sm text-slate-700 dark:text-slate-200">Pedido #{order.id}</p>
+                                                        <p className="text-[10px] text-slate-500 uppercase">{order.fecha}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="font-black text-indigo-600">${parseFloat(order.total).toLocaleString()}</p>
+                                                        <p className={`text-[10px] font-bold uppercase tracking-widest ${order.estado === 'Entregado' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                            {order.estado || 'Pendiente'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </section>
                     )}
                 </div>
