@@ -108,6 +108,28 @@ function limpiarH(h) {
   return String(h).split('(')[0].trim().replace(/\s+/g, '_');
 }
 
+function parseDateForFrontend(dateVal, timeVal) {
+  if (dateVal instanceof Date) {
+    return dateVal.toISOString();
+  }
+  if (typeof dateVal === 'string' && dateVal.includes('/')) {
+    const p = dateVal.split('/');
+    if (p.length >= 3) {
+      const dd = p[0].padStart(2, '0');
+      const mm = p[1].padStart(2, '0');
+      const yy = p[2].substring(0, 4);
+      let h = "00:00:00";
+      if (timeVal instanceof Date) {
+        h = Utilities.formatDate(timeVal, Session.getScriptTimeZone(), "HH:mm:ss");
+      } else if (timeVal) {
+        h = String(timeVal);
+      }
+      return `${yy}-${mm}-${dd}T${h}`;
+    }
+  }
+  return String(dateVal);
+}
+
 function getPedidosCompletos() {
   const sheetPedidos = SS.getSheetByName("PEDIDOS");
   const sheetDetalle = SS.getSheetByName("DETALLE_PEDIDOS");
@@ -135,7 +157,7 @@ function getPedidosCompletos() {
     const id = String(row[0]); 
     return {
       id: id,
-      fecha: row[1],
+      fecha: parseDateForFrontend(row[1], row[9]),
       cliente_id: row[2],
       cliente_nombre: row[3],
       vendedor: row[4], 
@@ -223,6 +245,9 @@ function guardarProductoCatalogo(producto) {
     } else {
       if (!producto.ID_Producto || producto.ID_Producto === 'Auto') {
         producto.ID_Producto = "PROD-" + new Date().getTime().toString().slice(-6);
+        const tz = Session.getScriptTimeZone();
+        producto.Fecha_Registro = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
+        producto.Hora_Registro = Utilities.formatDate(new Date(), tz, "HH:mm:ss");
       }
       const newRow = data[0].map((hOriginal, i) => {
         const hLimpio = headersLimpios[i];
@@ -262,7 +287,12 @@ function guardarClienteDirectorio(cli) {
     const sheet = SS.getSheetByName("CLIENTES");
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
-    if (!cli.ID_Cliente) cli.ID_Cliente = "CLI-" + new Date().getTime().toString().slice(-4);
+    if (!cli.ID_Cliente) {
+      cli.ID_Cliente = "CLI-" + new Date().getTime().toString().slice(-4);
+      const tz = Session.getScriptTimeZone();
+      cli.Fecha_Registro = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
+      cli.Hora_Registro = Utilities.formatDate(new Date(), tz, "HH:mm:ss");
+    }
     
     const rowIndex = data.findIndex(row => String(row[0]) === String(cli.ID_Cliente));
     if (rowIndex > -1) {
@@ -420,7 +450,12 @@ function procesarPedido(datos) {
                " | Notas: " + notas;
     }
     
-    sheetP.appendRow([idPedido, new Date(), clienteId, clienteNombre, datos.vendedor || "Web", datos.total, "Pendiente", notas, ""]);
+    const d = new Date();
+    const tz = Session.getScriptTimeZone();
+    const f = Utilities.formatDate(d, tz, "dd/MM/yyyy");
+    const h = Utilities.formatDate(d, tz, "HH:mm:ss");
+
+    sheetP.appendRow([idPedido, f, clienteId, clienteNombre, datos.vendedor || "Web", datos.total, "Pendiente", notas, "", h]);
     
     datos.items.forEach(item => {
       const idItem = item.id_producto || item.id || "";
@@ -442,7 +477,10 @@ function registrarClienteOnline(cliente) {
   const existe = data.some(row => String(row[0]).toLowerCase() === String(cliente.Email).toLowerCase());
   
   if (!existe) {
-    sheet.appendRow([cliente.Email, cliente.Nombre_Negocio, cliente.Nombre_Negocio, "Pedido Online", "", "", ""]);
+    const tz = Session.getScriptTimeZone();
+    const f = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
+    const h = Utilities.formatDate(new Date(), tz, "HH:mm:ss");
+    sheet.appendRow([cliente.Email, cliente.Nombre_Negocio, cliente.Nombre_Negocio, "Pedido Online", "", "", "", f, h]);
   }
 }
 
