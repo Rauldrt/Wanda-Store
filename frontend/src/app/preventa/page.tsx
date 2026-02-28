@@ -386,6 +386,24 @@ export default function PreventaPage() {
             return;
         }
         setIsSubmitting(true);
+
+        let silentGps = "";
+        try {
+            if (navigator.geolocation) {
+                silentGps = await new Promise<string>((resolve) => {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => resolve(`${pos.coords.latitude},${pos.coords.longitude}`),
+                        () => resolve(""),
+                        { enableHighAccuracy: true, timeout: 5000 } // timeout para no bloquear
+                    );
+                });
+            }
+        } catch (e) {
+            console.log("No se pudo obtener GPS silencioso", e);
+        }
+
+        const finalNotes = orderNotes + (silentGps ? ` [GPS Preventista: https://maps.google.com/?q=${silentGps}]` : "");
+
         const orderData = {
             id_interno: Date.now(),
             cliente: selectedClient,
@@ -424,7 +442,7 @@ export default function PreventaPage() {
                 };
             }),
             total: calculateTotal(),
-            notas: orderNotes,
+            notas: finalNotes,
             fecha: new Date().toISOString(),
             fechaLocal: new Date().toLocaleString()
         };
