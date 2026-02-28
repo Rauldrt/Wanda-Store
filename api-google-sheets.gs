@@ -163,8 +163,8 @@ function getPedidosCompletos() {
       vendedor: row[4], 
       total: row[5],    
       estado: row[6] || "Pendiente",
-      notas: row[7] || "",
-      reparto: row[8] || "", 
+      reparto: row[7] || "",
+      notas: row[8] || "",
       items: detalleMap[id] || []
     };
   }).filter(p => p !== null);
@@ -339,7 +339,7 @@ function asignarRepartoMasivo(ids, route) {
       for (let i = 1; i < data.length; i++) {
         if (String(data[i][0]) === String(id)) {
           sheet.getRange(i + 1, 7).setValue("En Preparación");
-          sheet.getRange(i + 1, 9).setValue(route);
+          sheet.getRange(i + 1, 8).setValue(route);
           break;
         }
       }
@@ -357,9 +357,9 @@ function liberarReparto(reparto) {
     const sheet = SS.getSheetByName("PEDIDOS");
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][8]) === String(reparto)) {
+      if (String(data[i][7]) === String(reparto)) {
         sheet.getRange(i + 1, 7).setValue("Pendiente");
-        sheet.getRange(i + 1, 9).setValue("");
+        sheet.getRange(i + 1, 8).setValue("");
       }
     }
     return "OK";
@@ -455,7 +455,7 @@ function procesarPedido(datos) {
     const f = Utilities.formatDate(d, tz, "dd/MM/yyyy");
     const h = Utilities.formatDate(d, tz, "HH:mm:ss");
 
-    sheetP.appendRow([idPedido, f, clienteId, clienteNombre, datos.vendedor || "Web", datos.total, "Pendiente", notas, "", h]);
+    sheetP.appendRow([idPedido, f, clienteId, clienteNombre, datos.vendedor || "Web", datos.total, "Pendiente", "", notas, h]);
     
     datos.items.forEach(item => {
       const idItem = item.id_producto || item.id || "";
