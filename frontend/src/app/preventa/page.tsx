@@ -268,6 +268,17 @@ export default function PreventaPage() {
         }
     };
 
+    const handleInitialAdd = (id: string) => {
+        updateQty(id, 1);
+        setTimeout(() => {
+            const input = document.getElementById(`qty-input-${id}`) as HTMLInputElement;
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 50);
+    };
+
     const toggleBulto = (id: string) => {
         setModoBulto(prev => ({ ...prev, [id]: !prev[id] }));
     };
@@ -622,11 +633,11 @@ export default function PreventaPage() {
                                 {qty > 0 ? (
                                     <>
                                         <button onClick={() => updateQty(pid, -1)} className="w-9 h-9 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                                        <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(pid, v); else setQtyExact(pid, 0) }} className="w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
+                                        <input id={`qty-input-${pid}`} type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(pid, v); else setQtyExact(pid, 0) }} className="w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
                                         <button onClick={() => updateQty(pid, 1)} className="w-9 h-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"><Plus size={16} /></button>
                                     </>
                                 ) : (
-                                    <button onClick={() => updateQty(pid, 1)} className="px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-indigo-500/10">Agregar</button>
+                                    <button onClick={() => handleInitialAdd(pid)} className="px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-indigo-500/10">Agregar</button>
                                 )}
                             </div>
                         </div>

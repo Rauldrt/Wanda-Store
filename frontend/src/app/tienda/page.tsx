@@ -217,6 +217,17 @@ export default function TiendaOnlinePage() {
         }
     };
 
+    const handleInitialAdd = (id: string) => {
+        addToCart(id, 1);
+        setTimeout(() => {
+            const input = document.getElementById(`qty-input-${id}`) as HTMLInputElement;
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 50);
+    };
+
     const toggleBulto = (id: string) => {
         setModoBulto(prev => ({ ...prev, [id]: !prev[id] }));
     };
@@ -467,12 +478,12 @@ export default function TiendaOnlinePage() {
                                 {qty > 0 ? (
                                     <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-800 p-1 rounded-2xl mt-auto py-1 shadow-inner">
                                         <button onClick={() => updateQty(pid, -1)} className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm text-slate-400 hover:text-rose-500 transition-colors shrink-0"><Minus size={16} /></button>
-                                        <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(pid, v); else setQtyExact(pid, 0); }} className="flex-1 w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
+                                        <input id={`qty-input-${pid}`} type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(pid, v); else setQtyExact(pid, 0); }} className="flex-1 w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
                                         <button onClick={() => updateQty(pid, 1)} className="w-10 h-10 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all shrink-0"><Plus size={16} /></button>
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={() => addToCart(pid)}
+                                        onClick={() => handleInitialAdd(pid)}
                                         className="w-full py-3 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 mt-auto bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
                                     >
                                         <Plus size={16} />
