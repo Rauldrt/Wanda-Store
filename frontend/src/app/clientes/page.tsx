@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useDeferredValue } from 'react';
+import React, { useState, useMemo, useDeferredValue, useEffect } from 'react';
 import {
     Users,
     Search,
@@ -56,8 +56,14 @@ export default function ClientesPage() {
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState<any>({});
 
+    const [visibleCount, setVisibleCount] = useState(50);
+
     // Filtros
     const [activeFilter, setActiveFilter] = useState('all');
+
+    useEffect(() => {
+        setVisibleCount(50);
+    }, [deferredSearchTerm, activeFilter]);
 
     // Filtrado de clientes
     const filteredClients = useMemo(() => {
@@ -201,16 +207,28 @@ export default function ClientesPage() {
                             </div>
                         </div>
                     ) : (
-                        filteredClients.map((client: any) => (
-                            <ClientCard
-                                key={client.ID_Cliente}
-                                client={client}
-                                isList={viewMode === 'list'}
-                                onView={() => handleOpenDrawer(client, 'view')}
-                                onEdit={() => handleOpenDrawer(client, 'edit')}
-                                onDelete={() => handleDelete(client.ID_Cliente)}
-                            />
-                        ))
+                        <>
+                            {filteredClients.slice(0, visibleCount).map((client: any) => (
+                                <ClientCard
+                                    key={client.ID_Cliente}
+                                    client={client}
+                                    isList={viewMode === 'list'}
+                                    onView={() => handleOpenDrawer(client, 'view')}
+                                    onEdit={() => handleOpenDrawer(client, 'edit')}
+                                    onDelete={() => handleDelete(client.ID_Cliente)}
+                                />
+                            ))}
+                            {filteredClients.length > visibleCount && (
+                                <div className="col-span-full flex justify-center py-6">
+                                    <button
+                                        onClick={() => setVisibleCount(prev => prev + 50)}
+                                        className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-200 transition-all active:scale-95"
+                                    >
+                                        Cargar más ({filteredClients.length - visibleCount} ocultos)
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     )}
                 </AnimatePresence>
             </div>
