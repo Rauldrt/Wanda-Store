@@ -285,13 +285,34 @@ export default function PreventaPage() {
 
     const totalItems = Object.values(carrito).reduce((a, b) => a + b, 0);
 
+    const getPromoDiscount = (productId: string, qty: number, isBulto: boolean) => {
+        if (!data?.config?.SYSTEM_PROMOTIONS) return 0;
+        let promos = [];
+        try {
+            promos = JSON.parse(data.config.SYSTEM_PROMOTIONS);
+        } catch (e) { return 0; }
+
+        const applicable = promos.filter((p: any) =>
+            p.active && (p.target === 'ALL' || p.target === productId)
+        );
+
+        let bestDiscount = 0;
+        applicable.forEach((p: any) => {
+            if (p.type === 'BOX' && isBulto && qty >= p.threshold) {
+                bestDiscount = Math.max(bestDiscount, p.discount);
+            } else if (p.type === 'QTY' && qty >= p.threshold) {
+                bestDiscount = Math.max(bestDiscount, p.discount);
+            }
+        });
+        return bestDiscount;
+    };
+
     const calculateTotal = () => {
         return Object.entries(carrito).reduce((acc, [id, qty]) => {
             const p = products.find(prod => String(prod.ID_Producto) === String(id));
             if (!p) return acc;
             const isBulto = !!modoBulto[id];
 
-            // Sanitizar precios que puedan venir con comas
             const cleanPrice = String(p.Precio_Unitario || "0").replace(',', '.');
             const price = parseFloat(cleanPrice);
             const ub = parseFloat(String(p.Unidades_Bulto || "1").replace(',', '.'));
@@ -299,7 +320,10 @@ export default function PreventaPage() {
 
             const isKg = (p.Unidad || "").toLowerCase() === 'kg';
             const unitPrice = isKg ? price * peso : price;
-            return acc + (isBulto ? unitPrice * ub * qty : unitPrice * qty);
+            const grossItemTotal = isBulto ? unitPrice * ub * qty : unitPrice * qty;
+
+            const disc = getPromoDiscount(id, qty, isBulto);
+            return acc + (grossItemTotal * (1 - disc / 100));
         }, 0);
     };
 
@@ -418,7 +442,8 @@ export default function PreventaPage() {
 
                 const piecePrice = isKg ? pr * pe : pr;
                 const finalItemPrice = isB ? piecePrice * ub : piecePrice;
-                const subtotal = finalItemPrice * qty;
+                const disc = getPromoDiscount(id, qty, isB);
+                const subtotal = (finalItemPrice * qty) * (1 - disc / 100);
 
                 // Generación de descripción estilo original
                 let desc = "";
@@ -432,10 +457,12 @@ export default function PreventaPage() {
 
                 return {
                     id,
+                    id_producto: id,
                     nombre: p?.Nombre || "Producto",
                     cantidad: qty,
                     esBulto: isB,
                     descripcion: desc,
+                    descuento: disc,
                     subtotal: subtotal
                 };
             }),
@@ -631,6 +658,11 @@ export default function PreventaPage() {
                                         Stock: {p.Stock_Actual}
                                     </span>
                                 )}
+                                {getPromoDiscount(pid, qty, isBulto) > 0 && (
+                                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-500 text-white uppercase animate-pulse">
+                                        PROMO -{getPromoDiscount(pid, qty, isBulto)}%
+                                    </span>
+                                )}
                             </div>
                             <h3 className="font-bold text-[15px] leading-tight text-slate-800 dark:text-slate-100 line-clamp-2">{p.Nombre}</h3>
                             {isKg && (
@@ -642,7 +674,18 @@ export default function PreventaPage() {
 
                         <div className="flex items-center justify-between mt-3 gap-2">
                             <div className="flex flex-col min-w-0">
-                                <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 truncate">${finalPrice.toLocaleString()}</span>
+                                {getPromoDiscount(pid, qty, isBulto) > 0 ? (
+                                    <>
+                                        <span className="text-xl font-black text-rose-500 dark:text-rose-400 truncate">
+                                            ${(finalPrice * (1 - getPromoDiscount(pid, qty, isBulto) / 100)).toLocaleString()}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-400 line-through decoration-rose-500/50">
+                                            ${finalPrice.toLocaleString()}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 truncate">${finalPrice.toLocaleString()}</span>
+                                )}
                                 <span className="text-[9px] font-bold text-slate-400 uppercase truncate">{isBulto ? `Bulto (${unitsPerBulk}u)` : unitLabel}</span>
                             </div>
 
@@ -732,6 +775,7 @@ export default function PreventaPage() {
 
         const piecePrice = isKg ? pr * pe : pr;
         const finalItemPrice = isB ? piecePrice * ub : piecePrice;
+        const disc = getPromoDiscount(id, qty, isB);
         const label = isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unidad');
 
         return (
@@ -739,7 +783,12 @@ export default function PreventaPage() {
                 <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center text-indigo-500"><Package size={20} /></div>
                 <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-sm truncate">{p.Nombre}</h4>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">{label} • ${finalItemPrice.toLocaleString()}</p>
+                    <div className="flex items-center gap-2">
+                        <p className={`text-[10px] font-bold uppercase ${disc > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
+                            {label} • ${(finalItemPrice * (1 - disc / 100)).toLocaleString()}
+                        </p>
+                        {disc > 0 && <span className="text-[7px] font-black bg-rose-100 text-rose-600 px-1 rounded">-{disc}%</span>}
+                    </div>
                     {isKg && <p className="text-[8px] text-slate-400 font-medium">${pr.toLocaleString()}/kg ({pe}kg prom.)</p>}
                 </div>
                 <div className="flex items-center gap-3">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers } from "lucide-react";
+import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 
@@ -14,10 +14,22 @@ interface SystemNotification {
     type: 'info' | 'offer' | 'priority';
 }
 
+interface Promotion {
+    id: string;
+    name: string;
+    type: 'BOX' | 'QTY';
+    target: 'ALL' | string; // ALL or Product ID
+    threshold: number; // 1 for BOX, X for QTY
+    discount: number; // percentage
+    active: boolean;
+}
+
 export default function SettingsPage() {
-    const { refreshData, setIsSyncing, isSyncing } = useData();
+    const { data, refreshData, setIsSyncing, isSyncing } = useData();
+    const products = data?.products || [];
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+    const [promotions, setPromotions] = useState<Promotion[]>([]);
     const [config, setConfig] = useState<Record<string, string>>({
         EMPRESA: "WANDA DISTRIBUCIONES",
         REMITO_TITULO: "REMITO",
@@ -36,6 +48,14 @@ export default function SettingsPage() {
                         } catch (e) {
                             console.error("Error parsing notifications", e);
                             setNotifications([]);
+                        }
+                    }
+                    if (res.SYSTEM_PROMOTIONS) {
+                        try {
+                            setPromotions(JSON.parse(res.SYSTEM_PROMOTIONS));
+                        } catch (e) {
+                            console.error("Error parsing promotions", e);
+                            setPromotions([]);
                         }
                     }
                     // Cargar otros campos
@@ -61,7 +81,8 @@ export default function SettingsPage() {
             setIsSyncing(true);
             await wandaApi.saveConfig({
                 ...config,
-                SYSTEM_NOTIFICATIONS: JSON.stringify(notifications)
+                SYSTEM_NOTIFICATIONS: JSON.stringify(notifications),
+                SYSTEM_PROMOTIONS: JSON.stringify(promotions)
             });
             await refreshData(true);
             alert("Configuración guardada correctamente");
@@ -89,6 +110,27 @@ export default function SettingsPage() {
 
     const updateNotification = (id: string, updates: Partial<SystemNotification>) => {
         setNotifications(notifications.map(n => n.id === id ? { ...n, ...updates } : n));
+    };
+
+    const addPromotion = () => {
+        const newPromo: Promotion = {
+            id: Date.now().toString(),
+            name: "Nueva Promo",
+            type: 'BOX',
+            target: 'ALL',
+            threshold: 1,
+            discount: 5,
+            active: true
+        };
+        setPromotions([...promotions, newPromo]);
+    };
+
+    const removePromotion = (id: string) => {
+        setPromotions(promotions.filter(p => p.id !== id));
+    };
+
+    const updatePromotion = (id: string, updates: Partial<Promotion>) => {
+        setPromotions(promotions.map(p => p.id === id ? { ...p, ...updates } : p));
     };
 
     if (loading) return (
@@ -148,6 +190,131 @@ export default function SettingsPage() {
                         />
                     </div>
                 </div>
+            </div>
+
+            {/* Sección Promociones */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-black uppercase tracking-widest text-slate-400 text-[10px] flex items-center gap-2">
+                        <Tag size={14} className="text-rose-500" /> Reglas de Promoción
+                    </h3>
+                    <button
+                        onClick={addPromotion}
+                        className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all active:scale-95"
+                    >
+                        <Plus size={14} /> Nueva Promo
+                    </button>
+                </div>
+
+                <AnimatePresence mode="popLayout">
+                    {promotions.length === 0 ? (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] text-center space-y-3"
+                        >
+                            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                                <Tag size={20} />
+                            </div>
+                            <p className="text-sm text-slate-500 font-medium">No hay reglas de promoción. Los descuentos se aplicarán manualmente.</p>
+                        </motion.div>
+                    ) : (
+                        promotions.map((promo) => (
+                            <motion.div
+                                key={promo.id}
+                                layout
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white dark:bg-slate-900 rounded-[32px] p-6 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-4"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${promo.active ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'bg-slate-100 text-slate-400'}`}>
+                                            <Tag size={18} />
+                                        </div>
+                                        <div>
+                                            <input
+                                                value={promo.name}
+                                                onChange={(e) => updatePromotion(promo.id, { name: e.target.value })}
+                                                className="text-sm font-black bg-transparent border-none p-0 focus:ring-0 outline-none text-slate-800 dark:text-slate-100"
+                                                placeholder="Nombre de la promo..."
+                                            />
+                                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">Auto-aplicable</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => updatePromotion(promo.id, { active: !promo.active })}
+                                            className={`w-12 h-6 rounded-full transition-all relative ${promo.active ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                                        >
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${promo.active ? 'left-7' : 'left-1'}`} />
+                                        </button>
+                                        <button
+                                            onClick={() => removePromotion(promo.id)}
+                                            className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
+                                            <Target size={10} /> Aplicar a
+                                        </label>
+                                        <select
+                                            value={promo.target}
+                                            onChange={(e) => updatePromotion(promo.id, { target: e.target.value })}
+                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-[11px] font-bold outline-none"
+                                        >
+                                            <option value="ALL">Todo el catálogo</option>
+                                            {products.map((p: any) => (
+                                                <option key={p.ID_Producto} value={p.ID_Producto}>{p.Nombre}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
+                                            <ShoppingCart size={10} /> Condición
+                                        </label>
+                                        <select
+                                            value={promo.type}
+                                            onChange={(e) => updatePromotion(promo.id, { type: e.target.value as any })}
+                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-[11px] font-bold outline-none"
+                                        >
+                                            <option value="BOX">Por Bulto Cerrado</option>
+                                            <option value="QTY">Por Cantidad Mínima</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
+                                            <Package size={10} /> Umbral / Cantidad
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={promo.threshold}
+                                            onChange={(e) => updatePromotion(promo.id, { threshold: parseInt(e.target.value) || 1 })}
+                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-[11px] font-bold outline-none"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
+                                            <Tag size={10} /> Descuento (%)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={promo.discount}
+                                            onChange={(e) => updatePromotion(promo.id, { discount: parseFloat(e.target.value) || 0 })}
+                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-[11px] font-bold outline-none text-rose-600"
+                                        />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))
+                    )}
+                </AnimatePresence>
             </div>
 
             <div className="space-y-4">
@@ -248,3 +415,4 @@ export default function SettingsPage() {
         </div>
     );
 }
+

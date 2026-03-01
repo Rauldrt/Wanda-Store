@@ -38,7 +38,11 @@ import {
     Settings,
     Clock,
     Edit2,
-    Minus
+    Minus,
+    Layers,
+    Eye,
+    ShoppingCart,
+    Tag
 } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
@@ -52,13 +56,13 @@ export default function LogisticaPage() {
 
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
     const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial'>('pendientes');
-    const [editingRoute, setEditingRoute] = useState<string | null>(null);
-    const [settlingRoute, setSettlingRoute] = useState<string | null>(null);
-    const [viewingDetailId, setViewingDetailId] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'list' | 'grouped'>('grid');
     const [searchTerm, setSearchTerm] = useState("");
     const [filterDate, setFilterDate] = useState("");
     const [filterSeller, setFilterSeller] = useState("");
+    const [editingRoute, setEditingRoute] = useState<string | null>(null);
+    const [settlingRoute, setSettlingRoute] = useState<string | null>(null);
+    const [viewingDetailId, setViewingDetailId] = useState<string | null>(null);
 
     const allPendingOrders = useMemo(() => {
         return orders.filter(o => !o.reparto || o.reparto === '' || o.reparto === 'null');
@@ -92,6 +96,18 @@ export default function LogisticaPage() {
         const set = new Set(orders.map(o => o.reparto).filter(r => r && r !== 'null' && r !== ''));
         return Array.from(set);
     }, [orders]);
+
+    const groupedPendingOrders = useMemo(() => {
+        const groups: Record<string, Record<string, any[]>> = {};
+        filteredPendingOrders.forEach(o => {
+            const date = o.fecha || 'Sin Fecha';
+            const seller = o.vendedor || 'Sin Vendedor';
+            if (!groups[date]) groups[date] = {};
+            if (!groups[date][seller]) groups[date][seller] = [];
+            groups[date][seller].push(o);
+        });
+        return groups;
+    }, [filteredPendingOrders]);
 
     const toggleOrderSelection = (id: string) => {
         const next = new Set(selectedOrders);
@@ -145,6 +161,7 @@ export default function LogisticaPage() {
             setIsSyncing(false);
         }
     };
+
 
     const printOrders = (orderList: any[]) => {
         const printWindow = window.open('', '_blank');
@@ -240,8 +257,9 @@ export default function LogisticaPage() {
                                         <tr>
                                             <th width="70">CANT</th>
                                             <th>DESCRIPCIÓN</th>
-                                            <th width="90">P. UNIT</th>
-                                            <th width="110">SUBTOTAL</th>
+                                            <th width="80">P. UNIT</th>
+                                            <th width="50">DESC</th>
+                                            <th width="90">SUBTOTAL</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -250,18 +268,15 @@ export default function LogisticaPage() {
             const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
             const ub = parseFloat(prod?.UB || prod?.Unidades_Bulto || 1);
             const qty = parseFloat(item.cantidad) || 0;
+            const price = parseFloat(item.precio) || 0;
+            const disc = parseFloat(item.descuento || 0);
+            const subtotal = (qty * price) * (1 - disc / 100);
 
             let displayQty = "";
             if (item._formato === 'BULTO') {
-                displayQty = `${qty} BUL ${ub > 1 ? `<small style="font-weight: normal; color: #666;">(x${ub} UNID)</small>` : ''}`;
+                displayQty = `${qty} BUL ${ub > 1 ? `<small style="font-weight: normal; color: #666;">(x${ub})</small>` : ''}`;
             } else if (isKg) {
                 displayQty = `${qty.toFixed(2)} KG`;
-            } else if (ub > 1) {
-                const bul = Math.floor(qty / ub);
-                const uni = Math.round((qty % ub) * 100) / 100;
-                if (bul > 0 && uni > 0) displayQty = `${bul} BUL + ${uni} UNI <small style="font-weight: normal; color: #666;">(x${ub})</small>`;
-                else if (bul > 0) displayQty = `${bul} BUL <small style="font-weight: normal; color: #666;">(x${ub})</small>`;
-                else displayQty = `${uni} UNID`;
             } else {
                 displayQty = `${qty} UNID`;
             }
@@ -269,15 +284,23 @@ export default function LogisticaPage() {
             return `
                                                 <tr>
                                                     <td style="font-weight: bold">${displayQty}</td>
-                                                    <td>${item.nombre} ${isKg ? '<em style="font-size: 9px; color: #999;">(Sujeto a pesaje en balanza)</em>' : ''}</td>
-                                                    <td>$${parseFloat(item.precio).toLocaleString()}</td>
-                                                    <td style="font-weight: bold">$${(parseFloat(item.cantidad) * parseFloat(item.precio)).toLocaleString()}</td>
+                                                    <td style="font-size: 10px">${item.nombre}</td>
+                                                    <td>$${price.toLocaleString()}</td>
+                                                    <td style="color: #666; font-size: 9px">${disc > 0 ? `-${disc}%` : '-'}</td>
+                                                    <td style="font-weight: bold">$${subtotal.toLocaleString()}</td>
                                                 </tr>
                                             `;
         }).join('')}
                                     </tbody>
                                 </table>
-                                <div class="total">TOTAL A PAGAR: $${parseFloat(order.total).toLocaleString()}</div>
+                                <div style="margin-top: 10px; display: flex; flex-direction: column; align-items: flex-end;">
+                                    ${parseFloat(order.descuento_general || 0) > 0 ? `
+                                        <div style="font-size: 10px; color: #666; font-weight: bold;">
+                                            DESC. GENERAL: -${order.descuento_general}%
+                                        </div>
+                                    ` : ''}
+                                    <div class="total">TOTAL A PAGAR: $${parseFloat(order.total).toLocaleString()}</div>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -576,8 +599,8 @@ export default function LogisticaPage() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <div className="lg:col-span-3 space-y-4">
                     {activeTab === 'pendientes' && (
-                        <>
-                            <div className="bg-[var(--card)] border border-[var(--border)] p-4 rounded-2xl shadow-sm space-y-4 mb-6">
+                        <div className="space-y-6">
+                            <div className="bg-[var(--card)] border border-[var(--border)] p-4 rounded-2xl shadow-sm space-y-4">
                                 <div className="flex flex-col md:flex-row gap-4">
                                     <div className="flex-1 relative">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -623,59 +646,64 @@ export default function LogisticaPage() {
 
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-dashed border-[var(--border)]">
                                     <div className="flex items-center gap-4 w-full sm:w-auto">
-                                        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                                            <button
-                                                onClick={() => setViewMode('grid')}
-                                                className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                                title="Vista Grilla"
-                                            >
-                                                <LayoutGrid size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => setViewMode('list')}
-                                                className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                                title="Vista Lista"
-                                            >
-                                                <List size={16} />
-                                            </button>
-                                        </div>
-                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                                            {filteredPendingOrders.length} resultados \u2022 {selectedOrders.size} seleccionados
-                                        </div>
+                                        <button
+                                            onClick={() => setViewMode('grid')}
+                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                            title="Vista Grilla"
+                                        >
+                                            <LayoutGrid size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('list')}
+                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                            title="Vista Lista"
+                                        >
+                                            <List size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('grouped')}
+                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grouped' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                            title="Vista Agrupada"
+                                        >
+                                            <Layers size={16} />
+                                        </button>
                                     </div>
-                                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                                        {selectedOrders.size > 0 && (
-                                            <button
-                                                onClick={() => printOrders(Array.from(selectedOrders).map(id => orders.find(o => o.id === id)))}
-                                                className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition-all shadow-lg"
-                                                title="Imprimir Remitos Seleccionados"
-                                            >
-                                                <Printer size={14} /> Remitos (${selectedOrders.size})
-                                            </button>
-                                        )}
-                                        {selectedOrders.size > 0 && (
-                                            <button
-                                                onClick={() => printPickingList(Array.from(selectedOrders).map(id => orders.find(o => o.id === id)))}
-                                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg"
-                                                title="Imprimir Picking de los seleccionados"
-                                            >
-                                                <Package size={14} /> Picking
-                                            </button>
-                                        )}
-                                        {selectedOrders.size > 0 && (
-                                            <button
-                                                onClick={handleAssignToRoute}
-                                                className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/10"
-                                            >
-                                                <Plus size={14} /> Asignar a Ruta
-                                            </button>
-                                        )}
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                                        {filteredPendingOrders.length} resultados • {selectedOrders.size} seleccionados
                                     </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                    {selectedOrders.size > 0 && (
+                                        <button
+                                            onClick={() => printOrders(Array.from(selectedOrders).map(id => orders.find(o => o.id === id)))}
+                                            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition-all shadow-lg"
+                                            title="Imprimir Remitos Seleccionados"
+                                        >
+                                            <Printer size={14} /> Remitos ({selectedOrders.size})
+                                        </button>
+                                    )}
+                                    {selectedOrders.size > 0 && (
+                                        <button
+                                            onClick={() => printPickingList(Array.from(selectedOrders).map(id => orders.find(o => o.id === id)))}
+                                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg"
+                                            title="Imprimir Picking de los seleccionados"
+                                        >
+                                            <Package size={14} /> Picking
+                                        </button>
+                                    )}
+                                    {selectedOrders.size > 0 && (
+                                        <button
+                                            onClick={handleAssignToRoute}
+                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/10"
+                                        >
+                                            <Plus size={14} /> Asignar a Ruta
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
                             {viewMode === 'grid' ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {filteredPendingOrders.length === 0 ? (
                                         <div className="col-span-full p-12 text-center text-slate-400 font-bold bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
                                             No se encontraron pedidos con los filtros actuales
@@ -693,7 +721,7 @@ export default function LogisticaPage() {
                                         ))
                                     )}
                                 </div>
-                            ) : (
+                            ) : viewMode === 'list' ? (
                                 <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden overflow-x-auto shadow-sm">
                                     <table className="w-full border-collapse">
                                         <thead>
@@ -716,77 +744,135 @@ export default function LogisticaPage() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-[var(--border)] text-sm">
-                                            {filteredPendingOrders.length === 0 ? (
+                                            {filteredPendingOrders.map(order => (
+                                                <tr
+                                                    key={order.id}
+                                                    className={`hover:bg-indigo-500/5 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-indigo-500/5' : ''}`}
+                                                    onClick={() => toggleOrderSelection(order.id)}
+                                                >
+                                                    <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                                                        <div
+                                                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
+                                                        >
+                                                            {selectedOrders.has(order.id) && <CheckCircle2 size={12} />}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="font-bold text-slate-800 dark:text-slate-100">{order.cliente_nombre}</div>
+                                                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{order.vendedor}</div>
+                                                    </td>
+                                                    <td className="p-4 text-[10px] font-black text-slate-400">#{order.id}</td>
+                                                    <td className="p-4 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                                                        {order.items?.length || 0} items
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-200">
+                                                            Pendiente
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-right font-black text-indigo-600">
+                                                        ${parseFloat(order.total).toLocaleString()}
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setViewingDetailId(order.id); }}
+                                                            className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-xl transition-all"
+                                                        >
+                                                            <Eye size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {filteredPendingOrders.length === 0 && (
                                                 <tr>
                                                     <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
                                                         No se encontraron pedidos con los filtros actuales
                                                     </td>
                                                 </tr>
-                                            ) : (
-                                                filteredPendingOrders.map(order => (
-                                                    <tr
-                                                        key={order.id}
-                                                        className={`hover:bg-indigo-500/5 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-indigo-500/5' : ''}`}
-                                                        onClick={() => toggleOrderSelection(order.id)}
-                                                    >
-                                                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                                                            <div
-                                                                onClick={() => toggleOrderSelection(order.id)}
-                                                                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
-                                                            >
-                                                                {selectedOrders.has(order.id) && <CheckCircle2 size={12} />}
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4">
-                                                            <div className="flex flex-col">
-                                                                <span className="font-bold text-slate-700 dark:text-slate-200">{order.cliente_nombre}</span>
-                                                                <span className="text-[10px] text-slate-400">{order.direccion || 'Sin dirección'}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4 font-mono text-[11px] text-slate-400 font-bold">#{order.id.slice(-8)}</td>
-                                                        <td className="p-4 text-xs font-bold text-slate-500">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <Package size={14} className="text-slate-300" />
-                                                                {order.items?.length || 0}
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4">
-                                                            <span className="text-[9px] font-black uppercase py-1 px-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
-                                                                {order.estado}
-                                                            </span>
-                                                        </td>
-                                                        <td className="p-4 text-right font-black text-indigo-600">${parseFloat(order.total).toLocaleString()}</td>
-                                                        <td className="p-4 text-center">
-                                                            <div className="flex items-center justify-center gap-1">
-                                                                <button
-                                                                    className="p-2 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-lg transition-all"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        printOrders([order]);
-                                                                    }}
-                                                                    title="Imprimir Remito"
-                                                                >
-                                                                    <Printer size={16} />
-                                                                </button>
-                                                                <button
-                                                                    className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-lg transition-all"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setViewingDetailId(order.id);
-                                                                    }}
-                                                                >
-                                                                    <ChevronRight size={18} />
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {Object.keys(groupedPendingOrders).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()).map(date => (
+                                        <div key={date} className="space-y-4">
+                                            <div className="flex items-center gap-2 px-2">
+                                                <Calendar size={14} className="text-indigo-500" />
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">{date}</h4>
+                                                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                {Object.keys(groupedPendingOrders[date]).sort().map(seller => {
+                                                    const groupOrders = groupedPendingOrders[date][seller];
+                                                    const totalGroup = groupOrders.reduce((acc, o) => acc + parseFloat(o.total), 0);
+                                                    const allGroupSelected = groupOrders.every(o => selectedOrders.has(o.id));
+
+                                                    return (
+                                                        <div key={seller} className="bg-white dark:bg-slate-800/50 border border-[var(--border)] rounded-[24px] overflow-hidden shadow-sm hover:shadow-md transition-all">
+                                                            <div className="p-4 border-b border-[var(--border)] bg-slate-50 dark:bg-slate-900/30 flex justify-between items-center">
+                                                                <div>
+                                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Vendedor</p>
+                                                                    <h5 className="font-bold text-sm text-slate-800 dark:text-slate-100">{seller}</h5>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const next = new Set(selectedOrders);
+                                                                        if (allGroupSelected) {
+                                                                            groupOrders.forEach(o => next.delete(o.id));
+                                                                        } else {
+                                                                            groupOrders.forEach(o => next.add(o.id));
+                                                                        }
+                                                                        setSelectedOrders(next);
+                                                                    }}
+                                                                    className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${allGroupSelected ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}
+                                                                >
+                                                                    {allGroupSelected ? 'Seleccionado' : 'Seleccionar Todo'}
+                                                                </button>
+                                                            </div>
+                                                            <div className="p-3 divide-y divide-slate-100 dark:divide-slate-800">
+                                                                {groupOrders.map(order => (
+                                                                    <div
+                                                                        key={order.id}
+                                                                        className={`py-2 px-2 flex justify-between items-center hover:bg-slate-50 shadow-none dark:hover:bg-slate-800/40 rounded-xl cursor-pointer transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500/5 ring-1 ring-indigo-500/20' : ''}`}
+                                                                        onClick={() => toggleOrderSelection(order.id)}
+                                                                    >
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white shadow-sm' : 'border-slate-300 bg-white'}`}>
+                                                                                {selectedOrders.has(order.id) && <Check size={10} strokeWidth={4} />}
+                                                                            </div>
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 line-clamp-1 leading-tight">{order.cliente_nombre}</span>
+                                                                                <span className="text-[9px] font-black text-slate-400 flex items-center gap-1">
+                                                                                    #{order.id} • {order.items?.length || 0} un.
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="text-right">
+                                                                            <p className="text-[11px] font-black text-indigo-500 tracking-tight">${parseFloat(order.total).toLocaleString()}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 border-t border-indigo-100/50 dark:border-indigo-500/10 flex justify-between items-center">
+                                                                <span className="text-[9px] font-black text-indigo-400 uppercase">Total Vendedor</span>
+                                                                <span className="text-xs font-black text-indigo-600">${totalGroup.toLocaleString()}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {Object.keys(groupedPendingOrders).length === 0 && (
+                                        <div className="p-12 text-center text-slate-400 font-bold bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
+                                            No se encontraron pedidos para agrupar
+                                        </div>
+                                    )}
+                                </div>
                             )}
-                        </>
+                        </div>
                     )}
 
                     {activeTab === 'rutas' && (
@@ -959,8 +1045,13 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                 // Si el item viene marcado como bulto en el objeto (aunque intentemos normalizar), multiplicamos
                 if (item._formato === 'BULTO') qtyInUnits *= ub;
 
+                const itemPrice = parseFloat(item.precio) || 0;
+                const itemDiscPercent = parseFloat(item.descuento || 0);
+                const itemSubtotalGross = qtyInUnits * itemPrice;
+                const subtotal = itemSubtotalGross * (1 - itemDiscPercent / 100);
+
                 map[key].totalQty += qtyInUnits;
-                map[key].totalPrice += qtyInUnits * (parseFloat(item.precio) || 0);
+                map[key].totalPrice += subtotal;
 
                 const pesoPromedio = parseFloat(product?.Peso || product?.Peso_Promedio || 0);
 
@@ -975,6 +1066,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                     isKg,
                     ub,
                     precio: item.precio,
+                    descuento: item.descuento || 0,
                     formato: item._formato || 'UNID'
                 });
             });
@@ -1022,49 +1114,24 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
-    const handleUpdateQty = (orderId: string, itemIdx: number, delta: number) => {
+    const handleUpdateItem = (orderId: string, itemIdx: number, updates: any) => {
         setLocalOrders((prev: any) => prev.map((order: any) => {
             if (order.id !== orderId) return order;
             const newItems = order.items.map((it: any, idx: number) => {
                 if (idx !== itemIdx) return it;
-                const product = products.find((p: any) => p.ID_Producto === it.id_prod);
-                const step = (it._formato === 'BULTO') ? 1 : (product?.Unidad?.toLowerCase() === 'kg' ? 0.1 : 1);
-                return { ...it, cantidad: Math.max(0, (parseFloat(it.cantidad) || 0) + (delta * step)) };
+                const nextItem = { ...it, ...updates };
+                const sub = (parseFloat(nextItem.cantidad) || 0) * (parseFloat(nextItem.precio) || 0);
+                const descPercent = parseFloat(nextItem.descuento || 0);
+                nextItem.subtotal = sub * (1 - descPercent / 100);
+                return nextItem;
             });
 
-            const newTotal = newItems.reduce((acc: number, i: any) => {
-                return acc + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0);
-            }, 0);
-            return { ...order, items: newItems, total: newTotal, _editado: true };
+            const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(i.subtotal) || 0), 0);
+            const globalDiscPercent = parseFloat(order.descuento_general || 0);
+            return { ...order, items: newItems, total: newTotal * (1 - globalDiscPercent / 100), _editado: true };
         }));
     };
 
-    const toggleFormato = (orderId: string, itemIdx: number) => {
-        setLocalOrders((prev: any) => prev.map((order: any) => {
-            if (order.id !== orderId) return order;
-            const product = products.find((p: any) => p.ID_Producto === order.items[itemIdx].id_prod);
-            if (!product) return order;
-
-            const isKg = (product.Unidad || '').toLowerCase() === 'kg';
-            if (isKg) return order;
-
-            const ub = parseFloat(product.UB || product.Unidades_Bulto || 1);
-            const precioBase = parseFloat(product.Precio_Unitario || 0);
-
-            const newItems = order.items.map((it: any, idx: number) => {
-                if (idx !== itemIdx) return it;
-                const iB = it._formato === 'BULTO';
-                if (iB) {
-                    return { ...it, _formato: 'UNID', precio: precioBase, cantidad: (parseFloat(it.cantidad) || 0) * ub };
-                } else {
-                    return { ...it, _formato: 'BULTO', precio: precioBase * ub, cantidad: (parseFloat(it.cantidad) || 0) / ub };
-                }
-            });
-
-            const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0), 0);
-            return { ...order, items: newItems, total: newTotal, _editado: true };
-        }));
-    };
 
     const handleSave = async () => {
         const edited = localOrders.filter((o: any) => o._editado);
@@ -1175,144 +1242,85 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
 
                                     {isExpanded && (
                                         <div className="bg-slate-50 dark:bg-slate-900/30 divide-y divide-[var(--border)]">
-                                            {prod.deliveries.map((delivery: any, idx: number) => (
-                                                <div key={idx} className="p-3 flex justify-between items-center bg-white dark:bg-transparent">
-                                                    <div>
-                                                        <p className="font-bold text-xs">{delivery.cliente}</p>
-                                                        <div className="flex items-center gap-1">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    onPrintOrder(delivery.orderId);
-                                                                }}
-                                                                className="p-1 hover:bg-white rounded transition-colors text-slate-400 hover:text-indigo-600"
-                                                                title="Imprimir Remito"
-                                                            >
-                                                                <Printer size={12} />
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setOrderDetailId(delivery.orderId);
-                                                                }}
-                                                                className="p-1 hover:bg-white rounded transition-colors text-indigo-600 font-bold"
-                                                            >
-                                                                Ver
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-4">
-                                                        {delivery.isKg ? (
-                                                            <div className="flex flex-col items-end">
-                                                                <span className="text-[10px] font-bold text-slate-400">Balancero</span>
-                                                                <div className="flex items-center bg-emerald-50 dark:bg-emerald-500/10 rounded-lg p-1 border border-emerald-200">
-                                                                    <input
-                                                                        type="text"
-                                                                        inputMode="decimal"
-                                                                        placeholder="Kg reales"
-                                                                        value={rawInputs[`${delivery.orderId}_${delivery.itemIdx}`] ?? delivery.cantidadVisual}
-                                                                        onFocus={(e) => {
-                                                                            setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}`]: e.target.value }));
-                                                                        }}
-                                                                        onBlur={() => {
-                                                                            setRawInputs(prev => {
-                                                                                const next = { ...prev };
-                                                                                delete next[`${delivery.orderId}_${delivery.itemIdx}`];
-                                                                                return next;
-                                                                            });
-                                                                        }}
-                                                                        onChange={(e) => {
-                                                                            const valStr = e.target.value;
-                                                                            setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}`]: valStr }));
+                                            {prod.deliveries.map((delivery: any, idx: number) => {
+                                                const order = localOrders.find((o: any) => o.id === delivery.orderId);
+                                                const item = order?.items[delivery.itemIdx];
+                                                const itemPrice = parseFloat(item?.precio || 0);
+                                                const itemDiscount = parseFloat(item?.descuento || 0);
+                                                const itemQty = parseFloat(item?.cantidad || 0);
 
-                                                                            const normalized = valStr.replace(',', '.');
-                                                                            const valNum = parseFloat(normalized);
-
-                                                                            if (!isNaN(valNum)) {
-                                                                                setLocalOrders((prev: any) => prev.map((order: any) => {
-                                                                                    if (order.id !== delivery.orderId) return order;
-                                                                                    const newItems = [...order.items];
-                                                                                    newItems[delivery.itemIdx].cantidad = valNum;
-                                                                                    // No pisamos el precio si ya está escalado por bulto/unidad en toggleFormato
-                                                                                    const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0), 0);
-                                                                                    return { ...order, items: newItems, total: newTotal, _editado: true };
-                                                                                }));
-                                                                            }
-                                                                        }}
-                                                                        className="w-16 text-center font-black text-sm bg-transparent outline-none text-emerald-700"
-                                                                    />
-                                                                    <span className="text-[10px] font-bold text-emerald-600 mr-1">Kg</span>
-                                                                </div>
-                                                                <span className="text-[9px] text-slate-400 italic">Pre-venta: {Math.round(delivery.cantidadVenta / (delivery.pesoPromedio || 1))} un.</span>
+                                                return (
+                                                    <div key={idx} className="p-4 flex justify-between items-center bg-white dark:bg-transparent">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">
+                                                                {idx + 1}
                                                             </div>
-                                                        ) : (
-                                                            <div className="flex flex-col items-end">
-                                                                <div className="flex items-center gap-2">
-                                                                    <button
-                                                                        onClick={() => toggleFormato(delivery.orderId, delivery.itemIdx)}
-                                                                        className={`text-[9px] font-black px-2 py-1 rounded border shadow-sm transition-all ${delivery.formato === 'BULTO' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-blue-100 text-blue-700 border-blue-200'}`}
-                                                                    >
-                                                                        {delivery.formato === 'BULTO' ? 'BULTO' : 'UNID'}
-                                                                    </button>
-                                                                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                                                                        <button
-                                                                            onClick={(e) => { e.stopPropagation(); handleUpdateQty(delivery.orderId, delivery.itemIdx, -1); }}
-                                                                            className="w-8 h-8 flex items-center justify-center hover:text-indigo-600 transition-colors"
-                                                                        >
-                                                                            <ChevronDown size={14} />
-                                                                        </button>
+                                                            <div>
+                                                                <p className="font-bold text-xs">{delivery.cliente}</p>
+                                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">#{delivery.orderId}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-6">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="flex flex-col items-end mr-2">
+                                                                    <label className="text-[8px] font-black text-slate-400 uppercase">Cantidad</label>
+                                                                    <div className="flex items-center bg-slate-50 dark:bg-slate-800/50 rounded-lg px-2 border border-slate-200 dark:border-slate-700 h-8">
                                                                         <input
                                                                             type="text"
                                                                             inputMode="decimal"
-                                                                            value={rawInputs[`${delivery.orderId}_${delivery.itemIdx}`] ?? delivery.cantidadVisual}
-                                                                            onFocus={(e) => {
-                                                                                setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}`]: e.target.value }));
-                                                                            }}
-                                                                            onBlur={() => {
-                                                                                setRawInputs(prev => {
-                                                                                    const next = { ...prev };
-                                                                                    delete next[`${delivery.orderId}_${delivery.itemIdx}`];
-                                                                                    return next;
-                                                                                });
-                                                                            }}
+                                                                            value={rawInputs[`${delivery.orderId}_${delivery.itemIdx}_qty`] ?? delivery.cantidadVisual}
                                                                             onChange={(e) => {
                                                                                 const valStr = e.target.value;
-                                                                                setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}`]: valStr }));
-
-                                                                                const normalized = valStr.replace(',', '.');
-                                                                                const valNum = parseFloat(normalized);
-
-                                                                                if (!isNaN(valNum)) {
-                                                                                    setLocalOrders((prev: any) => prev.map((order: any) => {
-                                                                                        if (order.id !== delivery.orderId) return order;
-                                                                                        const newItems = [...order.items];
-                                                                                        newItems[delivery.itemIdx].cantidad = valNum;
-                                                                                        const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(i.cantidad) || 0) * (parseFloat(i.precio) || 0), 0);
-                                                                                        return { ...order, items: newItems, total: newTotal, _editado: true };
-                                                                                    }));
-                                                                                }
+                                                                                setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}_qty`]: valStr }));
+                                                                                const valNum = parseFloat(valStr.replace(',', '.'));
+                                                                                if (!isNaN(valNum)) handleUpdateItem(delivery.orderId, delivery.itemIdx, { cantidad: valNum });
                                                                             }}
-                                                                            className="w-12 text-center font-black text-sm bg-transparent outline-none"
+                                                                            onBlur={() => setRawInputs(prev => {
+                                                                                const next = { ...prev };
+                                                                                delete next[`${delivery.orderId}_${delivery.itemIdx}_qty`];
+                                                                                return next;
+                                                                            })}
+                                                                            className="w-12 text-center font-black text-xs bg-transparent outline-none"
                                                                         />
-                                                                        <button
-                                                                            onClick={(e) => { e.stopPropagation(); handleUpdateQty(delivery.orderId, delivery.itemIdx, 1); }}
-                                                                            className="w-8 h-8 flex items-center justify-center hover:text-indigo-600 transition-colors"
-                                                                        >
-                                                                            <ChevronUp size={14} />
-                                                                        </button>
+                                                                        <span className="text-[9px] font-black text-slate-400 ml-1">{delivery.formato === 'BULTO' ? 'BUL' : 'UNI'}</span>
                                                                     </div>
                                                                 </div>
-                                                                <span className="text-[9px] font-bold text-indigo-500 mt-1">
-                                                                    {formatQtyWithBultos(delivery.cantidadVenta, delivery.ub, delivery.isKg)}
-                                                                </span>
+
+                                                                <div className="text-right">
+                                                                    <label className="text-[8px] font-black text-slate-400 uppercase block">Subtotal</label>
+                                                                    <p className="text-[11px] font-black text-indigo-600">
+                                                                        ${(itemQty * itemPrice * (1 - itemDiscount / 100)).toLocaleString()}
+                                                                    </p>
+                                                                    {itemDiscount > 0 && <p className="text-[8px] font-black text-rose-500">-{itemDiscount}%</p>}
+                                                                </div>
                                                             </div>
-                                                        )}
-                                                        <div className="w-20 text-right font-bold text-xs">
-                                                            ${(parseFloat(delivery.cantidadVenta) * parseFloat(delivery.precio)).toLocaleString()}
+
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        onPrintOrder(delivery.orderId);
+                                                                    }}
+                                                                    className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:bg-slate-200 transition-all"
+                                                                    title="Imprimir Remito"
+                                                                >
+                                                                    <Printer size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setOrderDetailId(delivery.orderId);
+                                                                    }}
+                                                                    className="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                                                                >
+                                                                    Edición Fina
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                             {prod.isKg && (
                                                 <div className="p-3 bg-emerald-50 dark:bg-emerald-500/5 text-center border-t border-emerald-100">
                                                     <span className="text-[10px] font-black text-emerald-600 uppercase">Espacio para Peso Real en Balanza disponible en Remito impreso</span>
@@ -1333,6 +1341,10 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                             products={products}
                             config={config}
                             onClose={() => setOrderDetailId(null)}
+                            onUpdateOrder={(updated: any) => {
+                                setLocalOrders((prev: any) => prev.map((o: any) => o.id === updated.id ? { ...updated, _editado: true } : o));
+                                setOrderDetailId(null);
+                            }}
                             onPrint={() => {
                                 const order = localOrders.find((o: any) => o.id === orderDetailId);
                                 if (order) onPrintOrder(order.id);
@@ -1353,8 +1365,8 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                         <Save size={18} /> {isSyncing ? 'Guardando...' : 'Guardar y Cerrar'}
                     </button>
                 </div>
-            </motion.div>
-        </motion.div>
+            </motion.div >
+        </motion.div >
     );
 }
 
@@ -1853,8 +1865,105 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
     );
 }
 
-function OrderDetailModal({ order, products, config, onClose, onPrint }: any) {
-    if (!order) return null;
+function OrderDetailModal({ order, products, config, onClose, onPrint, onUpdateOrder }: any) {
+    const [localOrder, setLocalOrder] = useState<any>(null);
+    const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (order) setLocalOrder(JSON.parse(JSON.stringify(order)));
+    }, [order]);
+
+    if (!localOrder) return null;
+
+    const recalculatedOrder = (next: any) => {
+        const itemsTotal = next.items.reduce((acc: number, item: any) => {
+            const qty = parseFloat(item.cantidad) || 0;
+            const price = parseFloat(item.precio) || 0;
+            const discPercent = parseFloat(item.descuento || 0);
+            const subtotalGross = qty * price;
+            const sub = subtotalGross * (1 - discPercent / 100);
+            item.subtotal = sub; // Crucial para el backend
+            return acc + sub;
+        }, 0);
+        const globalDiscPercent = parseFloat(next.descuento_general || 0);
+        next.total = itemsTotal * (1 - globalDiscPercent / 100);
+        return next;
+    };
+
+    const handleItemChange = (idx: number, updates: any) => {
+        const next = { ...localOrder };
+        next.items[idx] = { ...next.items[idx], ...updates };
+        setLocalOrder(recalculatedOrder(next));
+    };
+
+    const handleGlobalDiscountChange = (val: number) => {
+        const next = { ...localOrder };
+        next.descuento_general = val;
+        setLocalOrder(recalculatedOrder(next));
+    };
+
+    const handleToggleFormato = (idx: number) => {
+        const next = { ...localOrder };
+        const item = next.items[idx];
+        const product = products.find((p: any) => p.ID_Producto === item.id_prod);
+        if (!product) return;
+
+        const ub = parseFloat(product.UB || product.Unidades_Bulto || 1);
+        const precioBase = parseFloat(product.Precio_Unitario || 0);
+        const iB = item._formato === 'BULTO';
+
+        if (iB) {
+            next.items[idx] = { ...item, _formato: 'UNID', precio: precioBase, cantidad: (parseFloat(item.cantidad) || 0) * ub };
+        } else {
+            next.items[idx] = { ...item, _formato: 'BULTO', precio: precioBase * ub, cantidad: (parseFloat(item.cantidad) || 0) / ub };
+        }
+        setLocalOrder(recalculatedOrder(next));
+    };
+
+    const handleDeleteItem = (idx: number) => {
+        if (!confirm("¿Eliminar este producto del pedido?")) return;
+        const next = { ...localOrder };
+        next.items.splice(idx, 1);
+        setLocalOrder(recalculatedOrder(next));
+    };
+
+    const applyAutoPromotions = () => {
+        if (!config?.SYSTEM_PROMOTIONS) return;
+        let promos = [];
+        try {
+            promos = JSON.parse(config.SYSTEM_PROMOTIONS);
+        } catch (e) { return; }
+
+        const next = { ...localOrder };
+        let count = 0;
+        next.items = next.items.map((item: any) => {
+            const applicable = promos.filter((p: any) =>
+                p.active &&
+                (p.target === 'ALL' || p.target === item.id_prod)
+            );
+
+            let bestDiscount = parseFloat(item.descuento || 0);
+            applicable.forEach((p: any) => {
+                if (p.type === 'BOX' && item._formato === 'BULTO' && item.cantidad >= p.threshold) {
+                    bestDiscount = Math.max(bestDiscount, p.discount);
+                } else if (p.type === 'QTY' && item.cantidad >= p.threshold) {
+                    bestDiscount = Math.max(bestDiscount, p.discount);
+                }
+            });
+
+            if (bestDiscount !== parseFloat(item.descuento || 0)) count++;
+            return { ...item, descuento: bestDiscount };
+        });
+
+        if (count > 0) {
+            setLocalOrder(recalculatedOrder(next));
+            alert(`Se aplicaron ${count} promociones por reglas de negocio.`);
+        } else {
+            alert("No se cumplen condiciones para nuevas promociones.");
+        }
+    };
+
+    const isEditable = !!onUpdateOrder;
 
     return (
         <motion.div
@@ -1866,71 +1975,255 @@ function OrderDetailModal({ order, products, config, onClose, onPrint }: any) {
             <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+                className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
             >
-                <div className="p-6 border-b border-[var(--border)] flex justify-between items-center bg-indigo-500 text-white">
-                    <div>
-                        <h4 className="text-xl font-black">Detalle del Pedido</h4>
-                        <p className="text-xs opacity-80 font-bold uppercase tracking-widest">{order.cliente_nombre}</p>
+                <div className="p-6 border-b border-[var(--border)] flex justify-between items-center bg-indigo-600 text-white">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                            <Package size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-xl font-black">Detalle del Pedido</h4>
+                            <p className="text-xs opacity-80 font-bold uppercase tracking-widest">{localOrder.cliente_nombre}</p>
+                        </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
                         <X size={20} />
                     </button>
                 </div>
 
-                <div className="p-6 overflow-auto max-h-[60vh] space-y-4">
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-[var(--border)]">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">ID Pedido</p>
-                            <p className="font-mono text-xs font-bold">{order.id}</p>
+                <div className="p-6 overflow-auto space-y-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-[var(--border)]">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1">
+                                <Info size={10} /> ID Pedido
+                            </p>
+                            <p className="font-mono text-xs font-black">{localOrder.id}</p>
                         </div>
-                        <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-[var(--border)]">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-[var(--border)]">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Preventista</p>
+                            <p className="font-black text-xs">{localOrder.vendedor || 'N/A'}</p>
+                        </div>
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-[var(--border)]">
                             <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Estado</p>
-                            <span className="text-xs font-black text-indigo-500">{order.estado}</span>
+                            <span className="text-xs font-black text-indigo-500 uppercase">{localOrder.estado}</span>
                         </div>
-                        {order.notas && (
-                            <div className="col-span-2 p-3 bg-orange-50 dark:bg-orange-500/10 rounded-2xl border border-orange-100 dark:border-orange-500/20">
-                                <p className="text-[10px] text-orange-400 font-bold uppercase mb-1">Notas / Detalles Delivery</p>
-                                <p className="text-xs font-black text-orange-600 dark:text-orange-400">{order.notas}</p>
+                        {localOrder.notas && (
+                            <div className="col-span-full p-4 bg-orange-50 dark:bg-orange-500/10 rounded-2xl border border-orange-100 dark:border-orange-500/20">
+                                <p className="text-[10px] text-orange-400 font-bold uppercase mb-1">Notas del Pedido</p>
+                                <p className="text-xs font-bold text-orange-600 dark:text-orange-400">{localOrder.notas}</p>
                             </div>
                         )}
                     </div>
 
-                    <div className="space-y-2">
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Items del pedido</p>
-                        {order.items?.map((item: any, idx: number) => {
-                            return (
-                                <div key={idx} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-xl shadow-sm">
-                                    <div>
-                                        <p className="font-bold text-sm">{item.nombre}</p>
-                                        <p className="text-[10px] text-slate-400 font-medium">
-                                            {item.cantidad} {item._formato || 'UNID'} x ${parseFloat(item.precio).toLocaleString()}
-                                        </p>
+                    <div className="space-y-3">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-[var(--border)]">
+                            <span className="flex items-center gap-2 pt-0.5"><ShoppingCart size={12} className="text-indigo-500" /> Items del Pedido</span>
+                            <div className="flex gap-3 items-center">
+                                {isEditable && config?.SYSTEM_PROMOTIONS && (
+                                    <button
+                                        onClick={applyAutoPromotions}
+                                        className="flex items-center gap-1.5 px-4 py-1.5 bg-rose-500/10 text-rose-600 rounded-full hover:bg-rose-500 hover:text-white transition-all active:scale-95 border border-rose-500/20"
+                                    >
+                                        <Tag size={10} /> Escanear Promos
+                                    </button>
+                                )}
+                                <span className="bg-white dark:bg-slate-900 border border-[var(--border)] px-3 py-1.5 rounded-full">{localOrder.items?.length || 0} productos</span>
+                            </div>
+                        </div>
+                        <div className="space-y-3">
+                            {localOrder.items?.map((item: any, idx: number) => {
+                                const itemPrice = parseFloat(item.precio) || 0;
+                                const itemQty = parseFloat(item.cantidad) || 0;
+                                const itemDiscPercent = parseFloat(item.descuento || 0);
+                                const itemSubtotalGross = itemQty * itemPrice;
+                                const itemDiscAmount = itemSubtotalGross * (itemDiscPercent / 100);
+                                const itemSubtotal = itemSubtotalGross - itemDiscAmount;
+
+                                return (
+                                    <div key={idx} className="group p-4 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl hover:border-indigo-500/50 hover:shadow-lg transition-all">
+                                        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                                            {isEditable ? (
+                                                <div className="flex flex-col sm:flex-row gap-4 flex-1 items-start sm:items-center">
+                                                    <div className="flex-1 w-full sm:w-auto">
+                                                        <p className="font-black text-sm text-slate-800 dark:text-slate-100">{item.nombre}</p>
+                                                    </div>
+                                                    <div className="w-full sm:w-auto grid grid-cols-3 gap-3">
+                                                        <div className="space-y-1">
+                                                            <div className="flex justify-between items-center ml-1">
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase">Cant.</label>
+                                                                <button
+                                                                    onClick={() => handleToggleFormato(idx)}
+                                                                    className={`text-[8px] font-black px-1 rounded ${item._formato === 'BULTO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}
+                                                                >
+                                                                    {item._formato === 'BULTO' ? 'BUL' : 'UNI'}
+                                                                </button>
+                                                            </div>
+                                                            <input
+                                                                type="text"
+                                                                inputMode="decimal"
+                                                                value={rawInputs[`${idx}_qty`] ?? item.cantidad}
+                                                                onFocus={(e) => setRawInputs(prev => ({ ...prev, [`${idx}_qty`]: e.target.value }))}
+                                                                onBlur={() => setRawInputs(prev => {
+                                                                    const next = { ...prev };
+                                                                    delete next[`${idx}_qty`];
+                                                                    return next;
+                                                                })}
+                                                                onChange={(e) => {
+                                                                    const valStr = e.target.value;
+                                                                    setRawInputs(prev => ({ ...prev, [`${idx}_qty`]: valStr }));
+                                                                    const valNum = parseFloat(valStr.replace(',', '.'));
+                                                                    if (!isNaN(valNum)) handleItemChange(idx, { cantidad: valNum });
+                                                                }}
+                                                                className="w-full h-9 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-center"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Precio</label>
+                                                            <input
+                                                                type="text"
+                                                                inputMode="decimal"
+                                                                value={rawInputs[`${idx}_price`] ?? item.precio}
+                                                                onFocus={(e) => setRawInputs(prev => ({ ...prev, [`${idx}_price`]: e.target.value }))}
+                                                                onBlur={() => setRawInputs(prev => {
+                                                                    const next = { ...prev };
+                                                                    delete next[`${idx}_price`];
+                                                                    return next;
+                                                                })}
+                                                                onChange={(e) => {
+                                                                    const valStr = e.target.value;
+                                                                    setRawInputs(prev => ({ ...prev, [`${idx}_price`]: valStr }));
+                                                                    const valNum = parseFloat(valStr.replace(',', '.'));
+                                                                    if (!isNaN(valNum)) handleItemChange(idx, { precio: valNum });
+                                                                }}
+                                                                className="w-full h-9 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-center"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Desc. (%)</label>
+                                                            <input
+                                                                type="text"
+                                                                inputMode="decimal"
+                                                                value={rawInputs[`${idx}_disc`] ?? item.descuento}
+                                                                onFocus={(e) => setRawInputs(prev => ({ ...prev, [`${idx}_disc`]: e.target.value }))}
+                                                                onBlur={() => setRawInputs(prev => {
+                                                                    const next = { ...prev };
+                                                                    delete next[`${idx}_disc`];
+                                                                    return next;
+                                                                })}
+                                                                onChange={(e) => {
+                                                                    const valStr = e.target.value;
+                                                                    setRawInputs(prev => ({ ...prev, [`${idx}_disc`]: valStr }));
+                                                                    const valNum = parseFloat(valStr.replace(',', '.'));
+                                                                    if (!isNaN(valNum)) handleItemChange(idx, { descuento: valNum });
+                                                                }}
+                                                                className="w-full h-9 px-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl text-xs font-black text-center text-rose-600"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleDeleteItem(idx)}
+                                                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl self-end sm:self-center transition-colors"
+                                                        title="Eliminar producto"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex justify-between items-center w-full">
+                                                    <div>
+                                                        <p className="font-black text-sm text-slate-800 dark:text-slate-100">{item.nombre}</p>
+                                                        <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">
+                                                            {item.cantidad} {item._formato || 'UNID'} x ${itemPrice.toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="font-black text-sm text-slate-800 dark:text-slate-100">${itemSubtotal.toLocaleString()}</p>
+                                                        {itemDiscPercent > 0 && <p className="text-[9px] font-black text-rose-500">Desc: {itemDiscPercent}% (-${itemDiscAmount.toLocaleString()})</p>}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <p className="font-black text-slate-700">${(parseFloat(item.cantidad) * parseFloat(item.precio)).toLocaleString()}</p>
+                                );
+                            })}
+                        </div>
+
+                        {isEditable && (
+                            <div className="p-4 bg-indigo-50 dark:bg-indigo-500/5 rounded-2xl border border-indigo-100 dark:border-indigo-500/20 flex justify-between items-center mt-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                                        <DollarSign size={16} />
+                                    </div>
+                                    <span className="text-xs font-black text-indigo-800 dark:text-indigo-400 uppercase tracking-widest">Descuento General (%)</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-black text-indigo-500">%</span>
+                                    <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={rawInputs[`global_disc`] ?? (localOrder.descuento_general || 0)}
+                                        onFocus={(e) => setRawInputs(prev => ({ ...prev, [`global_disc`]: e.target.value }))}
+                                        onBlur={() => setRawInputs(prev => {
+                                            const next = { ...prev };
+                                            delete next[`global_disc`];
+                                            return next;
+                                        })}
+                                        onChange={(e) => {
+                                            const valStr = e.target.value;
+                                            setRawInputs(prev => ({ ...prev, [`global_disc`]: valStr }));
+                                            const valNum = parseFloat(valStr.replace(',', '.'));
+                                            if (!isNaN(valNum)) handleGlobalDiscountChange(valNum);
+                                        }}
+                                        className="w-24 h-9 px-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/30 rounded-xl text-xs font-black text-center text-indigo-600 focus:ring-2 ring-indigo-500"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {!isEditable && parseFloat(localOrder.descuento_general || 0) > 0 && (() => {
+                            const itemsSubAfterDisc = localOrder.items.reduce((acc: number, it: any) => {
+                                const sub = (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio) || 0);
+                                const discP = parseFloat(it.descuento || 0);
+                                return acc + (sub * (1 - discP / 100));
+                            }, 0);
+                            const globalDiscAmount = itemsSubAfterDisc * (parseFloat(localOrder.descuento_general) / 100);
+                            return (
+                                <div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-2xl flex justify-between items-center text-rose-600">
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Descuento Global ({localOrder.descuento_general}%)</span>
+                                    <span className="font-black text-sm">-${globalDiscAmount.toLocaleString()}</span>
                                 </div>
                             );
-                        })}
+                        })()}
                     </div>
                 </div>
 
-                <div className="p-6 border-t border-[var(--border)] bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
-                    <div className="text-right">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">Total del Pedido</p>
-                        <p className="text-2xl font-black text-indigo-600">${parseFloat(order.total).toLocaleString()}</p>
+                <div className="p-6 border-t border-[var(--border)] bg-slate-50 dark:bg-slate-800/30 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="text-center sm:text-left">
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Total a Pagar</p>
+                        <p className="text-3xl font-black text-indigo-600 leading-none">${parseFloat(localOrder.total).toLocaleString()}</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={onPrint}
-                            className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-lg"
-                        >
-                            <Printer size={16} /> Imprimir Remito
-                        </button>
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        {isEditable ? (
+                            <button
+                                onClick={() => onUpdateOrder(localOrder)}
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 active:scale-95"
+                            >
+                                <Save size={18} /> Guardar Cambios
+                            </button>
+                        ) : (
+                            <button
+                                onClick={onPrint}
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                            >
+                                <Printer size={18} /> Remito
+                            </button>
+                        )}
                         <button
                             onClick={onClose}
-                            className="px-6 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all"
+                            className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
                         >
-                            Cerrar
+                            {isEditable ? 'Cancelar' : 'Cerrar'}
                         </button>
                     </div>
                 </div>

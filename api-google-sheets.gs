@@ -148,7 +148,8 @@ function getPedidosCompletos() {
       detalle: d[3],
       cantidad: d[4],
       subtotal: d[5],
-      precio: d[4] ? (d[5] / d[4]) : 0
+      descuento: d[6] || 0,
+      precio: d[4] ? (d[5] / (1 - (parseFloat(d[6] || 0) / 100)) / d[4]) : 0
     });
   });
   
@@ -166,6 +167,7 @@ function getPedidosCompletos() {
       reparto: row[7] || "",
       notas: row[8] || "",
       gps: row[10] || "",
+      descuento_general: row[11] || 0,
       items: detalleMap[id] || []
     };
   }).filter(p => p !== null);
@@ -418,8 +420,13 @@ function guardarCorreccionPedido(pedidoEditado) {
           const cantNueva = parseFloat(item.cantidad) || 0;
           const diferencia = cantAnterior - cantNueva; 
 
+          const discP = parseFloat(item.descuento || 0);
+          const rawSubtotal = parseFloat(item.cantidad) * parseFloat(item.precio);
+          const finalSubtotal = rawSubtotal * (1 - discP / 100);
+
           sheetDetalle.getRange(i + 1, 5).setValue(cantNueva);
-          sheetDetalle.getRange(i + 1, 6).setValue(parseFloat(item.cantidad) * parseFloat(item.precio));
+          sheetDetalle.getRange(i + 1, 6).setValue(finalSubtotal);
+          sheetDetalle.getRange(i + 1, 7).setValue(discP);
           
           if (diferencia !== 0 && sIdx > -1) {
              for (let j = 1; j < dataProductos.length; j++) {
@@ -440,6 +447,7 @@ function guardarCorreccionPedido(pedidoEditado) {
     for (let i = 1; i < dataPedidos.length; i++) {
       if (String(dataPedidos[i][0]) === String(pedidoEditado.id)) {
         sheetPedidos.getRange(i + 1, 6).setValue(pedidoEditado.total);
+        sheetPedidos.getRange(i + 1, 12).setValue(pedidoEditado.descuento_general || 0);
         break;
       }
     }
@@ -484,12 +492,12 @@ function procesarPedido(datos) {
     const f = Utilities.formatDate(d, tz, "dd/MM/yyyy");
     const h = Utilities.formatDate(d, tz, "HH:mm:ss");
 
-    sheetP.appendRow([idPedido, f, clienteId, clienteNombre, datos.vendedor || "Web", datos.total, "Pendiente", "", notas, h, datos.gps || ""]);
+    sheetP.appendRow([idPedido, f, clienteId, clienteNombre, datos.vendedor || "Web", datos.total, "Pendiente", "", notas, h, datos.gps || "", datos.descuento_general || 0]);
     
     datos.items.forEach(item => {
       const idItem = item.id_producto || item.id || "";
       const detalle = item.descripcion || item.detalle || "";
-      sheetD.appendRow([idPedido, idItem, item.nombre, detalle, item.cantidad, item.subtotal]);
+      sheetD.appendRow([idPedido, idItem, item.nombre, detalle, item.cantidad, item.subtotal, item.descuento || 0]);
     });
     
     actualizarStock(datos.items, -1);
@@ -679,7 +687,10 @@ function guardarCorreccionPedidoInternal(pedidoEditado, sheetP, sheetD) {
           const diferencia = cantAnterior - cantNueva; 
 
           sheetD.getRange(i + 1, 5).setValue(cantNueva);
-          sheetD.getRange(i + 1, 6).setValue(parseFloat(item.cantidad) * parseFloat(item.precio));
+          // Col F: Subtotal (ya descontado)
+          sheetD.getRange(i + 1, 6).setValue(item.subtotal || (parseFloat(item.cantidad) * parseFloat(item.precio)));
+          // Col G: Descuento ítem
+          sheetD.getRange(i + 1, 7).setValue(item.descuento || 0);
           
           if (diferencia !== 0 && sIdx > -1) {
              for (let j = 1; j < dataProductos.length; j++) {
@@ -695,11 +706,12 @@ function guardarCorreccionPedidoInternal(pedidoEditado, sheetP, sheetD) {
       }
     });
 
-    // 2. Actualizar Encabezado (Total)
+    // 2. Actualizar Encabezado (Total y Descuento General)
     const dataPedidos = sheetP.getDataRange().getValues();
     for (let i = 1; i < dataPedidos.length; i++) {
       if (String(dataPedidos[i][0]) === String(pedidoEditado.id)) {
-        sheetP.getRange(i + 1, 6).setValue(pedidoEditado.total);
+        sheetP.getRange(i + 1, 6).setValue(pedidoEditado.total); // Col F
+        sheetP.getRange(i + 1, 12).setValue(pedidoEditado.descuento_general || 0); // Col L
         break;
       }
     }
