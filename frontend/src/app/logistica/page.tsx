@@ -49,8 +49,47 @@ import { useData } from "@/context/DataContext";
 
 export default function LogisticaPage() {
     const { data, loading, refreshData, setIsSyncing } = useData();
-    const orders: any[] = data?.orders || [];
     const products: any[] = data?.products || [];
+    const rawOrders: any[] = data?.orders || [];
+
+    // Tratamiento especial para pesables: convertir piezas a Kg estimado si vienen en formato de unidades/piezas
+    // Esto asegura que en logística ya trabajemos sobre pesaje estimado desde el inicio.
+    const orders = useMemo(() => {
+        if (!products.length || !rawOrders.length) return rawOrders;
+
+        return rawOrders.map((order: any) => ({
+            ...order,
+            items: (order.items || []).map((it: any) => {
+                const product = products.find(p => p.ID_Producto === it.id_prod);
+                if (!product) return it;
+
+                const isKg = (product.Unidad || '').toLowerCase() === 'kg';
+                if (!isKg) return it;
+
+                const weightAvg = parseFloat(product.Peso || product.Peso_Promedio || 1);
+                const priceKg = parseFloat(product.Precio_Unitario || 0);
+                const itemPrice = parseFloat(it.precio || 0);
+
+                // Si el precio del item se parece más al precio por pieza (kg * peso) que al precio por kg,
+                // entonces es porque viene del preventista en modo "pieza" y debemos normalizarlo a Kg para logística.
+                const piecePrice = priceKg * weightAvg;
+                const diffKg = Math.abs(itemPrice - priceKg);
+                const diffPiece = Math.abs(itemPrice - piecePrice);
+
+                if (diffPiece < diffKg || (itemPrice > priceKg * 1.5 && weightAvg > 1.1)) {
+                    return {
+                        ...it,
+                        cantidad: (parseFloat(it.cantidad) || 0) * weightAvg,
+                        precio: priceKg,
+                        _formato: 'UNID', // En logística trabajamos siempre sobre la unidad base (Kg)
+                        _pesableTratado: true
+                    };
+                }
+                return it;
+            })
+        }));
+    }, [rawOrders, products]);
+
     const clients: any[] = data?.clients || [];
     const liquidaciones: any[] = data?.liquidaciones || [];
 
@@ -58,6 +97,19 @@ export default function LogisticaPage() {
     const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial'>('pendientes');
     const [viewMode, setViewMode] = useState<'grid' | 'list' | 'grouped'>('grid');
     const [searchTerm, setSearchTerm] = useState("");
+    const [refreshCounter, setRefreshCounter] = useState(0);
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+    const toggleGroup = (id: string) => {
+        setExpandedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+
     const [filterDate, setFilterDate] = useState("");
     const [filterSeller, setFilterSeller] = useState("");
     const [editingRoute, setEditingRoute] = useState<string | null>(null);
@@ -427,8 +479,9 @@ export default function LogisticaPage() {
                 ${pesables.length > 0 ? `
                     <div class="section">
                         <h2>Productos Pesables (Balanza)</h2>
-                        <p style="font-size: 10px; color: #666; margin-top: 2px;">* Cantidad expresada en KG estimado. Requiere pesaje real por bulto.</p>
+                        <p style="font-size: 10px; color: #666; margin-top: 2px;">* Los productos pesables muestran KG ESTIMADO si no han sido corregidos en el gestor de rutas.</p>
                         <table>
+
                             <thead>
                                 <tr>
                                     <th width="40">LISTO</th>
@@ -795,82 +848,199 @@ export default function LogisticaPage() {
                                 </div>
                             ) : (
                                 <div className="space-y-6">
-                                    {Object.keys(groupedPendingOrders).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()).map(date => (
-                                        <div key={date} className="space-y-4">
-                                            <div className="flex items-center gap-2 px-2">
-                                                <Calendar size={14} className="text-indigo-500" />
-                                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">{date}</h4>
-                                                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
-                                            </div>
+                                    {Object.keys(groupedPendingOrders).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()).map(date => {
+                                        const dateKey = `date_${date}`;
+                                        const isDateExpanded = expandedGroups.has(dateKey);
+                                        const sellersInDate = Object.keys(groupedPendingOrders[date]).sort();
+                                        const totalOrdersInDate = sellersInDate.reduce((acc, s) => acc + groupedPendingOrders[date][s].length, 0);
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                {Object.keys(groupedPendingOrders[date]).sort().map(seller => {
-                                                    const groupOrders = groupedPendingOrders[date][seller];
-                                                    const totalGroup = groupOrders.reduce((acc, o) => acc + parseFloat(o.total), 0);
-                                                    const allGroupSelected = groupOrders.every(o => selectedOrders.has(o.id));
-
-                                                    return (
-                                                        <div key={seller} className="bg-white dark:bg-slate-800/50 border border-[var(--border)] rounded-[24px] overflow-hidden shadow-sm hover:shadow-md transition-all">
-                                                            <div className="p-4 border-b border-[var(--border)] bg-slate-50 dark:bg-slate-900/30 flex justify-between items-center">
-                                                                <div>
-                                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Vendedor</p>
-                                                                    <h5 className="font-bold text-sm text-slate-800 dark:text-slate-100">{seller}</h5>
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const next = new Set(selectedOrders);
-                                                                        if (allGroupSelected) {
-                                                                            groupOrders.forEach(o => next.delete(o.id));
-                                                                        } else {
-                                                                            groupOrders.forEach(o => next.add(o.id));
-                                                                        }
-                                                                        setSelectedOrders(next);
-                                                                    }}
-                                                                    className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${allGroupSelected ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}
-                                                                >
-                                                                    {allGroupSelected ? 'Seleccionado' : 'Seleccionar Todo'}
-                                                                </button>
-                                                            </div>
-                                                            <div className="p-3 divide-y divide-slate-100 dark:divide-slate-800">
-                                                                {groupOrders.map(order => (
-                                                                    <div
-                                                                        key={order.id}
-                                                                        className={`py-2 px-2 flex justify-between items-center hover:bg-slate-50 shadow-none dark:hover:bg-slate-800/40 rounded-xl cursor-pointer transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500/5 ring-1 ring-indigo-500/20' : ''}`}
-                                                                        onClick={() => toggleOrderSelection(order.id)}
-                                                                    >
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white shadow-sm' : 'border-slate-300 bg-white'}`}>
-                                                                                {selectedOrders.has(order.id) && <Check size={10} strokeWidth={4} />}
-                                                                            </div>
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 line-clamp-1 leading-tight">{order.cliente_nombre}</span>
-                                                                                <span className="text-[9px] font-black text-slate-400 flex items-center gap-1">
-                                                                                    #{order.id} • {order.items?.length || 0} un.
-                                                                                </span>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="text-right">
-                                                                            <p className="text-[11px] font-black text-indigo-500 tracking-tight">${parseFloat(order.total).toLocaleString()}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                            <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 border-t border-indigo-100/50 dark:border-indigo-500/10 flex justify-between items-center">
-                                                                <span className="text-[9px] font-black text-indigo-400 uppercase">Total Vendedor</span>
-                                                                <span className="text-xs font-black text-indigo-600">${totalGroup.toLocaleString()}</span>
-                                                            </div>
+                                        return (
+                                            <div key={date} className="space-y-4">
+                                                <div
+                                                    onClick={() => toggleGroup(dateKey)}
+                                                    className="flex items-center justify-between group cursor-pointer bg-slate-100 dark:bg-slate-800/50 p-3 rounded-2xl border border-[var(--border)] sticky top-0 z-10 backdrop-blur-md"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                                            <Calendar size={14} />
                                                         </div>
-                                                    );
-                                                })}
+                                                        <div>
+                                                            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">{date}</h4>
+                                                            <p className="text-[9px] font-bold text-slate-500 uppercase">{totalOrdersInDate} pedidos en total</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="hidden sm:flex gap-2">
+                                                            <span className="text-[10px] font-black bg-white dark:bg-slate-900 px-3 py-1 rounded-full border border-[var(--border)]">{sellersInDate.length} vendedores</span>
+                                                        </div>
+                                                        {isDateExpanded ? <ChevronUp size={16} className="text-indigo-500" /> : <ChevronDown size={16} className="text-slate-400" />}
+                                                    </div>
+                                                </div>
+
+                                                <AnimatePresence>
+                                                    {isDateExpanded && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, height: 0 }}
+                                                            animate={{ opacity: 1, height: 'auto' }}
+                                                            exit={{ opacity: 0, height: 0 }}
+                                                            className="overflow-hidden"
+                                                        >
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6 p-1">
+                                                                {sellersInDate.map(seller => {
+                                                                    const groupOrders = groupedPendingOrders[date][seller];
+                                                                    const totalGroup = groupOrders.reduce((acc, o) => acc + parseFloat(o.total), 0);
+                                                                    const allGroupSelected = groupOrders.every(o => selectedOrders.has(o.id));
+                                                                    const sellerKey = `seller_${date}_${seller}`;
+                                                                    const isSellerExpanded = expandedGroups.has(sellerKey);
+
+                                                                    return (
+                                                                        <div key={seller} className={`tech-card border transition-all overflow-hidden ${isSellerExpanded ? 'border-indigo-500/50 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
+                                                                            <div
+                                                                                onClick={() => toggleGroup(sellerKey)}
+                                                                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${isSellerExpanded ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
+                                                                            >
+                                                                                <div className="flex items-center gap-4">
+                                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isSellerExpanded ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                                                                        <User size={18} />
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <h5 className="font-bold text-sm">{seller}</h5>
+                                                                                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-tight">${totalGroup.toLocaleString()}</p>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            const next = new Set(selectedOrders);
+                                                                                            if (allGroupSelected) {
+                                                                                                groupOrders.forEach(o => next.delete(o.id));
+                                                                                            } else {
+                                                                                                groupOrders.forEach(o => next.add(o.id));
+                                                                                            }
+                                                                                            setSelectedOrders(next);
+                                                                                        }}
+                                                                                        className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${allGroupSelected ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}`}
+                                                                                    >
+                                                                                        <Check size={12} strokeWidth={4} />
+                                                                                        {allGroupSelected ? 'Todos' : 'Marcar'}
+                                                                                    </button>
+                                                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-200 transition-colors">
+                                                                                        {isSellerExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <AnimatePresence>
+                                                                                {isSellerExpanded && (
+                                                                                    <motion.div
+                                                                                        initial={{ opacity: 0, height: 0 }}
+                                                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                                                        exit={{ opacity: 0, height: 0 }}
+                                                                                        className="bg-slate-50/50 dark:bg-slate-900/40 border-t border-[var(--border)]"
+                                                                                    >
+                                                                                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                                                            {groupOrders.map(order => {
+                                                                                                const orderKey = `order_${order.id}`;
+                                                                                                const isOrderExpanded = expandedGroups.has(orderKey);
+                                                                                                const isSelected = selectedOrders.has(order.id);
+
+                                                                                                return (
+                                                                                                    <div key={order.id} className="group">
+                                                                                                        <div
+                                                                                                            className={`p-3 flex items-center gap-3 transition-colors hover:bg-indigo-500/5 cursor-pointer ${isSelected ? 'bg-indigo-500/10' : ''}`}
+                                                                                                            onClick={(e) => {
+                                                                                                                if ((e.target as HTMLElement).closest('.collapse-btn')) return;
+                                                                                                                toggleOrderSelection(order.id);
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            <div
+                                                                                                                className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 bg-white'}`}
+                                                                                                            >
+                                                                                                                {isSelected && <Check size={10} strokeWidth={4} />}
+                                                                                                            </div>
+                                                                                                            <div className="flex-1 min-w-0">
+                                                                                                                <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{order.cliente_nombre}</p>
+                                                                                                                <div className="flex items-center gap-2">
+                                                                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">#{order.id}</span>
+                                                                                                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                                                                                                    <span className="text-[9px] font-black text-indigo-500">${parseFloat(order.total).toLocaleString()}</span>
+                                                                                                                </div>
+                                                                                                            </div>
+                                                                                                            <div className="flex items-center gap-1">
+                                                                                                                <button
+                                                                                                                    onClick={(e) => { e.stopPropagation(); setViewingDetailId(order.id); }}
+                                                                                                                    className="p-1.5 text-slate-400 hover:text-indigo-500 transition-colors"
+                                                                                                                >
+                                                                                                                    <Eye size={14} />
+                                                                                                                </button>
+                                                                                                                <button
+                                                                                                                    onClick={(e) => { e.stopPropagation(); toggleGroup(orderKey); }}
+                                                                                                                    className="p-1.5 text-slate-400 hover:text-indigo-500 transition-colors collapse-btn"
+                                                                                                                >
+                                                                                                                    {isOrderExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                                                                                </button>
+                                                                                                            </div>
+                                                                                                        </div>
+
+                                                                                                        <AnimatePresence>
+                                                                                                            {isOrderExpanded && (
+                                                                                                                <motion.div
+                                                                                                                    initial={{ opacity: 0, height: 0 }}
+                                                                                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                                                                                    exit={{ opacity: 0, height: 0 }}
+                                                                                                                    className="px-4 pb-3 pt-1 border-t border-slate-100 dark:border-slate-800"
+                                                                                                                >
+                                                                                                                    <div className="space-y-1 mt-2">
+                                                                                                                        {order.items?.map((it: any, i: number) => (
+                                                                                                                            <div key={i} className="flex justify-between items-center text-[10px] py-1 border-b border-dashed border-slate-100 dark:border-slate-800 last:border-0">
+                                                                                                                                <span className="text-slate-600 dark:text-slate-400 font-medium">
+                                                                                                                                    <span className="font-black text-indigo-500 mr-1.5">{it.cantidad}</span>
+                                                                                                                                    {it.nombre}
+                                                                                                                                </span>
+                                                                                                                                <span className="font-bold text-slate-400">${parseFloat(it.subtotal || 0).toLocaleString()}</span>
+                                                                                                                            </div>
+                                                                                                                        ))}
+                                                                                                                    </div>
+                                                                                                                    <div className="mt-3 flex justify-end gap-2">
+                                                                                                                        <button
+                                                                                                                            onClick={() => printOrders([order])}
+                                                                                                                            className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-[9px] font-black uppercase rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+                                                                                                                        >
+                                                                                                                            <Printer size={12} /> Imprimir
+                                                                                                                        </button>
+                                                                                                                    </div>
+                                                                                                                </motion.div>
+                                                                                                            )}
+                                                                                                        </AnimatePresence>
+                                                                                                    </div>
+                                                                                                );
+                                                                                            })}
+                                                                                        </div>
+                                                                                        <div className="p-3 bg-indigo-500/5 border-t border-[var(--border)] flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-indigo-500">
+                                                                                            <span>Total Vendedor</span>
+                                                                                            <span className="text-sm">${totalGroup.toLocaleString()}</span>
+                                                                                        </div>
+                                                                                    </motion.div>
+                                                                                )}
+                                                                            </AnimatePresence>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {Object.keys(groupedPendingOrders).length === 0 && (
                                         <div className="p-12 text-center text-slate-400 font-bold bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
                                             No se encontraron pedidos para agrupar
                                         </div>
                                     )}
                                 </div>
+
                             )}
                         </div>
                     )}
@@ -956,13 +1126,18 @@ export default function LogisticaPage() {
             <AnimatePresence>
                 {editingRoute && (
                     <RouteManagerModal
+                        key={`${editingRoute}_${refreshCounter}`}
                         routeName={editingRoute}
                         orders={orders.filter(o => o.reparto === editingRoute)}
                         clients={clients}
                         products={products}
                         config={data?.config}
                         onClose={() => setEditingRoute(null)}
-                        onRefresh={refreshData}
+                        onRefresh={async () => {
+                            await refreshData(true);
+                            setRefreshCounter(prev => prev + 1);
+                        }}
+
                         onPrintOrder={(id: string) => {
                             const orderToPrint = orders.find(o => o.id === id);
                             if (orderToPrint) printOrders([orderToPrint]);
@@ -1283,8 +1458,9 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                                                             })}
                                                                             className="w-12 text-center font-black text-xs bg-transparent outline-none"
                                                                         />
-                                                                        <span className="text-[9px] font-black text-slate-400 ml-1">{delivery.formato === 'BULTO' ? 'BUL' : 'UNI'}</span>
+                                                                        <span className="text-[9px] font-black text-slate-400 ml-1">{delivery.formato === 'BULTO' ? 'BUL' : (delivery.isKg ? 'KG' : 'UNI')}</span>
                                                                     </div>
+
                                                                 </div>
 
                                                                 <div className="text-right">
@@ -1827,12 +2003,14 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
                     {items.map((item: any, idx: number) => {
                         const originalItem = order.items_originales.find((oi: any) => oi.id_prod === item.id_prod);
                         const maxQty = originalItem?.cantidad || 9999;
+                        const p = products.find((prod: any) => prod.ID_Producto === item.id_prod);
+                        const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
 
                         return (
                             <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl flex justify-between items-center border border-slate-100 dark:border-slate-800">
                                 <div className="flex-1 pr-4">
                                     <p className="font-black text-xs text-slate-800 dark:text-slate-100">{item.nombre}</p>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase">Máx original: {maxQty}</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase">Máx original: {maxQty} {isKg ? 'KG' : 'UNID'}</p>
                                 </div>
                                 <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
                                     <button onClick={() => handleQtyChange(idx, item.cantidad - 1)} className="p-1 text-indigo-500 hover:bg-slate-50 rounded"><Minus size={14} /></button>
@@ -1843,10 +2021,12 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
                                         className="w-12 text-center text-sm font-black bg-transparent border-none p-0 focus:ring-0"
                                     />
                                     <button onClick={() => handleQtyChange(idx, item.cantidad + 1)} className="p-1 text-indigo-500 hover:bg-slate-50 rounded"><Plus size={14} /></button>
+                                    <span className="text-[10px] font-black text-slate-400 mr-1">{isKg ? 'KG' : 'UNID'}</span>
                                 </div>
                             </div>
                         );
                     })}
+
                 </div>
                 <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center border-t border-[var(--border)]">
                     <div>
@@ -2033,6 +2213,8 @@ function OrderDetailModal({ order, products, config, onClose, onPrint, onUpdateO
                         </div>
                         <div className="space-y-3">
                             {localOrder.items?.map((item: any, idx: number) => {
+                                const p = products.find((prod: any) => prod.ID_Producto === item.id_prod);
+                                const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
                                 const itemPrice = parseFloat(item.precio) || 0;
                                 const itemQty = parseFloat(item.cantidad) || 0;
                                 const itemDiscPercent = parseFloat(item.descuento || 0);
@@ -2056,9 +2238,10 @@ function OrderDetailModal({ order, products, config, onClose, onPrint, onUpdateO
                                                                     onClick={() => handleToggleFormato(idx)}
                                                                     className={`text-[8px] font-black px-1 rounded ${item._formato === 'BULTO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}
                                                                 >
-                                                                    {item._formato === 'BULTO' ? 'BUL' : 'UNI'}
+                                                                    {item._formato === 'BULTO' ? 'BUL' : (isKg ? 'KG' : 'UNI')}
                                                                 </button>
                                                             </div>
+
                                                             <input
                                                                 type="text"
                                                                 inputMode="decimal"
