@@ -15,9 +15,8 @@ interface SystemNotification {
 }
 
 export default function SettingsPage() {
-    const { refreshData } = useData();
+    const { refreshData, setIsSyncing, isSyncing } = useData();
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [notifications, setNotifications] = useState<SystemNotification[]>([]);
     const [config, setConfig] = useState<Record<string, string>>({
         EMPRESA: "WANDA DISTRIBUCIONES",
@@ -59,7 +58,7 @@ export default function SettingsPage() {
 
     const handleSave = async () => {
         try {
-            setSaving(true);
+            setIsSyncing(true);
             await wandaApi.saveConfig({
                 ...config,
                 SYSTEM_NOTIFICATIONS: JSON.stringify(notifications)
@@ -69,7 +68,7 @@ export default function SettingsPage() {
         } catch (err) {
             alert("Error al guardar");
         } finally {
-            setSaving(false);
+            setIsSyncing(false);
         }
     };
 
@@ -238,11 +237,11 @@ export default function SettingsPage() {
                 <div className="max-w-2xl mx-auto pointer-events-auto">
                     <button
                         onClick={handleSave}
-                        disabled={saving}
+                        disabled={isSyncing}
                         className="w-full py-4 bg-indigo-600 dark:bg-indigo-500 text-white rounded-2xl text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all shadow-2xl shadow-indigo-500/30 active:scale-[0.98] disabled:opacity-50"
                     >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={18} />}
-                        {saving ? 'Guardando...' : 'Aplicar Cambios Globales'}
+                        {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={18} />}
+                        {isSyncing ? 'Guardando...' : 'Aplicar Cambios Globales'}
                     </button>
                 </div>
             </div>

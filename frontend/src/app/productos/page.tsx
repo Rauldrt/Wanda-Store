@@ -55,9 +55,8 @@ const smartSearch = (text: string, query: string) => {
 };
 
 export default function ProductosPage() {
-    const { data, refreshData } = useData();
+    const { data, refreshData, setIsSyncing, isSyncing } = useData();
     const products = useMemo(() => data?.products || [], [data?.products]);
-    const [saving, setSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -90,15 +89,25 @@ export default function ProductosPage() {
     const [hideNoStock, setHideNoStock] = useState(config.HIDE_NO_STOCK === 'true' || config.HIDE_NO_STOCK === true);
 
     const handleToggleHideLowPrice = async (checked: boolean) => {
-        setHideLowPrice(checked);
-        await wandaApi.saveConfig({ HIDE_LOW_PRICE: checked });
-        refreshData(true);
+        try {
+            setIsSyncing(true);
+            setHideLowPrice(checked);
+            await wandaApi.saveConfig({ HIDE_LOW_PRICE: checked });
+            await refreshData(true);
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
     const handleToggleHideNoStock = async (checked: boolean) => {
-        setHideNoStock(checked);
-        await wandaApi.saveConfig({ HIDE_NO_STOCK: checked });
-        refreshData(true);
+        try {
+            setIsSyncing(true);
+            setHideNoStock(checked);
+            await wandaApi.saveConfig({ HIDE_NO_STOCK: checked });
+            await refreshData(true);
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
     const handleSort = (key: string) => {
@@ -203,21 +212,20 @@ export default function ProductosPage() {
         setIsAdjustOverlayOpen(false);
     };
 
-    const handleSaveBulk = async () => {
+    const handleMassSave = async () => {
         try {
-            setSaving(true);
+            setIsSyncing(true);
             const res = await wandaApi.bulkUpdateProducts(editedProducts);
-            if (res.result === "OK" || !res.error) {
-                await refreshData(true);
-                setIsMassEditing(false);
-            } else {
-                alert("Error al guardar cambios masivos: " + res.error);
-            }
-        } catch (err) {
+            if (res.error) throw new Error(res.error);
+            setIsMassEditing(false);
+            setEditedProducts([]);
+            await refreshData(true);
+            alert("Productos actualizados masivamente");
+        } catch (err: any) {
             console.error(err);
-            alert("Error de conexión.");
+            alert("Error al guardar cambios masivos: " + err.message);
         } finally {
-            setSaving(false);
+            setIsSyncing(false);
         }
     };
 
@@ -249,18 +257,16 @@ export default function ProductosPage() {
     const handleDeleteProduct = async (id: string) => {
         if (!confirm("¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.")) return;
         try {
-            setSaving(true);
+            setIsSyncing(true);
             const res = await wandaApi.deleteProduct(id);
-            if (res.result === "OK" || !res.error) {
-                await refreshData(true);
-            } else {
-                alert("Error al eliminar: " + res.error);
-            }
-        } catch (err) {
+            if (res.error) throw new Error(res.error);
+            await refreshData(true);
+            alert("Producto eliminado correctamente.");
+        } catch (err: any) {
             console.error(err);
-            alert("Error de conexión.");
+            alert("Error al eliminar: " + err.message);
         } finally {
-            setSaving(false);
+            setIsSyncing(false);
         }
     };
 
@@ -307,19 +313,19 @@ export default function ProductosPage() {
                 alert("El nombre del producto es obligatorio.");
                 return;
             }
-            setSaving(true);
+            setIsSyncing(true);
             const res = await wandaApi.saveProduct(formData);
-            if (res.result === "OK" || res.status === "success" || !res.error) {
-                await refreshData(true);
-                setIsDrawerOpen(false);
-            } else {
-                alert("Error al guardar: " + (res.error || "Desconocido"));
-            }
-        } catch (err) {
+            if (res.error) throw new Error(res.error);
+
+            setIsDrawerOpen(false);
+            setFormData({});
+            await refreshData(true);
+            alert(drawerMode === 'create' ? "Producto creado con éxito" : "Producto actualizado");
+        } catch (err: any) {
             console.error("Error saving product:", err);
-            alert("Error de conexión al guardar.");
+            alert("Error al guardar: " + err.message);
         } finally {
-            setSaving(false);
+            setIsSyncing(false);
         }
     };
 
@@ -384,12 +390,12 @@ export default function ProductosPage() {
                                 Cancelar
                             </button>
                             <button
-                                onClick={handleSaveBulk}
-                                disabled={saving}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                                onClick={handleMassSave}
+                                disabled={isSyncing}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-600 transition-all disabled:opacity-50"
                             >
-                                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                                Guardar Todo
+                                {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                Guardar Cambios ({editedProducts.length})
                             </button>
                         </div>
                     )}
@@ -673,7 +679,7 @@ export default function ProductosPage() {
                         formData={formData}
                         setFormData={setFormData}
                         onSave={handleSaveIndividual}
-                        saving={saving}
+                        saving={isSyncing}
                         drawerMode={drawerMode}
                         categories={categories}
                     />

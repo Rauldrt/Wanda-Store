@@ -44,7 +44,7 @@ import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 
 export default function LogisticaPage() {
-    const { data, loading, refreshData } = useData();
+    const { data, loading, refreshData, setIsSyncing } = useData();
     const orders: any[] = data?.orders || [];
     const products: any[] = data?.products || [];
     const clients: any[] = data?.clients || [];
@@ -113,6 +113,7 @@ export default function LogisticaPage() {
         if (!routeName) return;
 
         try {
+            setIsSyncing(true);
             const res = await wandaApi.asignarRepartoMasivo(Array.from(selectedOrders), routeName);
             if (res.error) throw new Error(res.error);
             if (res.result?.includes("ERROR")) throw new Error(res.result);
@@ -122,6 +123,8 @@ export default function LogisticaPage() {
             alert("Pedidos asignados correctamente");
         } catch (error: any) {
             alert("Error al asignar pedidos: " + (error.message || error));
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -129,6 +132,7 @@ export default function LogisticaPage() {
         if (!confirm(`¿Está seguro de liberar todos los pedidos de la ruta ${routeName}?`)) return;
 
         try {
+            setIsSyncing(true);
             const res = await wandaApi.liberarReparto(routeName);
             if (res.error) throw new Error(res.error);
             if (res.result?.includes("ERROR")) throw new Error(res.result);
@@ -137,6 +141,8 @@ export default function LogisticaPage() {
             alert("Ruta liberada correctamente");
         } catch (error: any) {
             alert("Error al liberar pedidos: " + (error.message || error));
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -922,9 +928,9 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
     onPrintPickingList: (orders: any[], name: string) => void;
     onPrintRouteSheet: (orders: any[], name: string) => void;
 }) {
+    const { setIsSyncing, isSyncing } = useData();
     const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
     const [localOrders, setLocalOrders] = useState(() => JSON.parse(JSON.stringify(orders)));
-    const [saving, setSaving] = useState(false);
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
     const [orderDetailId, setOrderDetailId] = useState<string | null>(null);
 
@@ -1065,7 +1071,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
         if (edited.length === 0) return onClose();
 
         try {
-            setSaving(true);
+            setIsSyncing(true);
             for (const order of edited) {
                 // Normalizamos los items para que el backend siempre reciba UNIDADES
                 // Esto evita que el stock se descuente mal si se guardó como BULTO
@@ -1088,12 +1094,12 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                 await wandaApi.saveOrderCorrection(normalizedOrder);
             }
             alert("Cambios guardados con éxito.");
-            onRefresh();
+            await onRefresh();
             onClose();
         } catch (err) {
             alert("Error al guardar cambios");
         } finally {
-            setSaving(false);
+            setIsSyncing(false);
         }
     };
 
@@ -1340,11 +1346,11 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                         <RotateCcw size={14} /> Deshacer cambios
                     </button>
                     <button
-                        disabled={saving}
+                        disabled={isSyncing}
                         onClick={handleSave}
                         className="flex items-center gap-2 px-8 py-3 bg-indigo-500 text-white rounded-2xl text-sm font-black shadow-xl shadow-indigo-500/20 hover:bg-indigo-600 transition-all disabled:opacity-50"
                     >
-                        <Save size={18} /> {saving ? 'Guardando...' : 'Guardar y Cerrar'}
+                        <Save size={18} /> {isSyncing ? 'Guardando...' : 'Guardar y Cerrar'}
                     </button>
                 </div>
             </motion.div>
@@ -1353,6 +1359,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
 }
 
 function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh }: any) {
+    const { setIsSyncing, isSyncing } = useData();
     const [localOrders, setLocalOrders] = useState(
         orders.map((o: any) => ({
             ...o,
@@ -1365,7 +1372,6 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const [pagos, setPagos] = useState({ efectivo: 0, transferencia: 0 });
     const [gastos, setGastos] = useState<{ desc: string, monto: number }[]>([]);
     const [chofer, setChofer] = useState("");
-    const [saving, setSaving] = useState(false);
     const [editingPartialId, setEditingPartialId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [searchTerm, setSearchTerm] = useState("");
@@ -1397,7 +1403,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
     const handleSave = async () => {
         try {
-            setSaving(true);
+            setIsSyncing(true);
             const payload = {
                 reparto: routeName,
                 chofer,
@@ -1413,9 +1419,9 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             };
 
             const res = await wandaApi.liquidarRuta(payload);
-            if (res.result === 'OK') {
+            if (res.result === 'OK' || !res.error) {
                 alert("Ruta liquidada con éxito");
-                onRefresh();
+                await onRefresh();
                 onClose();
             } else {
                 alert("Error al liquidar: " + (res.error || res.result || JSON.stringify(res)));
@@ -1424,7 +1430,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             console.error(err);
             alert("Error de conexión");
         } finally {
-            setSaving(false);
+            setIsSyncing(false);
         }
     };
 
@@ -1750,12 +1756,12 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                             </div>
 
                             <button
-                                disabled={saving}
+                                disabled={isSyncing}
                                 onClick={handleSave}
                                 className="w-full py-5 bg-indigo-600 text-white rounded-[32px] text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-500/30 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
                             >
-                                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check size={20} />}
-                                {saving ? 'Liquidando...' : 'Finalizar y Cerrar Ruta'}
+                                {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check size={20} />}
+                                {isSyncing ? 'Liquidando...' : 'Finalizar y Cerrar Ruta'}
                             </button>
                         </div>
                     </div>

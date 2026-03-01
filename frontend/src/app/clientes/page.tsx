@@ -42,7 +42,7 @@ const smartSearch = (text: string, query: string) => {
 };
 
 export default function ClientesPage() {
-    const { data, refreshData } = useData();
+    const { data, refreshData, setIsSyncing, isSyncing } = useData();
     const clients = data?.clients || [];
     const orders = data?.orders || [];
 
@@ -53,7 +53,6 @@ export default function ClientesPage() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [drawerMode, setDrawerMode] = useState<'view' | 'edit' | 'create'>('view');
     const [selectedClient, setSelectedClient] = useState<any>(null);
-    const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState<any>({});
 
     const [visibleCount, setVisibleCount] = useState(50);
@@ -104,17 +103,19 @@ export default function ClientesPage() {
         setIsDrawerOpen(true);
     };
 
-    const handleSave = async () => {
-        setSaving(true);
+    const handleSave = async (data: any) => {
         try {
-            await wandaApi.saveClient(formData);
+            setIsSyncing(true);
+            const res = await wandaApi.saveClient(data);
+            if (res.error) throw new Error(res.error);
+
             await refreshData(true);
             setIsDrawerOpen(false);
-        } catch (error) {
-            console.error(error);
-            alert("Error al guardar cliente");
+            alert("Cliente guardado correctamente");
+        } catch (err: any) {
+            alert("Error al guardar cliente: " + err.message);
         } finally {
-            setSaving(false);
+            setIsSyncing(false);
         }
     };
 
@@ -252,7 +253,7 @@ export default function ClientesPage() {
                         setData={setFormData}
                         onClose={() => setIsDrawerOpen(false)}
                         onSave={handleSave}
-                        saving={saving}
+                        saving={isSyncing}
                         onDelete={() => handleDelete(formData.ID_Cliente)}
                         onEdit={() => setDrawerMode('edit')}
                         clientOrders={orders.filter((o: any) => o.cliente_id === formData.ID_Cliente)}

@@ -6,8 +6,10 @@ import { wandaApi } from '@/lib/api';
 interface DataContextType {
     data: any;
     loading: boolean;
+    isSyncing: boolean;
     error: string | null;
     refreshData: (isSilent?: boolean) => Promise<void>;
+    setIsSyncing: (val: boolean) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -15,6 +17,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: React.ReactNode }) {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async (isSilent = false) => {
@@ -28,6 +31,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             setError(err.message || "Error al sincronizar con Google Sheets.");
         } finally {
             setLoading(false);
+            setIsSyncing(false); // Reset on fetch done
         }
     }, []);
 
@@ -39,7 +43,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }, [fetchData]);
 
     return (
-        <DataContext.Provider value={{ data, loading, error, refreshData: fetchData }}>
+        <DataContext.Provider value={{
+            data,
+            loading,
+            isSyncing,
+            error,
+            refreshData: fetchData,
+            setIsSyncing
+        }}>
             {children}
         </DataContext.Provider>
     );
