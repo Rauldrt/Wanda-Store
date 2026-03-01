@@ -15,7 +15,8 @@ import {
   X,
   Loader2,
   Store,
-  BarChart3
+  BarChart3,
+  Map
 } from "lucide-react";
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -92,6 +93,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
     { href: "/productos", icon: <Package size={18} />, label: "Productos" },
     { href: "/logistica", icon: <Truck size={18} />, label: "Logística" },
+    { href: "/recorrido", icon: <Map size={18} />, label: "Recorrido" },
     { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
     { href: "/informes", icon: <BarChart3 size={18} />, label: "Informes" },
     { href: "/settings", icon: <Settings size={18} />, label: "Ajustes" },
