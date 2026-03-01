@@ -113,12 +113,15 @@ export default function LogisticaPage() {
         if (!routeName) return;
 
         try {
-            await wandaApi.asignarRepartoMasivo(Array.from(selectedOrders), routeName);
+            const res = await wandaApi.asignarRepartoMasivo(Array.from(selectedOrders), routeName);
+            if (res.error) throw new Error(res.error);
+            if (res.result?.includes("ERROR")) throw new Error(res.result);
+
             setSelectedOrders(new Set());
             await refreshData(true);
             alert("Pedidos asignados correctamente");
-        } catch (error) {
-            alert("Error al asignar pedidos");
+        } catch (error: any) {
+            alert("Error al asignar pedidos: " + (error.message || error));
         }
     };
 
@@ -126,10 +129,14 @@ export default function LogisticaPage() {
         if (!confirm(`¿Está seguro de liberar todos los pedidos de la ruta ${routeName}?`)) return;
 
         try {
-            await wandaApi.liberarReparto(routeName);
+            const res = await wandaApi.liberarReparto(routeName);
+            if (res.error) throw new Error(res.error);
+            if (res.result?.includes("ERROR")) throw new Error(res.result);
+
             await refreshData(true);
-        } catch (error) {
-            alert("Error al liberar pedidos");
+            alert("Ruta liberada correctamente");
+        } catch (error: any) {
+            alert("Error al liberar pedidos: " + (error.message || error));
         }
     };
 

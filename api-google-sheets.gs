@@ -336,16 +336,31 @@ function asignarRepartoMasivo(ids, route) {
     lock.waitLock(15000);
     const sheet = SS.getSheetByName("PEDIDOS");
     const data = sheet.getDataRange().getValues();
-    ids.forEach(id => {
-      for (let i = 1; i < data.length; i++) {
-        if (String(data[i][0]) === String(id)) {
-          sheet.getRange(i + 1, 7).setValue("En Preparación");
-          sheet.getRange(i + 1, 8).setValue(route);
-          break;
+    
+    // We only update column G (Estado) and H (Reparto) 
+    // Data indices: 6 is G, 7 is H.
+    const updates = [];
+    
+    for (let i = 1; i < data.length; i++) {
+        const rowId = String(data[i][0]);
+        let estado = data[i][6];
+        let reparto = data[i][7];
+        
+        if (ids.map(String).includes(rowId)) {
+            estado = "En Preparación";
+            reparto = route;
         }
-      }
-    });
+        updates.push([estado, reparto]);
+    }
+    
+    if (updates.length > 0) {
+        // Mapeo a Filas (Empieza en fila 2). Columnas (7 = G, 8 = H)
+        sheet.getRange(2, 7, updates.length, 2).setValues(updates);
+    }
+    
     return "OK";
+  } catch (e) {
+    return "ERROR: " + e.toString();
   } finally {
     lock.releaseLock();
   }
@@ -357,13 +372,26 @@ function liberarReparto(reparto) {
     lock.waitLock(15000);
     const sheet = SS.getSheetByName("PEDIDOS");
     const data = sheet.getDataRange().getValues();
+    
+    const updates = [];
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][7]) === String(reparto)) {
-        sheet.getRange(i + 1, 7).setValue("Pendiente");
-        sheet.getRange(i + 1, 8).setValue("");
-      }
+        let estado = data[i][6];
+        let rep = data[i][7];
+        
+        if (String(rep) === String(reparto)) {
+            estado = "Pendiente";
+            rep = "";
+        }
+        updates.push([estado, rep]);
     }
+
+    if (updates.length > 0) {
+        sheet.getRange(2, 7, updates.length, 2).setValues(updates);
+    }
+    
     return "OK";
+  } catch(e) {
+    return "ERROR: " + e.toString();
   } finally {
     lock.releaseLock();
   }
