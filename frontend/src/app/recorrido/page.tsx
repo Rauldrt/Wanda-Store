@@ -16,14 +16,20 @@ export default function RecorridoPage() {
     const [selectedVendedor, setSelectedVendedor] = useState<string>("Todos");
 
     useEffect(() => {
-        // Init today's date if empty
-        if (!selectedDate) setSelectedDate(new Date().toISOString().split('T')[0]);
+        // Init today's date if empty using local timezone to avoid UTC day-shifting
+        if (!selectedDate) {
+            const d = new Date();
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            setSelectedDate(`${yyyy}-${mm}-${dd}`);
+        }
     }, [selectedDate]);
 
     // Extract all map points
     const mapPoints = useMemo(() => {
         const points: any[] = [];
-        const gpsRegex = /\[GPS Preventista: https:\/\/maps\.google\.com\/\?q=(-?\d+\.\d+),(-?\d+\.\d+)\]/;
+        const gpsRegex = /(?:q=|lat=)([-0-9.]+),\s*([-0-9.]+)/i;
 
         pedidos.forEach((p: any) => {
             if (!p.fecha) return;
@@ -32,14 +38,20 @@ export default function RecorridoPage() {
             // Avoid failing with invalid dates
             if (isNaN(pDateObj.getTime())) return;
 
-            // Reconstruct the YYYY-MM-DD from the order's DB date
-            const dateStr = pDateObj.toISOString().split('T')[0];
+            // Reconstruct the YYYY-MM-DD from local timezone
+            const pYear = pDateObj.getFullYear();
+            const pMonth = String(pDateObj.getMonth() + 1).padStart(2, '0');
+            const pDay = String(pDateObj.getDate()).padStart(2, '0');
+            const dateStr = `${pYear}-${pMonth}-${pDay}`;
 
             if (selectedDate && dateStr !== selectedDate) return;
             if (selectedVendedor !== "Todos" && p.vendedor !== selectedVendedor) return;
 
-            if (p.notas) {
-                const match = p.notas.match(gpsRegex);
+            // Buscar en notas y por si a caso en reparto (debido al bug previo de columnas)
+            const concatenatedText = `${p.notas || ""} ${p.reparto || ""}`;
+
+            if (concatenatedText.includes('GPS') || concatenatedText.includes('maps.google')) {
+                const match = concatenatedText.match(gpsRegex);
                 if (match) {
                     points.push({
                         lat: parseFloat(match[1]),
