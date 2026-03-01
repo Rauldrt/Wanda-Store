@@ -47,22 +47,36 @@ export default function RecorridoPage() {
             if (selectedDate && dateStr !== selectedDate) return;
             if (selectedVendedor !== "Todos" && p.vendedor !== selectedVendedor) return;
 
-            // Buscar en notas y por si a caso en reparto (debido al bug previo de columnas)
-            const concatenatedText = `${p.notas || ""} ${p.reparto || ""}`;
-
-            if (concatenatedText.includes('GPS') || concatenatedText.includes('maps.google')) {
-                const match = concatenatedText.match(gpsRegex);
-                if (match) {
-                    points.push({
-                        lat: parseFloat(match[1]),
-                        lng: parseFloat(match[2]),
-                        cliente: p.cliente_nombre,
-                        vendedor: p.vendedor,
-                        hora: pDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        total: p.total,
-                        timestamp: pDateObj.getTime()
-                    });
+            // Try reading explicit GPS column first
+            let lat, lng;
+            if (p.gps) {
+                const parts = p.gps.split(',');
+                if (parts.length === 2) {
+                    lat = parseFloat(parts[0]);
+                    lng = parseFloat(parts[1]);
                 }
+            } else {
+                // Fallback to searching in notas and reparto (debido a pedidos viejos)
+                const concatenatedText = `${p.notas || ""} ${p.reparto || ""}`;
+                if (concatenatedText.includes('GPS') || concatenatedText.includes('maps.google')) {
+                    const match = concatenatedText.match(gpsRegex);
+                    if (match) {
+                        lat = parseFloat(match[1]);
+                        lng = parseFloat(match[2]);
+                    }
+                }
+            }
+
+            if (lat !== undefined && lng !== undefined) {
+                points.push({
+                    lat,
+                    lng,
+                    cliente: p.cliente_nombre,
+                    vendedor: p.vendedor,
+                    hora: pDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    total: p.total,
+                    timestamp: pDateObj.getTime()
+                });
             }
         });
 

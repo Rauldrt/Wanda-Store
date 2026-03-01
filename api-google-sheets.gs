@@ -165,6 +165,7 @@ function getPedidosCompletos() {
       estado: row[6] || "Pendiente",
       reparto: row[7] || "",
       notas: row[8] || "",
+      gps: row[10] || "",
       items: detalleMap[id] || []
     };
   }).filter(p => p !== null);
@@ -455,7 +456,7 @@ function procesarPedido(datos) {
     const f = Utilities.formatDate(d, tz, "dd/MM/yyyy");
     const h = Utilities.formatDate(d, tz, "HH:mm:ss");
 
-    sheetP.appendRow([idPedido, f, clienteId, clienteNombre, datos.vendedor || "Web", datos.total, "Pendiente", "", notas, h]);
+    sheetP.appendRow([idPedido, f, clienteId, clienteNombre, datos.vendedor || "Web", datos.total, "Pendiente", "", notas, h, datos.gps || ""]);
     
     datos.items.forEach(item => {
       const idItem = item.id_producto || item.id || "";

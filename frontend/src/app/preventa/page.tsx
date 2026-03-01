@@ -402,8 +402,6 @@ export default function PreventaPage() {
             console.log("No se pudo obtener GPS silencioso", e);
         }
 
-        const finalNotes = orderNotes + (silentGps ? ` [GPS Preventista: https://maps.google.com/?q=${silentGps}]` : "");
-
         const orderData = {
             id_interno: Date.now(),
             cliente: selectedClient,
@@ -442,7 +440,8 @@ export default function PreventaPage() {
                 };
             }),
             total: calculateTotal(),
-            notas: finalNotes,
+            notas: orderNotes,
+            gps: silentGps,
             fecha: new Date().toISOString(),
             fechaLocal: new Date().toLocaleString()
         };
