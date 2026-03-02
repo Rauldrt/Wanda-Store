@@ -114,6 +114,7 @@ export default function LogisticaPage() {
     const [filterSeller, setFilterSeller] = useState("");
     const [editingRoute, setEditingRoute] = useState<string | null>(null);
     const [settlingRoute, setSettlingRoute] = useState<string | null>(null);
+    const [viewingOrdersRoute, setViewingOrdersRoute] = useState<string | null>(null);
     const [viewingDetailId, setViewingDetailId] = useState<string | null>(null);
 
     const allPendingOrders = useMemo(() => {
@@ -209,6 +210,20 @@ export default function LogisticaPage() {
             alert("Ruta liberada correctamente");
         } catch (error: any) {
             alert("Error al liberar pedidos: " + (error.message || error));
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleQuitarPedidoDeRuta = async (orderId: string) => {
+        if (!confirm("¿Deseas quitar este pedido del reparto actual?")) return;
+        try {
+            setIsSyncing(true);
+            const res = await wandaApi.asignarRepartoMasivo([orderId], "");
+            if (res.error) throw new Error(res.error);
+            await refreshData(true);
+        } catch (error: any) {
+            alert("Error al quitar: " + (error.message || error));
         } finally {
             setIsSyncing(false);
         }
@@ -455,20 +470,18 @@ export default function LogisticaPage() {
                 ${noPesables.length > 0 ? `
                     <div class="section">
                         <h2>Productos Generales (Unidades)</h2>
-                        <table>
+                        <table style="border-spacing: 0; border-collapse: collapse;">
                             <thead>
                                 <tr>
-                                    <th width="40">LISTO</th>
-                                    <th width="100">CANTIDAD</th>
-                                    <th>PRODUCTO / DESCRIPCIÓN</th>
+                                    <th style="padding: 2px 8px;">PRODUCTO / DESCRIPCIÓN</th>
+                                    <th width="120" style="padding: 2px 8px;">CANTIDAD</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${noPesables.map(item => `
-                                    <tr>
-                                        <td align="center"><div class="check"></div></td>
-                                        <td class="qty">${formatCompact(item.cantidad, item.ub, item.isKg)}</td>
-                                        <td style="font-weight: bold; font-size: 14px;">${item.nombre}</td>
+                                    <tr style="line-height: 1;">
+                                        <td style="font-weight: bold; font-size: 11px; padding: 1px 8px;">${item.nombre}</td>
+                                        <td class="qty" style="padding: 1px 8px; font-size: 11px;">${formatCompact(item.cantidad, item.ub, item.isKg)}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1053,6 +1066,7 @@ export default function LogisticaPage() {
                                     name={routeName as string}
                                     orderCount={orders.filter(o => o.reparto === routeName).length}
                                     onManage={() => setEditingRoute(routeName as string)}
+                                    onViewOrders={() => setViewingOrdersRoute(routeName as string)}
                                     onDelete={() => handleLiberarReparto(routeName as string)}
                                     onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === routeName))}
                                     onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === routeName), routeName as string)}
@@ -1157,6 +1171,17 @@ export default function LogisticaPage() {
                         config={data?.config}
                         onClose={() => setViewingDetailId(null)}
                         onPrint={() => printOrders([orders.find(o => o.id === viewingDetailId)])}
+                    />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {viewingOrdersRoute && (
+                    <RouteOrdersModal
+                        routeName={viewingOrdersRoute}
+                        orders={orders.filter(o => o.reparto === viewingOrdersRoute)}
+                        onClose={() => setViewingOrdersRoute(null)}
+                        onRemoveOrder={handleQuitarPedidoDeRuta}
                     />
                 )}
             </AnimatePresence>
@@ -2470,7 +2495,7 @@ function OrderCard({ order, isSelected, onSelect, onViewDetail, onPrint }: any) 
     );
 }
 
-function RouteCard({ name, orderCount, onManage, onDelete, onPrintRemitos, onPrintRouteSheet, onPrintPicking, onSettlement }: any) {
+function RouteCard({ name, orderCount, onManage, onViewOrders, onDelete, onPrintRemitos, onPrintRouteSheet, onPrintPicking, onSettlement }: any) {
     const [showPrintOptions, setShowPrintOptions] = useState(false);
 
     return (
@@ -2486,6 +2511,13 @@ function RouteCard({ name, orderCount, onManage, onDelete, onPrintRemitos, onPri
                     </div>
                 </div>
                 <div className="flex gap-2 relative">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onViewOrders(); }}
+                        className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-500"
+                        title="Ver Pedidos de esta ruta"
+                    >
+                        <Eye size={16} />
+                    </button>
                     <button
                         onClick={() => setShowPrintOptions(!showPrintOptions)}
                         className={`p-2.5 rounded-xl transition-all ${showPrintOptions ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200'}`}
@@ -2576,6 +2608,76 @@ function RouteCard({ name, orderCount, onManage, onDelete, onPrintRemitos, onPri
                 </div>
             </div>
         </div>
+    );
+}
+
+function RouteOrdersModal({ routeName, orders, onClose, onRemoveOrder }: any) {
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+        >
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
+            >
+                <div className="p-6 border-b border-[var(--border)] flex justify-between items-center bg-indigo-600 text-white">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                            <Truck size={20} />
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-black">Pedidos: {routeName}</h4>
+                            <p className="text-[10px] opacity-80 font-bold uppercase tracking-widest">{orders.length} pedidos asignados</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="p-4 overflow-auto divide-y divide-[var(--border)]">
+                    {orders.length === 0 ? (
+                        <div className="p-12 text-center text-slate-400 font-bold">No hay pedidos en esta ruta</div>
+                    ) : (
+                        orders.map((order: any) => (
+                            <div key={order.id} className="p-4 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-xl">
+                                <div>
+                                    <p className="font-bold text-sm">{order.cliente_nombre}</p>
+                                    <div className="flex items-center gap-3 mt-1">
+                                        <span className="text-[10px] text-slate-400 font-mono">#{order.id}</span>
+                                        <span className="text-[9px] font-bold text-indigo-500 uppercase">{order.estado}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mt-1 italic line-clamp-1">{order.direccion || 'Sin dirección'}</p>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <p className="font-black text-sm text-slate-600 dark:text-slate-300">${parseFloat(order.total).toLocaleString()}</p>
+                                    <button
+                                        onClick={() => onRemoveOrder(order.id)}
+                                        className="p-2.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                        title="Quitar de esta ruta"
+                                    >
+                                        <ArrowLeft size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <div className="p-6 border-t border-[var(--border)] bg-slate-50 dark:bg-slate-800/30 flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            </motion.div>
+        </motion.div>
     );
 }
 

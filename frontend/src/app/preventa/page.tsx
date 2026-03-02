@@ -962,8 +962,8 @@ export default function PreventaPage() {
                                 onClick={() => setExpandedBanner(expandedBanner === banner.id ? null : banner.id)}
                                 initial={false}
                                 animate={{
-                                    width: expandedBanner === banner.id ? '280px' : '140px',
-                                    height: expandedBanner === banner.id ? '110px' : '64px'
+                                    width: expandedBanner === banner.id ? '300px' : '140px',
+                                    height: expandedBanner === banner.id ? 'auto' : '64px'
                                 }}
                                 transition={{ type: "spring", damping: 20, stiffness: 300 }}
                                 className={`snap-start flex-shrink-0 flex items-center gap-3 p-3 rounded-[28px] ${banner.color} text-white cursor-pointer shadow-lg shadow-black/5 relative overflow-hidden`}
@@ -973,7 +973,7 @@ export default function PreventaPage() {
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                     <span className="text-[11px] font-black uppercase tracking-tighter leading-none opacity-90">{banner.title}</span>
-                                    <span className="text-[13px] font-black leading-tight truncate">{banner.subtitle}</span>
+                                    <span className={`text-[13px] font-black leading-tight ${expandedBanner === banner.id ? '' : 'truncate'}`}>{banner.subtitle}</span>
 
                                     {expandedBanner === banner.id && (
                                         <motion.div

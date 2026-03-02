@@ -612,7 +612,7 @@ export default function ProductosPage() {
                         <table className="w-full text-left border-collapse min-w-[1400px]">
                             <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-[var(--border)]">
                                 <tr className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                                    <th className="px-6 py-4 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => handleSort('Nombre')}>
+                                    <th className="px-6 py-4 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-[2px_0_5px_rgba(0,0,0,0.05)]" onClick={() => handleSort('Nombre')}>
                                         <div className="flex items-center gap-2">
                                             Producto {sortConfig.key === 'Nombre' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-indigo-500" /> : <ArrowDown size={12} className="text-indigo-500" />)}
                                         </div>
@@ -699,11 +699,11 @@ function MassEditRow({ product, onChange, categories }: any) {
 
     return (
         <>
-            <td className="px-4 py-2 min-w-[250px]">
+            <td className="px-4 py-2 min-w-[300px] sticky left-0 z-10 bg-[var(--card)] group-hover:bg-slate-50 dark:group-hover:bg-slate-700/50 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
                 <div className="flex items-center gap-3">
                     <span className="text-[10px] font-mono text-slate-400 font-bold">#{product.ID_Producto}</span>
                     <input
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100"
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100"
                         value={product.Nombre}
                         onChange={(e) => onChange(product.ID_Producto, 'Nombre', e.target.value)}
                     />
@@ -907,7 +907,7 @@ function ProductRow({ product, onEdit }: any) {
 
     return (
         <>
-            <td className="px-6 py-4">
+            <td className="px-6 py-4 sticky left-0 z-10 bg-[var(--card)] group-hover:bg-slate-50 dark:group-hover:bg-slate-900 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-[var(--border)]/50">
                 <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-[var(--border)] overflow-hidden flex-shrink-0">
                         {product.Imagen_URL ? (
@@ -926,8 +926,8 @@ function ProductRow({ product, onEdit }: any) {
                             </button>
                         )}
                     </div>
-                    <div>
-                        <p className="font-bold text-sm text-slate-800 dark:text-slate-100">{product.Nombre}</p>
+                    <div className="min-w-[180px]">
+                        <p className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{product.Nombre}</p>
                         <div className="flex items-center gap-2">
                             <p className="text-[9px] font-mono text-slate-400 uppercase">ID: {product.ID_Producto}</p>
                             {parseFloat(product.Peso_Promedio) > 0 && (

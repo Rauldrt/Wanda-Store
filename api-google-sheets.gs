@@ -341,8 +341,8 @@ function asignarRepartoMasivo(ids, route) {
     const sheet = SS.getSheetByName("PEDIDOS");
     const data = sheet.getDataRange().getValues();
     
-    // We only update column G (Estado) and H (Reparto) 
-    // Data indices: 6 is G, 7 is H.
+    // Convertimos IDs a String para comparación segura
+    const targetIds = (ids || []).map(String);
     const updates = [];
     
     for (let i = 1; i < data.length; i++) {
@@ -350,9 +350,10 @@ function asignarRepartoMasivo(ids, route) {
         let estado = data[i][6];
         let reparto = data[i][7];
         
-        if (ids.map(String).includes(rowId)) {
-            estado = "En Preparación";
-            reparto = route;
+        if (targetIds.indexOf(rowId) > -1) {
+            // Si route está vacío, el pedido se libera
+            estado = (route && route !== "") ? "En Preparación" : "Pendiente";
+            reparto = route || "";
         }
         updates.push([estado, reparto]);
     }
@@ -574,16 +575,29 @@ function guardarConfiguracion(datos) {
       sheet.appendRow(["CLAVE", "VALOR"]);
     }
     
+    // Cargamos la configuración actual en un mapa para acceso rápido
     const data = sheet.getDataRange().getValues();
+    const configMap = {};
+    for (let i = 1; i < data.length; i++) {
+      const key = String(data[i][0]).trim();
+      if (key) {
+        configMap[key] = i + 1; // Guardamos el número de fila (1-based)
+      }
+    }
+    
     Object.keys(datos).forEach(key => {
-      const idx = data.findIndex(row => row[0] === key);
-      if (idx > -1) {
-        sheet.getRange(idx + 1, 2).setValue(datos[key]);
+      const targetRow = configMap[String(key).trim()];
+      if (targetRow) {
+        sheet.getRange(targetRow, 2).setValue(datos[key]);
       } else {
         sheet.appendRow([key, datos[key]]);
+        configMap[String(key).trim()] = sheet.getLastRow();
       }
     });
+
     return "OK";
+  } catch (err) {
+    return "ERROR: " + err.toString();
   } finally {
     lock.releaseLock();
   }

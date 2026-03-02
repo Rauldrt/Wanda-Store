@@ -394,13 +394,13 @@ export default function TiendaOnlinePage() {
                             key={banner.id}
                             layout
                             onClick={() => setExpandedBanner(expandedBanner === banner.id ? null : banner.id)}
-                            animate={{ width: expandedBanner === banner.id ? 280 : 160 }}
-                            className={`flex-shrink-0 p-4 rounded-[28px] ${banner.color} text-white space-y-2 cursor-pointer relative overflow-hidden h-32 flex flex-col justify-end`}
+                            animate={{ width: expandedBanner === banner.id ? 300 : 160 }}
+                            className={`flex-shrink-0 p-4 rounded-[28px] ${banner.color} text-white space-y-2 cursor-pointer relative min-h-[128px] h-auto flex flex-col justify-end overflow-hidden`}
                         >
                             <div className="absolute top-4 right-4 text-2xl opacity-40">{banner.icon}</div>
                             <div className="z-10">
                                 <span className="text-[10px] font-black uppercase opacity-80">{banner.title}</span>
-                                <h3 className="text-sm font-black leading-tight line-clamp-1">{banner.subtitle}</h3>
+                                <h3 className={`text-sm font-black leading-tight ${expandedBanner === banner.id ? '' : 'line-clamp-1'}`}>{banner.subtitle}</h3>
                                 {expandedBanner === banner.id && (
                                     <p className="text-[10px] font-bold mt-2 opacity-90 leading-tight">{banner.details}</p>
                                 )}
