@@ -845,11 +845,14 @@ export default function PreventaPage() {
             <header className="bg-white dark:bg-slate-900 pt-4 px-4 pb-0">
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white">
-                            <Store size={24} />
+                        <div className="relative group/logo">
+                            <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-40 group-hover:opacity-100 transition-opacity" />
+                            <div className="relative w-10 h-10 rounded-xl bg-slate-900 border border-indigo-500/50 flex items-center justify-center text-indigo-400 font-black shadow-2xl">
+                                <span className="text-lg tracking-tighter drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]">&lt;/&gt;</span>
+                            </div>
                         </div>
                         <div>
-                            <h1 className="font-black text-lg leading-none">Preventa</h1>
+                            <h1 className="font-black text-lg leading-none uppercase italic">Wanda <span className="text-indigo-500">Cloud</span></h1>
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{vendedorName || 'Sin Vendedor'}</span>
                         </div>
                     </div>

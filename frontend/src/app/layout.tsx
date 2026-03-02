@@ -105,15 +105,15 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div className="flex-1 h-screen flex flex-col items-center justify-center gap-4 bg-[var(--background)] w-full">
-        <div className="relative">
-          <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+        <div className="relative group/logo">
+          <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
+          <div className="relative w-16 h-16 rounded-2xl bg-slate-900 border border-indigo-500/50 flex items-center justify-center text-indigo-400 font-black shadow-2xl">
+            <span className="text-2xl tracking-tighter drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]">&lt;/&gt;</span>
           </div>
         </div>
-        <div className="text-center">
-          <p className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Wanda Cloud</p>
-          <p className="text-[10px] text-slate-500 font-medium">Sincronizando base de datos...</p>
+        <div className="text-center mt-4">
+          <p className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Wanda <span className="text-indigo-500">Cloud</span></p>
+          <p className="text-[10px] text-slate-500 font-medium italic">Distribución Inteligente</p>
         </div>
       </div>
     );
@@ -174,8 +174,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         <div className="p-6 h-full flex flex-col">
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg tech-gradient shadow-lg shadow-indigo-500/20" />
-              <span className="font-black text-xl tracking-tighter uppercase">Wanda<span className="text-indigo-500">Pro</span></span>
+              <div className="relative group/logo cursor-pointer" onClick={() => router.push('/landing')}>
+                <div className="absolute inset-0 bg-indigo-500 blur opacity-10 group-hover:opacity-30 transition-opacity" />
+                <div className="relative w-8 h-8 rounded-lg bg-slate-900 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black text-xs">
+                  <span>&lt;/&gt;</span>
+                </div>
+              </div>
+              <span className="font-black text-xl tracking-tighter uppercase italic">Wanda<span className="text-indigo-500">Cloud</span></span>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400">
               <X size={20} />
