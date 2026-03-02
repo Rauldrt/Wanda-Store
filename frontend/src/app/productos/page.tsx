@@ -534,7 +534,7 @@ export default function ProductosPage() {
 
             {/* Toolbar Principal y Filtros de Estado */}
             <div className="flex flex-col xl:flex-row gap-4">
-                <div className="relative flex-1">
+                <div className="relative flex-[2] min-w-[280px]">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                         type="text"
@@ -545,9 +545,9 @@ export default function ProductosPage() {
                     />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto xl:flex-1">
                     {/* Filtros Rápidos */}
-                    <div className="flex flex-wrap w-full sm:w-auto p-1 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-sm">
+                    <div className="flex flex-wrap w-full lg:w-auto p-1 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-sm">
                         {[
                             { id: 'all', label: 'Todos', icon: Package },
                             { id: 'no_stock', label: 'Sin Stock', icon: Box },
@@ -566,7 +566,7 @@ export default function ProductosPage() {
                     </div>
 
                     {/* Toggles de Ocultamiento */}
-                    <div className="flex w-full sm:w-auto items-center gap-4 bg-[var(--card)] border border-[var(--border)] p-1.5 rounded-2xl shadow-sm px-4">
+                    <div className="flex w-full lg:w-auto items-center gap-4 bg-[var(--card)] border border-[var(--border)] p-1.5 rounded-2xl shadow-sm px-4">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">Ocultar:</span>
 
                         <label className="flex items-center gap-2 cursor-pointer group">
@@ -590,7 +590,7 @@ export default function ProductosPage() {
                         </label>
                     </div>
 
-                    <div className="flex w-full sm:w-auto items-center gap-2 bg-[var(--card)] border border-[var(--border)] p-1.5 rounded-2xl shadow-sm text-slate-800 dark:text-slate-100">
+                    <div className="flex w-full lg:w-auto items-center gap-2 bg-[var(--card)] border border-[var(--border)] p-1.5 rounded-2xl shadow-sm text-slate-800 dark:text-slate-100">
                         <Filter size={14} className="ml-2 text-slate-400 shrink-0" />
                         <select
                             value={categoryFilter}
