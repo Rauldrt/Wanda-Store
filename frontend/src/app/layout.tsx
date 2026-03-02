@@ -36,12 +36,12 @@ export default function RootLayout({
   return (
     <html lang="es" className="antialiased h-full">
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/manifest.json?v=1.1" />
         <meta name="theme-color" content="#6366f1" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Wanda" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1.1" />
       </head>
       <body suppressHydrationWarning className={`${inter.className} min-h-screen bg-[var(--background)] flex`}>
         <DataProvider>
