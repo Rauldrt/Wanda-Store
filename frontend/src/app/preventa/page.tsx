@@ -224,20 +224,36 @@ export default function PreventaPage() {
         recognition.start();
     };
 
+    const searchableProducts = useMemo(() => {
+        return products.map(p => ({
+            item: p,
+            searchKey: normalizeText(`${p.Nombre} ${p.Categoria} ${p.ID_Producto}`)
+        }));
+    }, [products]);
+
     const filteredProducts = useMemo(() => {
-        return products.filter(p => {
-            const payload = [p.Nombre, p.Categoria, p.ID_Producto].join(" ");
-            return smartSearch(payload, deferredSearchTerm);
-        });
-    }, [products, deferredSearchTerm]);
+        if (!deferredSearchTerm) return products;
+        const terms = normalizeText(deferredSearchTerm).split(/\s+/).filter(t => t.length > 0);
+        return searchableProducts
+            .filter(p => terms.every(t => p.searchKey.includes(t)))
+            .map(p => p.item);
+    }, [searchableProducts, deferredSearchTerm]);
+
+    const searchableClients = useMemo(() => {
+        return allClients.map(c => ({
+            item: c,
+            searchKey: normalizeText(`${c.Nombre_Negocio} ${c.Dueño} ${c.Direccion} ${c.ID_Cliente}`)
+        }));
+    }, [allClients]);
 
     const filteredClients = useMemo(() => {
         if (!deferredClientSearch && !isClientDropdownOpen) return [];
-        return allClients.filter(c => {
-            const payload = [c.Nombre_Negocio, c.Dueño, c.Direccion, c.ID_Cliente].join(" ");
-            return smartSearch(payload, deferredClientSearch);
-        });
-    }, [allClients, deferredClientSearch, isClientDropdownOpen]);
+        if (!deferredClientSearch) return allClients;
+        const terms = normalizeText(deferredClientSearch).split(/\s+/).filter(t => t.length > 0);
+        return searchableClients
+            .filter(c => terms.every(t => c.searchKey.includes(t)))
+            .map(c => c.item);
+    }, [searchableClients, deferredClientSearch, isClientDropdownOpen, allClients]);
 
     const updateQty = (id: string, delta: number) => {
         setCarrito(prev => {
@@ -673,18 +689,18 @@ export default function PreventaPage() {
                         </div>
 
                         <div className="flex items-center justify-between mt-3 gap-2">
-                            <div className="flex flex-col min-w-0">
+                            <div className="flex flex-col min-w-0 max-w-[40%]">
                                 {getPromoDiscount(pid, qty, isBulto) > 0 ? (
                                     <>
-                                        <span className="text-xl font-black text-rose-500 dark:text-rose-400 truncate">
+                                        <span className="text-[17px] xs:text-xl font-black text-rose-500 dark:text-rose-400 truncate">
                                             ${(finalPrice * (1 - getPromoDiscount(pid, qty, isBulto) / 100)).toLocaleString()}
                                         </span>
-                                        <span className="text-[10px] font-bold text-slate-400 line-through decoration-rose-500/50">
+                                        <span className="text-[9px] xs:text-[10px] font-bold text-slate-400 line-through decoration-rose-500/50">
                                             ${finalPrice.toLocaleString()}
                                         </span>
                                     </>
                                 ) : (
-                                    <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 truncate">${finalPrice.toLocaleString()}</span>
+                                    <span className="text-[17px] xs:text-xl font-black text-indigo-600 dark:text-indigo-400 truncate">${finalPrice.toLocaleString()}</span>
                                 )}
                                 <span className="text-[9px] font-bold text-slate-400 uppercase truncate">{isBulto ? `Bulto (${unitsPerBulk}u)` : unitLabel}</span>
                             </div>
@@ -694,10 +710,10 @@ export default function PreventaPage() {
                                     <>
                                         <button onClick={() => updateQty(pid, -1)} className="w-9 h-9 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
                                         <input id={`qty-input-${pid}`} type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(pid, v); else setQtyExact(pid, 0) }} className="w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
-                                        <button onClick={() => updateQty(pid, 1)} className="w-9 h-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"><Plus size={16} /></button>
+                                        <button onClick={() => updateQty(pid, 1)} className="w-8 h-8 xs:w-9 xs:h-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"><Plus size={16} /></button>
                                     </>
                                 ) : (
-                                    <button onClick={() => handleInitialAdd(pid)} className="px-5 py-2.5 rounded-2xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-indigo-500/10">Agregar</button>
+                                    <button onClick={() => handleInitialAdd(pid)} className="px-3 xs:px-5 py-2 xs:py-2.5 rounded-2xl bg-indigo-600 text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-indigo-500/10 whitespace-nowrap">Agregar</button>
                                 )}
                             </div>
                         </div>
