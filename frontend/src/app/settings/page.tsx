@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target } from "lucide-react";
+import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target, Shield, Lock } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 
@@ -64,7 +64,9 @@ export default function SettingsPage() {
                         EMPRESA: res.EMPRESA || prev.EMPRESA,
                         REMITO_TITULO: res.REMITO_TITULO || prev.REMITO_TITULO,
                         REMITO_DIRECCION: res.REMITO_DIRECCION || prev.REMITO_DIRECCION,
-                        REMITO_TELEFONO: res.REMITO_TELEFONO || prev.REMITO_TELEFONO
+                        REMITO_TELEFONO: res.REMITO_TELEFONO || prev.REMITO_TELEFONO,
+                        AUTH_ADMIN_PASSWORD: res.AUTH_ADMIN_PASSWORD || "admin123",
+                        AUTH_PREVENTA_PASSWORD: res.AUTH_PREVENTA_PASSWORD || "wanda2024"
                     }));
                 }
             } catch (err) {
@@ -143,7 +145,7 @@ export default function SettingsPage() {
         <div className="max-w-2xl mx-auto space-y-8 pb-32">
             <div className="flex flex-col gap-1">
                 <h2 className="text-3xl font-black tracking-tight text-slate-800 dark:text-slate-100">Configuración</h2>
-                <p className="text-sm text-slate-500 italic">Gestiona los avisos y parámetros globales del sistema.</p>
+                <p className="text-sm text-slate-500 italic">Gestiona los avisos, parámetros globales y seguridad del sistema.</p>
             </div>
 
             {/* Sección Membrete / Empresa */}
@@ -186,9 +188,58 @@ export default function SettingsPage() {
                             value={config.REMITO_TELEFONO}
                             onChange={e => setConfig({ ...config, REMITO_TELEFONO: e.target.value })}
                             className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
-                            placeholder="+54 9 11 1234-5678"
                         />
                     </div>
+                </div>
+            </div>
+
+            {/* Sección Seguridad */}
+            <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-6">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <Shield size={14} className="text-emerald-500" /> Seguridad de Acceso
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between px-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clave Administrador</label>
+                            <span className="text-[9px] font-black text-indigo-500/50 uppercase">Admin Panel</span>
+                        </div>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                            <input
+                                type="text"
+                                value={config.AUTH_ADMIN_PASSWORD || ""}
+                                onChange={e => setConfig({ ...config, AUTH_ADMIN_PASSWORD: e.target.value })}
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 pl-10 text-xs font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none transition-all"
+                                placeholder="Min. 6 caracteres"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between px-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clave Preventista</label>
+                            <span className="text-[9px] font-black text-emerald-500/50 uppercase">Mobile App</span>
+                        </div>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                            <input
+                                type="text"
+                                value={config.AUTH_PREVENTA_PASSWORD || ""}
+                                onChange={e => setConfig({ ...config, AUTH_PREVENTA_PASSWORD: e.target.value })}
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 pl-10 text-xs font-bold focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all"
+                                placeholder="Clave para ventas"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10">
+                    <p className="text-[10px] text-amber-600/80 font-bold leading-relaxed flex items-center gap-2">
+                        <AlertCircle size={12} />
+                        RECOMENDACIÓN: Cambia estas claves regularmente para mantener la seguridad de Wanda Cloud. Estas claves afectarán el inicio de sesión de todos los usuarios.
+                    </p>
                 </div>
             </div>
 

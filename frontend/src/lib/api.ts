@@ -43,4 +43,5 @@ export const wandaApi = {
     saveOrderCorrection: (order: any) => fetchGS('guardar_correccion_pedido', order),
     liquidarRuta: (data: any) => fetchGS('liquidar_ruta', data),
     revertLiquidacion: (id: string) => fetchGS('revert_liquidacion', { id }),
+    verifyLogin: (role: string, password: string) => fetchGS('verify_login', { role, password }),
 };

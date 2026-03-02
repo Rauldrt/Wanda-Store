@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Shield, User, Lock, ArrowRight, Store, ChevronRight, Globe, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { wandaApi } from "@/lib/api";
 import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithPopup } from "firebase/auth";
 
@@ -13,36 +14,32 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        // Simulación de validación
-        if (role === 'admin' && password === 'dev-tienda') {
-            localStorage.setItem("user_role", "admin");
-            localStorage.setItem("is_logged_in", "true");
-            localStorage.setItem("user_name", "Admin Dev");
-            router.push('/productos');
-            return;
-        }
+        try {
+            if (!role) return;
 
-        if (role === 'admin' && password !== 'admin123') {
-            alert("Contraseña de Admin incorrecta (prueba admin123)");
-            setLoading(false);
-            return;
-        }
-        if (role === 'preventista' && password !== 'wanda2024') {
-            alert("Contraseña de Preventista incorrecta (prueba wanda2024)");
-            setLoading(false);
-            return;
-        }
-        setTimeout(() => {
-            localStorage.setItem("user_role", role as string);
-            localStorage.setItem("is_logged_in", "true");
+            // En un entorno real, usaríamos un login seguro contra el backend
+            const res = await wandaApi.verifyLogin(role, password);
 
-            if (role === 'admin') router.push('/productos');
-            else router.push('/preventa');
-        }, 800);
+            if (res && res.success) {
+                localStorage.setItem("user_role", role);
+                localStorage.setItem("is_logged_in", "true");
+                localStorage.setItem("user_name", res.displayName || (role === 'admin' ? "Admin" : "Preventista"));
+
+                if (role === 'admin') router.push('/productos');
+                else router.push('/preventa');
+            } else {
+                alert(res?.error || "Credenciales incorrectas");
+            }
+        } catch (err) {
+            console.error("Login error:", err);
+            alert("Error al conectar con el servidor de seguridad");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleGoogleLogin = async () => {

@@ -10,6 +10,7 @@ import {
     Trash2,
     Plus,
     Image as ImageIcon,
+    ExternalLink,
     DollarSign,
     Box,
     Save,
@@ -81,7 +82,7 @@ export default function ProductosPage() {
 
     // Estados para Ordenamiento y Filtros Críticos
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: 'Nombre', direction: 'asc' });
-    const [quickStatus, setQuickStatus] = useState<'all' | 'no_stock' | 'low_margin' | 'weighable'>('all');
+    const [quickStatus, setQuickStatus] = useState<'all' | 'no_stock' | 'low_margin' | 'weighable' | 'no_image'>('all');
 
     // Nuevos filtros de ocultamiento globales
     const config = data?.config || {};
@@ -131,6 +132,7 @@ export default function ProductosPage() {
                 matchesStatus = m < 15;
             }
             if (quickStatus === 'weighable') matchesStatus = p.Unidad === 'Kg';
+            if (quickStatus === 'no_image') matchesStatus = !p.Imagen_URL;
 
             // Criterios de ocultamiento
             if (hideLowPrice && parseFloat(p.Precio_Unitario || 0) < 1) return false;
@@ -549,6 +551,7 @@ export default function ProductosPage() {
                         {[
                             { id: 'all', label: 'Todos', icon: Package },
                             { id: 'no_stock', label: 'Sin Stock', icon: Box },
+                            { id: 'no_image', label: 'Sin Imagen', icon: ImageIcon },
                             { id: 'low_margin', label: 'Baja Rent.', icon: Percent },
                             { id: 'weighable', label: 'Pesables', icon: Weight }
                         ].map((btn) => (
@@ -813,9 +816,17 @@ function ProductCard({ product, idx, onEdit }: any) {
                     {product.Imagen_URL ? (
                         <img src={product.Imagen_URL} alt={product.Nombre} className="w-full h-full object-cover" />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-300">
-                            <ImageIcon size={20} />
-                        </div>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const query = encodeURIComponent(`${product.Nombre} producto`);
+                                window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
+                            }}
+                            className="w-full h-full flex items-center justify-center text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-500 transition-colors"
+                            title="Buscar imagen en Google"
+                        >
+                            <Search size={20} />
+                        </button>
                     )}
                     {parseFloat(product.Stock_Actual) <= 5 && (
                         <div className="absolute inset-0 bg-rose-500/10 flex items-center justify-center">
@@ -902,7 +913,17 @@ function ProductRow({ product, onEdit }: any) {
                         {product.Imagen_URL ? (
                             <img src={product.Imagen_URL} className="w-full h-full object-cover" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon size={16} /></div>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const query = encodeURIComponent(`${product.Nombre} producto`);
+                                    window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
+                                }}
+                                className="w-full h-full flex items-center justify-center text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-500 transition-colors"
+                                title="Buscar imagen en Google"
+                            >
+                                <Search size={16} />
+                            </button>
                         )}
                     </div>
                     <div>
@@ -1197,18 +1218,50 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                         {/* 4. Multimedia */}
                         <section className="space-y-6">
                             <h4 className="text-[10px] font-black uppercase text-indigo-500 tracking-[0.25em] flex items-center gap-3">
-                                <Layers size={12} /> Multimedia
+                                <Layers size={12} /> Multimedia & Visual
                             </h4>
                             <div className="space-y-4">
-                                <InputField
-                                    label="URL Imagen"
-                                    value={formData.Imagen_URL}
-                                    onChange={(v: any) => setFormData({ ...formData, Imagen_URL: v })}
-                                    placeholder="https://"
-                                />
+                                <div className="flex gap-2 items-end">
+                                    <div className="flex-1">
+                                        <InputField
+                                            label="URL Imagen del Producto"
+                                            value={formData.Imagen_URL}
+                                            onChange={(v: any) => setFormData({ ...formData, Imagen_URL: v })}
+                                            placeholder="https://ejemplo.com/imagen.jpg"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const query = encodeURIComponent(`${formData.Nombre || ''} ${formData.Categoria || ''} producto`);
+                                            window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
+                                        }}
+                                        className="h-[52px] mb-[1px] px-4 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-200 dark:border-indigo-900/50 hover:bg-indigo-500 hover:text-white transition-all shadow-sm flex items-center gap-2 group shrink-0"
+                                        title="Buscar automáticamente en Google Imágenes"
+                                    >
+                                        <Search size={18} className="group-hover:scale-110 transition-transform" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Buscar</span>
+                                    </button>
+                                </div>
+                                <p className="text-[9px] text-slate-400 italic ml-1">
+                                    Sugerencia: Haz clic en <b>Buscar</b>, encuentra la imagen, <b>clic derecho &quot;Copiar dirección de imagen&quot;</b> y pégala arriba.
+                                </p>
                                 {formData.Imagen_URL && (
-                                    <div className="w-32 h-32 rounded-3xl overflow-hidden border border-[var(--border)]">
-                                        <img src={formData.Imagen_URL} className="w-full h-full object-cover" />
+                                    <div className="mt-4 relative group w-max">
+                                        <div className="w-40 h-40 rounded-[2rem] overflow-hidden border-4 border-white dark:border-slate-800 shadow-xl bg-slate-100 dark:bg-slate-900">
+                                            <img
+                                                src={formData.Imagen_URL}
+                                                className="w-full h-full object-contain p-2"
+                                                onError={(e: any) => { (e.target as any).src = 'https://placehold.co/400?text=Error+en+URL'; }}
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, Imagen_URL: '' })}
+                                            className="absolute -top-2 -right-2 p-2 bg-rose-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                                        >
+                                            <X size={14} />
+                                        </button>
                                     </div>
                                 )}
                             </div>

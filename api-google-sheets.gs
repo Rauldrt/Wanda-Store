@@ -86,6 +86,8 @@ function doPost(e) {
         return createResponse({ result: guardarCambiosMasivosProductos(data) });
       case 'delete_client':
         return createResponse({ result: eliminarCliente(data.id) });
+      case 'verify_login':
+        return createResponse(verificarLogin(data.role, data.password));
       default:
         return createResponse({ error: "Acción POST no reconocida" }, 400);
     }
@@ -585,6 +587,34 @@ function guardarConfiguracion(datos) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function verificarLogin(role, password) {
+  const config = obtenerConfiguracion();
+  let key = "";
+  let defaultPass = "";
+  
+  if (role === 'admin') {
+    key = "AUTH_ADMIN_PASSWORD";
+    defaultPass = "admin123";
+  } else if (role === 'preventista') {
+    key = "AUTH_PREVENTA_PASSWORD";
+    defaultPass = "wanda2024";
+  } else {
+    return { success: false, error: "Rol no válido" };
+  }
+  
+  const savedPassword = config[key] || defaultPass;
+  
+  if (String(password) === String(savedPassword)) {
+    return { 
+      success: true, 
+      role: role,
+      displayName: role === 'admin' ? "Administrador Wanda" : "Preventista Wanda"
+    };
+  }
+  
+  return { success: false, error: "Contraseña incorrecta" };
 }
 
 function liquidarRuta(data) {

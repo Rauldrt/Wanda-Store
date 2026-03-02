@@ -17,7 +17,8 @@ import {
   Store,
   BarChart3,
   Map,
-  Save
+  Save,
+  Layout
 } from "lucide-react";
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -61,7 +62,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     const isLoggedIn = localStorage.getItem("is_logged_in");
     const role = localStorage.getItem("user_role");
 
-    if (!isLoggedIn && pathname !== '/login') {
+    if (!isLoggedIn && pathname !== '/login' && pathname !== '/landing') {
       router.push('/login');
     } else if (isLoggedIn && pathname === '/login') {
       if (role === 'admin') router.push('/productos');
@@ -97,6 +98,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/recorrido", icon: <Map size={18} />, label: "Recorrido" },
     { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
     { href: "/informes", icon: <BarChart3 size={18} />, label: "Informes" },
+    { href: "/landing", icon: <Layout size={18} />, label: "Presentación" },
     { href: "/settings", icon: <Settings size={18} />, label: "Ajustes" },
   ];
 
@@ -117,8 +119,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // RENDERIZADO ESPECIAL PARA PAGINAS SIN SIDEBAR (Login, Preventa, Tienda)
-  const isMinimalLayout = pathname === '/login' || pathname === '/preventa' || pathname === '/tienda';
+  // RENDERIZADO ESPECIAL PARA PAGINAS SIN SIDEBAR (Login, Preventa, Tienda, Landing)
+  const isMinimalLayout = pathname === '/login' || pathname === '/preventa' || pathname === '/tienda' || pathname === '/landing';
 
   if (isMinimalLayout) {
     return <main className="flex-1 w-full h-full min-h-screen">{children}</main>;
