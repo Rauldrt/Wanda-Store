@@ -248,11 +248,14 @@ export default function PreventaPage() {
 
     const filteredClients = useMemo(() => {
         if (!deferredClientSearch && !isClientDropdownOpen) return [];
-        if (!deferredClientSearch) return allClients;
-        const terms = normalizeText(deferredClientSearch).split(/\s+/).filter(t => t.length > 0);
-        return searchableClients
-            .filter(c => terms.every(t => c.searchKey.includes(t)))
-            .map(c => c.item);
+        let results = allClients;
+        if (deferredClientSearch) {
+            const terms = normalizeText(deferredClientSearch).split(/\s+/).filter(t => t.length > 0);
+            results = searchableClients
+                .filter(c => terms.every(t => c.searchKey.includes(t)))
+                .map(c => c.item);
+        }
+        return results.slice(0, 50); // Limitar a 50 para evitar lag en el renderizado inicial
     }, [searchableClients, deferredClientSearch, isClientDropdownOpen, allClients]);
 
     const updateQty = (id: string, delta: number) => {
@@ -872,6 +875,11 @@ export default function PreventaPage() {
                         initial={false}
                         animate={{ flex: activeSearch === 'client' ? 3 : (activeSearch === 'product' ? 0.3 : 1) }}
                         transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                        onAnimationComplete={() => {
+                            if (activeSearch === 'client') {
+                                setIsClientDropdownOpen(true);
+                            }
+                        }}
                         className="relative"
                         ref={clientDropdownRef}
                     >
@@ -885,8 +893,8 @@ export default function PreventaPage() {
                                 type="text"
                                 placeholder={activeSearch === 'client' ? "Buscar cliente..." : ""}
                                 value={clientSearch}
-                                onChange={(e) => { setClientSearch(e.target.value); setIsClientDropdownOpen(true); }}
-                                onFocus={() => { setIsClientDropdownOpen(true); setActiveSearch('client'); }}
+                                onChange={(e) => { setClientSearch(e.target.value); if (!isClientDropdownOpen) setIsClientDropdownOpen(true); }}
+                                onFocus={() => { setActiveSearch('client'); }}
                                 className={`flex-1 bg-transparent text-[15px] font-medium outline-none transition-all ${activeSearch !== 'client' && !selectedClient ? 'w-0 opacity-0' : 'w-full opacity-100'}`}
                             />
                             {activeSearch === 'client' && clientSearch && !selectedClient && (
