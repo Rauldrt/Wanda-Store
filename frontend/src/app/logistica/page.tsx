@@ -249,98 +249,119 @@ export default function LogisticaPage() {
             <head>
                 <title>Remitos de Entrega</title>
                 <style>
-                    body { font-family: sans-serif; margin: 0; padding: 0; color: #333; line-height: 1; }
-                    .print-page { page-break-after: always; padding: 8px; }
+                    body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #000; line-height: 1.2; }
+                    .print-page { page-break-after: always; padding: 10px; display: flex; flex-direction: column; gap: 15px; }
+                    .remito-container { position: relative; padding-left: 20px; }
+                    .copy-type {
+                        position: absolute;
+                        left: -5px;
+                        top: 50%;
+                        transform: translateY(-50%) rotate(-90deg);
+                        font-weight: 900;
+                        font-size: 14px;
+                        letter-spacing: 6px;
+                        color: #000;
+                    }
                     .remito { 
-                        border: 1px solid #000; 
-                        padding: 6px; 
-                        margin-bottom: 8px; 
-                        position: relative; 
+                        border: 2px solid #000; 
+                        padding: 8px 12px; 
                         display: flex;
                         flex-direction: column;
                         background: #fff;
+                        height: 135mm;
+                        box-sizing: border-box;
                     }
-                    .separator {
-                        border-top: 1px dashed #ccc;
-                        margin: 10px 0;
-                        position: relative;
-                        height: 1px;
-                        width: 100%;
-                    }
-                    .separator::after {
-                        content: '✂ Recortar aquí';
-                        position: absolute;
-                        top: -10px;
-                        right: 0;
-                        font-size: 8px;
-                        color: #999;
-                        text-transform: uppercase;
-                    }
-                    .header { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 6px; }
-                    .title { font-size: 16px; font-weight: 900; letter-spacing: -1px; }
-                    .copy-type { 
-                        position: absolute; 
-                        top: 4px; 
-                        right: 12px; 
-                        font-size: 8px; 
-                        font-weight: bold; 
-                        text-transform: uppercase; 
-                        color: #999; 
-                    }
-                    .info { display: flex; justify-content: space-between; margin-bottom: 4px; padding: 3px 8px; background: #f9f9f9; border-radius: 6px; }
-                    .info-block div { margin-bottom: 1px; font-size: 10px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 2px; }
-                    th, td { border: 1px solid #ddd; padding: 0.5px 6px; text-align: left; font-size: 10px; }
-                    th { background: #eee; font-weight: 900; text-transform: uppercase; font-size: 8px; }
-                    .total { text-align: right; font-size: 15px; font-weight: 900; margin-top: 6px; border-top: 1px solid #000; padding-top: 4px; color: #000; }
-                    .badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); border: 2px solid #000; padding: 2px 10px; font-weight: 900; font-size: 16px; }
-                    
+                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 5px; }
+                    .company { font-size: 18px; font-weight: 900; text-transform: uppercase; background: #ffea00; display: inline-block; padding: 2px 5px;}
+                    .company-details { font-size: 9px; margin-top: 2px; text-transform: uppercase; }
+                    .x-box { border: 2px solid #000; text-align: center; padding: 2px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 40px; margin-top: 5px;}
+                    .x-mark { font-size: 26px; font-weight: 900; line-height: 1; margin-bottom: 2px;}
+                    .x-sub { font-size: 6px; font-weight: bold; text-transform: uppercase; line-height: 1.1;}
+
+                    .info-box { border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 5px; font-size: 10px; display: flex; flex-direction: column; gap: 4px; }
+                    .info-row { display: flex; justify-content: space-between; }
+
+                    .table-wrapper { flex: 1; overflow: hidden; display: flex; flex-direction: column;}
+                    table { width: 100%; border-collapse: collapse; height: 100%; }
+                    th { border: 1px solid #000; border-top: none; padding: 4px; font-size: 9px; font-weight: 900; text-align: center; }
+                    th:first-child { border-left: none; }
+                    th:last-child { border-right: none; }
+                    td { border-right: 1px solid #000; border-left: 1px solid #000; padding: 6px 4px; font-size: 11px; vertical-align: top; }
+                    td.num { text-align: right; }
+                    td.cen { text-align: center; }
+                    td:first-child { border-left: none; }
+                    td:last-child { border-right: none; }
+                    tr.item-row td { border-bottom: none; border-top: none; height: 1%; } /* 1% makes row fit content tightly */
+
+                    .footer { border-top: 2px solid #000; margin-top: auto; padding-top: 5px; display: flex; justify-content: space-between; align-items: flex-end; }
+                    .obs { width: 50%; font-size: 8px; color: #666; }
+                    .totals-box { width: 45%; display: flex; flex-direction: column; align-items: flex-end;}
+                    .subtotal-row { display: flex; justify-content: space-between; width: 100%; font-size: 11px; margin-bottom: 2px;}
+                    .total-row { display: flex; justify-content: space-between; width: 100%; font-size: 13px; font-weight: 900; border-top: 1px solid #000; margin-top: 2px; padding-top: 2px;}
+
                     @media print {
-                        .print-page { padding: 0.2cm; page-break-after: always; }
-                        .remito { margin-bottom: 0.5cm; }
+                        @page { size: A4; margin: 10mm; }
+                        .print-page { padding: 0; margin: 0; gap: 8mm;}
+                        .remito { height: 134mm; }
                     }
                 </style>
             </head>
             <body>
                 ${orderList.map(order => `
                     <div class="print-page">
-                        ${['ORIGINAL', 'DUPLICADO'].map((type, idx) => `
-                            ${idx === 1 ? '<div class="separator"></div>' : ''}
-                            <div class="remito">
+                        ${['ORIGINAL', 'DUPLICADO'].map((type) => `
+                            <div class="remito-container">
                                 <div class="copy-type">${type}</div>
-                                <div class="badge">X</div>
-                                <div class="header">
-                                    <div>
-                                        <div class="title">${data?.config?.REMITO_TITULO || 'REMITO'}</div>
-                                        <div style="font-weight: bold; margin-top: 5px; font-size: 12px;">Orden: #${order.id.slice(-8)}</div>
+                                <div class="remito">
+                                    <div class="header">
+                                        <div style="width: 45%;">
+                                            <div class="company">${data?.config?.EMPRESA || 'WANDA DISTRIBUCIONES'}</div>
+                                            <div class="company-details">${data?.config?.REMITO_DIRECCION || ''}</div>
+                                            <div class="company-details">Tel: ${data?.config?.REMITO_TELEFONO || ''}</div>
+                                        </div>
+                                        <div style="display: flex; gap: 15px; align-items: center; width: 25%;">
+                                            <div class="x-box">
+                                                <span class="x-mark">X</span>
+                                                <span class="x-sub">Doc. no válido<br>como factura</span>
+                                            </div>
+                                            <div>
+                                                <div style="font-weight: 900; font-size: 12px;">PEDIDO</div>
+                                                <div style="font-weight: 900; font-size: 14px;">${order.id.slice(-8)}</div>
+                                            </div>
+                                        </div>
+                                        <div style="width: 30%; text-align: right; font-size: 10px; font-weight: bold;">
+                                            <div>Fecha: ${order.fecha}</div>
+                                            <div style="margin-top:2px;">Vendedor: ${order.vendedor || 'S/V'}</div>
+                                        </div>
                                     </div>
-                                    <div style="text-align: right">
-                                        <div style="font-weight: 900; font-size: 14px;">${data?.config?.EMPRESA || 'WANDA DISTRIBUCIONES'}</div>
-                                        ${data?.config?.REMITO_DIRECCION ? `<div style="font-size: 9px; color: #444;">${data?.config?.REMITO_DIRECCION}</div>` : ''}
-                                        ${data?.config?.REMITO_TELEFONO ? `<div style="font-size: 9px; color: #444;">Tel: ${data?.config?.REMITO_TELEFONO}</div>` : ''}
-                                        <div style="font-size: 10px; color: #666; margin-top: 5px;">Fecha: ${order.fecha}</div>
-                                        <div style="font-size: 10px; color: #666;">Vendedor: ${order.vendedor || 'S/V'}</div>
+                                    
+                                    <div class="info-box">
+                                        <div class="info-row">
+                                            <div style="width: 70%;"><strong>Señor(es):</strong> ${order.cliente_nombre}</div>
+                                            <div style="width: 30%;"><strong>CUIT/DNI:</strong> -</div>
+                                        </div>
+                                        <div><strong>Domicilio:</strong> ${order.direccion || 'Sin dirección registrada'}</div>
+                                        <div class="info-row">
+                                            <div style="width: 40%;"><strong>Tip/Resp:</strong> -</div>
+                                            <div style="width: 30%;"><strong>Fma pago:</strong> -</div>
+                                            <div style="width: 30%; text-align: right;">${order.vendedor || 'S/V'}</div>
+                                        </div>
+                                        ${order.notas ? `<div><strong>Notas:</strong> ${order.notas}</div>` : ''}
                                     </div>
-                                </div>
-                                <div class="info">
-                                    <div class="info-block">
-                                        <div><strong>CLIENTE:</strong> ${order.cliente_nombre}</div>
-                                        <div><strong>DIRECCIÓN:</strong> ${order.direccion || 'Sin dirección registrada'}</div>
-                                        ${order.notas ? `<div style="margin-top:2px;font-size:9px;color:#d97706;"><strong>NOTAS:</strong> ${order.notas}</div>` : ''}
-                                    </div>
-                                </div>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th width="70">CANT</th>
-                                            <th>DESCRIPCIÓN</th>
-                                            <th width="80">P. UNIT</th>
-                                            <th width="50">DESC</th>
-                                            <th width="90">SUBTOTAL</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${order.items?.map((item: any) => {
+                                    
+                                    <div class="table-wrapper">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th width="12%">CANT.</th>
+                                                    <th width="48%">DESCRIPCIÓN</th>
+                                                    <th width="15%">P. UNIT.</th>
+                                                    <th width="10%">BONIF.</th>
+                                                    <th width="15%">TOTAL</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${order.items?.map((item: any) => {
             const prod = products.find(p => p.ID_Producto === item.id_prod);
             const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
             const ub = parseFloat(prod?.UB || prod?.Unidades_Bulto || 1);
@@ -351,7 +372,7 @@ export default function LogisticaPage() {
 
             let displayQty = "";
             if (item._formato === 'BULTO') {
-                displayQty = `${qty} BUL ${ub > 1 ? `<small style="font-weight: normal; color: #666;">(x${ub})</small>` : ''}`;
+                displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
             } else if (isKg) {
                 displayQty = `${qty.toFixed(2)} KG`;
             } else {
@@ -359,24 +380,42 @@ export default function LogisticaPage() {
             }
 
             return `
-                                                <tr>
-                                                    <td style="font-weight: bold">${displayQty}</td>
-                                                    <td style="font-size: 10px">${item.nombre}</td>
-                                                    <td>$${price.toLocaleString()}</td>
-                                                    <td style="color: #666; font-size: 9px">${disc > 0 ? `-${disc}%` : '-'}</td>
-                                                    <td style="font-weight: bold">$${subtotal.toLocaleString()}</td>
-                                                </tr>
-                                            `;
+                                                        <tr class="item-row">
+                                                            <td class="cen" style="font-weight: bold">${displayQty}</td>
+                                                            <td style="font-weight: bold">${item.nombre}</td>
+                                                            <td class="num">$ ${price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                            <td class="cen">${disc > 0 ? `${disc}%` : '-'}</td>
+                                                            <td class="num" style="font-weight: bold">$ ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                        </tr>
+                                                    `;
         }).join('')}
-                                    </tbody>
-                                </table>
-                                <div style="margin-top: 10px; display: flex; flex-direction: column; align-items: flex-end;">
-                                    ${parseFloat(order.descuento_general || 0) > 0 ? `
-                                        <div style="font-size: 10px; color: #666; font-weight: bold;">
-                                            DESC. GENERAL: -${order.descuento_general}%
+                                                <!-- Empty row to stretch borders to bottom -->
+                                                <tr>
+                                                    <td></td><td></td><td></td><td></td><td></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="footer">
+                                        <div class="obs">Obs: ................................................................................</div>
+                                        <div class="totals-box">
+                                            <div class="subtotal-row">
+                                                <span>Subtotal:</span>
+                                                <span>$ ${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                            ${parseFloat(order.descuento_general || 0) > 0 ? `
+                                            <div class="subtotal-row" style="color: #444;">
+                                                <span>Desc. General:</span>
+                                                <span>-${order.descuento_general}%</span>
+                                            </div>
+                                            ` : ''}
+                                            <div class="total-row">
+                                                <span>Total:</span>
+                                                <span>$ ${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                            </div>
                                         </div>
-                                    ` : ''}
-                                    <div class="total">TOTAL A PAGAR: $${parseFloat(order.total).toLocaleString()}</div>
+                                    </div>
                                 </div>
                             </div>
                         `).join('')}
