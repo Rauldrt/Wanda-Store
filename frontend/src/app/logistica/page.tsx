@@ -251,18 +251,17 @@ export default function LogisticaPage() {
                 <style>
                     body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #000; line-height: 1.2; }
                     .print-page { page-break-after: always; padding: 10px; display: flex; flex-direction: column; gap: 15px; }
-                    .remito-container { position: relative; padding-left: 20px; }
                     .copy-type {
-                        position: absolute;
-                        left: -5px;
-                        top: 50%;
-                        transform: translateY(-50%) rotate(-90deg);
-                        font-weight: 900;
-                        font-size: 14px;
-                        letter-spacing: 6px;
-                        color: #000;
+                        position: absolute; 
+                        top: 4px; 
+                        right: 12px; 
+                        font-size: 10px; 
+                        font-weight: bold; 
+                        text-transform: uppercase; 
+                        color: #999; 
                     }
                     .remito { 
+                        position: relative;
                         border: 2px solid #000; 
                         padding: 8px 12px; 
                         display: flex;
@@ -310,10 +309,9 @@ export default function LogisticaPage() {
                 ${orderList.map(order => `
                     <div class="print-page">
                         ${['ORIGINAL', 'DUPLICADO'].map((type) => `
-                            <div class="remito-container">
+                            <div class="remito">
                                 <div class="copy-type">${type}</div>
-                                <div class="remito">
-                                    <div class="header">
+                                <div class="header">
                                         <div style="width: 45%;">
                                             <div class="company">${data?.config?.EMPRESA || 'WANDA DISTRIBUCIONES'}</div>
                                             <div class="company-details">${data?.config?.REMITO_DIRECCION || ''}</div>
@@ -416,7 +414,6 @@ export default function LogisticaPage() {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -1269,6 +1266,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
     const [orderDetailId, setOrderDetailId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [viewMode, setViewMode] = useState<"consolidated" | "orders">("orders");
 
     const consolidated = useMemo(() => {
         const map: Record<string, any> = {};
@@ -1330,6 +1328,14 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
             prod.deliveries.some((d: any) => smartSearch(d.cliente, searchTerm))
         );
     }, [consolidated, searchTerm]);
+
+    const filteredOrders = useMemo(() => {
+        return localOrders.filter((order: any) =>
+            smartSearch(order.cliente_nombre || "", searchTerm) ||
+            smartSearch(order.id || "", searchTerm) ||
+            (order.items || []).some((it: any) => smartSearch(it.nombre || "", searchTerm))
+        );
+    }, [localOrders, searchTerm]);
 
     const formatQtyWithBultos = (qty: number, ub: number, isKg: boolean) => {
         if (isKg) return `${qty.toFixed(2)} Kg`;
@@ -1474,134 +1480,189 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                         </button>
                     </div>
 
-                    <div className="relative mb-4">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Buscar por producto o por cliente..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-sm text-slate-800 dark:text-slate-100"
-                        />
+                    <div className="flex flex-col md:flex-row gap-4 mb-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder={viewMode === 'consolidated' ? "Buscar por producto o por cliente..." : "Buscar por cliente, comprobante o producto..."}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-sm text-slate-800 dark:text-slate-100"
+                            />
+                        </div>
+                        <div className="flex bg-[var(--card)] border border-[var(--border)] rounded-2xl p-1 shrink-0 h-[46px]">
+                            <button
+                                onClick={() => setViewMode('orders')}
+                                className={`flex-1 px-4 py-1 text-xs font-bold rounded-xl transition-all ${viewMode === 'orders' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                                Pedidos (${localOrders.length})
+                            </button>
+                            <button
+                                onClick={() => setViewMode('consolidated')}
+                                className={`flex-1 px-4 py-1 text-xs font-bold rounded-xl transition-all ${viewMode === 'consolidated' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                                Consolidados
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-3">
-                        {filteredConsolidated.length === 0 ? (
-                            <div className="text-center p-8 text-slate-400 font-bold">No se encontraron productos o clientes con esa búsqueda.</div>
-                        ) : filteredConsolidated.map((prod: any) => {
-                            const isExpanded = expandedProduct === (prod.id_prod || prod.nombre);
-                            return (
-                                <div key={prod.id_prod || prod.nombre} className={`border rounded-2xl overflow-hidden transition-all ${isExpanded ? 'border-indigo-500 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
-                                    <div
-                                        onClick={() => toggleProduct(prod.id_prod || prod.nombre)}
-                                        className={`p-4 flex justify-between items-center cursor-pointer ${isExpanded ? 'bg-indigo-50 dark:bg-indigo-500/5' : 'bg-white dark:bg-slate-800'}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {isExpanded ? <ChevronUp size={16} className="text-indigo-500" /> : <ChevronDown size={16} className="text-slate-400" />}
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-sm">{prod.nombre}</span>
-                                                {prod.isKg && <span className="text-[9px] font-black text-emerald-500 uppercase tracking-tighter">Producto Pesable (Kg)</span>}
+                        {viewMode === 'consolidated' && (
+                            filteredConsolidated.length === 0 ? (
+                                <div className="text-center p-8 text-slate-400 font-bold">No se encontraron productos o clientes con esa búsqueda.</div>
+                            ) : filteredConsolidated.map((prod: any) => {
+                                const isExpanded = expandedProduct === (prod.id_prod || prod.nombre);
+                                return (
+                                    <div key={prod.id_prod || prod.nombre} className={`border rounded-2xl overflow-hidden transition-all ${isExpanded ? 'border-indigo-500 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
+                                        <div
+                                            onClick={() => toggleProduct(prod.id_prod || prod.nombre)}
+                                            className={`p-4 flex justify-between items-center cursor-pointer ${isExpanded ? 'bg-indigo-50 dark:bg-indigo-500/5' : 'bg-white dark:bg-slate-800'}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                {isExpanded ? <ChevronUp size={16} className="text-indigo-500" /> : <ChevronDown size={16} className="text-slate-400" />}
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-sm">{prod.nombre}</span>
+                                                    {prod.isKg && <span className="text-[9px] font-black text-emerald-500 uppercase tracking-tighter">Producto Pesable (Kg)</span>}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="font-black text-sm text-indigo-600">
+                                                    {formatQtyWithBultos(prod.totalQty, prod.ub, prod.isKg)}
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="font-black text-sm text-indigo-600">
-                                                {formatQtyWithBultos(prod.totalQty, prod.ub, prod.isKg)}
-                                            </span>
-                                        </div>
-                                    </div>
 
-                                    {isExpanded && (
-                                        <div className="bg-slate-50 dark:bg-slate-900/30 divide-y divide-[var(--border)]">
-                                            {prod.deliveries.map((delivery: any, idx: number) => {
-                                                const order = localOrders.find((o: any) => o.id === delivery.orderId);
-                                                const item = order?.items[delivery.itemIdx];
-                                                const itemPrice = parseFloat(item?.precio || 0);
-                                                const itemDiscount = parseFloat(item?.descuento || 0);
-                                                const itemQty = parseFloat(item?.cantidad || 0);
+                                        {isExpanded && (
+                                            <div className="bg-slate-50 dark:bg-slate-900/30 divide-y divide-[var(--border)]">
+                                                {prod.deliveries.map((delivery: any, idx: number) => {
+                                                    const order = localOrders.find((o: any) => o.id === delivery.orderId);
+                                                    const item = order?.items[delivery.itemIdx];
+                                                    const itemPrice = parseFloat(item?.precio || 0);
+                                                    const itemDiscount = parseFloat(item?.descuento || 0);
+                                                    const itemQty = parseFloat(item?.cantidad || 0);
 
-                                                return (
-                                                    <div key={idx} className="p-4 flex justify-between items-center bg-white dark:bg-transparent">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">
-                                                                {idx + 1}
+                                                    return (
+                                                        <div key={idx} className="p-4 flex justify-between items-center bg-white dark:bg-transparent">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">
+                                                                    {idx + 1}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-xs">{delivery.cliente}</p>
+                                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">#{delivery.orderId}</p>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <p className="font-bold text-xs">{delivery.cliente}</p>
-                                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">#{delivery.orderId}</p>
-                                                            </div>
-                                                        </div>
 
-                                                        <div className="flex items-center gap-6">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="flex flex-col items-end mr-2">
-                                                                    <label className="text-[8px] font-black text-slate-400 uppercase">Cantidad</label>
-                                                                    <div className="flex items-center bg-slate-50 dark:bg-slate-800/50 rounded-lg px-2 border border-slate-200 dark:border-slate-700 h-8">
-                                                                        <input
-                                                                            type="text"
-                                                                            inputMode="decimal"
-                                                                            value={rawInputs[`${delivery.orderId}_${delivery.itemIdx}_qty`] ?? delivery.cantidadVisual}
-                                                                            onChange={(e) => {
-                                                                                const valStr = e.target.value;
-                                                                                setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}_qty`]: valStr }));
-                                                                                const valNum = parseFloat(valStr.replace(',', '.'));
-                                                                                if (!isNaN(valNum)) handleUpdateItem(delivery.orderId, delivery.itemIdx, { cantidad: valNum });
-                                                                            }}
-                                                                            onBlur={() => setRawInputs(prev => {
-                                                                                const next = { ...prev };
-                                                                                delete next[`${delivery.orderId}_${delivery.itemIdx}_qty`];
-                                                                                return next;
-                                                                            })}
-                                                                            className="w-12 text-center font-black text-xs bg-transparent outline-none"
-                                                                        />
-                                                                        <span className="text-[9px] font-black text-slate-400 ml-1">{delivery.formato === 'BULTO' ? 'BUL' : (delivery.isKg ? 'KG' : 'UNI')}</span>
+                                                            <div className="flex items-center gap-6">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="flex flex-col items-end mr-2">
+                                                                        <label className="text-[8px] font-black text-slate-400 uppercase">Cantidad</label>
+                                                                        <div className="flex items-center bg-slate-50 dark:bg-slate-800/50 rounded-lg px-2 border border-slate-200 dark:border-slate-700 h-8">
+                                                                            <input
+                                                                                type="text"
+                                                                                inputMode="decimal"
+                                                                                value={rawInputs[`${delivery.orderId}_${delivery.itemIdx}_qty`] ?? delivery.cantidadVisual}
+                                                                                onChange={(e) => {
+                                                                                    const valStr = e.target.value;
+                                                                                    setRawInputs(prev => ({ ...prev, [`${delivery.orderId}_${delivery.itemIdx}_qty`]: valStr }));
+                                                                                    const valNum = parseFloat(valStr.replace(',', '.'));
+                                                                                    if (!isNaN(valNum)) handleUpdateItem(delivery.orderId, delivery.itemIdx, { cantidad: valNum });
+                                                                                }}
+                                                                                onBlur={() => setRawInputs(prev => {
+                                                                                    const next = { ...prev };
+                                                                                    delete next[`${delivery.orderId}_${delivery.itemIdx}_qty`];
+                                                                                    return next;
+                                                                                })}
+                                                                                className="w-12 text-center font-black text-xs bg-transparent outline-none"
+                                                                            />
+                                                                            <span className="text-[9px] font-black text-slate-400 ml-1">{delivery.formato === 'BULTO' ? 'BUL' : (delivery.isKg ? 'KG' : 'UNI')}</span>
+                                                                        </div>
+
                                                                     </div>
 
+                                                                    <div className="text-right">
+                                                                        <label className="text-[8px] font-black text-slate-400 uppercase block">Subtotal</label>
+                                                                        <p className="text-[11px] font-black text-indigo-600">
+                                                                            ${(itemQty * itemPrice * (1 - itemDiscount / 100)).toLocaleString()}
+                                                                        </p>
+                                                                        {itemDiscount > 0 && <p className="text-[8px] font-black text-rose-500">-{itemDiscount}%</p>}
+                                                                    </div>
                                                                 </div>
 
-                                                                <div className="text-right">
-                                                                    <label className="text-[8px] font-black text-slate-400 uppercase block">Subtotal</label>
-                                                                    <p className="text-[11px] font-black text-indigo-600">
-                                                                        ${(itemQty * itemPrice * (1 - itemDiscount / 100)).toLocaleString()}
-                                                                    </p>
-                                                                    {itemDiscount > 0 && <p className="text-[8px] font-black text-rose-500">-{itemDiscount}%</p>}
+                                                                <div className="flex items-center gap-2">
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            onPrintOrder(delivery.orderId);
+                                                                        }}
+                                                                        className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:bg-slate-200 transition-all"
+                                                                        title="Imprimir Remito"
+                                                                    >
+                                                                        <Printer size={14} />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setOrderDetailId(delivery.orderId);
+                                                                        }}
+                                                                        className="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                                                                    >
+                                                                        Edición Fina
+                                                                    </button>
                                                                 </div>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-2">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        onPrintOrder(delivery.orderId);
-                                                                    }}
-                                                                    className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:bg-slate-200 transition-all"
-                                                                    title="Imprimir Remito"
-                                                                >
-                                                                    <Printer size={14} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setOrderDetailId(delivery.orderId);
-                                                                    }}
-                                                                    className="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
-                                                                >
-                                                                    Edición Fina
-                                                                </button>
                                                             </div>
                                                         </div>
+                                                    );
+                                                })}
+                                                {prod.isKg && (
+                                                    <div className="p-3 bg-emerald-50 dark:bg-emerald-500/5 text-center border-t border-emerald-100">
+                                                        <span className="text-[10px] font-black text-emerald-600 uppercase">Espacio para Peso Real en Balanza disponible en Remito impreso</span>
                                                     </div>
-                                                );
-                                            })}
-                                            {prod.isKg && (
-                                                <div className="p-3 bg-emerald-50 dark:bg-emerald-500/5 text-center border-t border-emerald-100">
-                                                    <span className="text-[10px] font-black text-emerald-600 uppercase">Espacio para Peso Real en Balanza disponible en Remito impreso</span>
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }))}
+
+                        {viewMode === 'orders' && (
+                            filteredOrders.length === 0 ? (
+                                <div className="text-center p-8 text-slate-400 font-bold">No se encontraron pedidos con esa búsqueda.</div>
+                            ) : filteredOrders.map((order: any) => (
+                                <div key={order.id} className="border border-[var(--border)] bg-white dark:bg-slate-800 rounded-2xl p-4 flex flex-col md:flex-row justify-between md:items-center gap-4 hover:border-indigo-500 transition-colors">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-black text-lg text-slate-800 dark:text-slate-100">{order.cliente_nombre}</span>
+                                            {order._editado && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-black uppercase">Editado</span>}
                                         </div>
-                                    )}
+                                        <div className="text-xs text-slate-500 font-bold font-mono tracking-tight">#{order.id} • {order.items?.length || 0} ítems</div>
+                                        {order.direccion && <div className="text-xs text-slate-500 mt-1">📍 {order.direccion}</div>}
+                                    </div>
+                                    <div className="flex items-center justify-between md:justify-end gap-6 shrink-0">
+                                        <div className="text-right">
+                                            <div className="text-[10px] font-black uppercase text-slate-400">Total a pagar</div>
+                                            <div className="font-black text-lg text-indigo-600">${parseFloat(order.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => onPrintOrder(order.id)}
+                                                className="p-3 bg-slate-100 dark:bg-slate-700/50 rounded-xl text-slate-500 hover:bg-slate-200 hover:text-indigo-600 transition-all"
+                                                title="Imprimir Remito Individual"
+                                            >
+                                                <Printer size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => setOrderDetailId(order.id)}
+                                                className="px-5 py-3 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all shadow-sm whitespace-nowrap"
+                                            >
+                                                Ver / Editar
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            );
-                        })}
+                            ))
+                        )}
                     </div>
                 </div>
 
