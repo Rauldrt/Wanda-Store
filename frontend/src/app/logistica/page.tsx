@@ -369,7 +369,8 @@ export default function LogisticaPage() {
                 const subtotal = (qty * price) * (1 - disc / 100);
 
                 let displayQty = "";
-                if (item._formato === 'BULTO' || item.formato === 'BULTO') {
+                const formatVal = String(item._formato || item.formato || '').toUpperCase();
+                if (formatVal === 'BULTO') {
                     displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
                 } else if (isKg) {
                     displayQty = `${qty.toFixed(2)} KG`;
@@ -456,7 +457,8 @@ export default function LogisticaPage() {
                 }
 
                 let itemQty = parseFloat(item.cantidad) || 0;
-                if (item._formato === 'BULTO' || item.formato === 'BULTO') {
+                const formatVal = String(item._formato || item.formato || '').toUpperCase();
+                if (formatVal === 'BULTO') {
                     itemQty *= ub;
                 }
 
@@ -1305,8 +1307,9 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                 }
 
                 let qtyInUnits = parseFloat(item.cantidad) || 0;
+                const formatVal = String(item._formato || item.formato || '').toUpperCase();
                 // Si el item viene marcado como bulto en el objeto (aunque intentemos normalizar), multiplicamos
-                if (item._formato === 'BULTO' || item.formato === 'BULTO') qtyInUnits *= ub;
+                if (formatVal === 'BULTO') qtyInUnits *= ub;
 
                 const itemPrice = parseFloat(item.precio) || 0;
                 const itemDiscPercent = parseFloat(item.descuento || 0);
