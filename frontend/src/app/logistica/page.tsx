@@ -283,9 +283,8 @@ export default function LogisticaPage() {
                     .table-wrapper { flex: 1; overflow: hidden; display: flex; flex-direction: column;}
                     table { width: 100%; border-collapse: collapse; height: 100%; }
                     th { border: 1px solid #000; border-top: none; padding: 4px; font-size: 9px; font-weight: 900; text-align: center; }
-                    th:first-child { border-left: none; }
                     th:last-child { border-right: none; }
-                    td { border-right: 1px solid #000; border-left: 1px solid #000; padding: 6px 4px; font-size: 11px; vertical-align: top; }
+                    td { border-right: 1px solid #000; border-left: 1px solid #000; padding: 2px 4px; font-size: 11px; vertical-align: top; }
                     td.num { text-align: right; }
                     td.cen { text-align: center; }
                     td:first-child { border-left: none; }
@@ -302,14 +301,15 @@ export default function LogisticaPage() {
                         @page { size: A4; margin: 10mm; }
                         .print-page { padding: 0; margin: 0; gap: 8mm;}
                         .remito { height: 134mm; }
+                        .remito.long-format { height: 275mm; }
                     }
                 </style>
             </head>
             <body>
-                ${orderList.map(order => `
-                    <div class="print-page">
-                        ${['ORIGINAL', 'DUPLICADO'].map((type) => `
-                            <div class="remito">
+                ${orderList.map(order => {
+            const isLong = order.items && order.items.length > 14;
+            const copies = ['ORIGINAL', 'DUPLICADO'].map((type) => `
+                            <div class="remito ${isLong ? 'long-format' : ''}">
                                 <div class="copy-type">${type}</div>
                                 <div class="header">
                                         <div style="width: 45%;">
@@ -360,24 +360,24 @@ export default function LogisticaPage() {
                                             </thead>
                                             <tbody>
                                                 ${order.items?.map((item: any) => {
-            const prod = products.find(p => p.ID_Producto === item.id_prod);
-            const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
-            const ub = parseFloat(prod?.UB || prod?.Unidades_Bulto || 1);
-            const qty = parseFloat(item.cantidad) || 0;
-            const price = parseFloat(item.precio) || 0;
-            const disc = parseFloat(item.descuento || 0);
-            const subtotal = (qty * price) * (1 - disc / 100);
+                const prod = products.find(p => p.ID_Producto === item.id_prod);
+                const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
+                const ub = parseFloat(prod?.UB || prod?.Unidades_Bulto || 1);
+                const qty = parseFloat(item.cantidad) || 0;
+                const price = parseFloat(item.precio) || 0;
+                const disc = parseFloat(item.descuento || 0);
+                const subtotal = (qty * price) * (1 - disc / 100);
 
-            let displayQty = "";
-            if (item._formato === 'BULTO') {
-                displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
-            } else if (isKg) {
-                displayQty = `${qty.toFixed(2)} KG`;
-            } else {
-                displayQty = `${qty} UNID`;
-            }
+                let displayQty = "";
+                if (item._formato === 'BULTO') {
+                    displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
+                } else if (isKg) {
+                    displayQty = `${qty.toFixed(2)} KG`;
+                } else {
+                    displayQty = `${qty} UNID`;
+                }
 
-            return `
+                return `
                                                         <tr class="item-row">
                                                             <td class="cen" style="font-weight: bold">${displayQty}</td>
                                                             <td style="font-weight: bold">${item.nombre}</td>
@@ -386,7 +386,7 @@ export default function LogisticaPage() {
                                                             <td class="num" style="font-weight: bold">$ ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                                         </tr>
                                                     `;
-        }).join('')}
+            }).join('')}
                                                 <!-- Empty row to stretch borders to bottom -->
                                                 <tr>
                                                     <td></td><td></td><td></td><td></td><td></td>
@@ -415,9 +415,14 @@ export default function LogisticaPage() {
                                         </div>
                                     </div>
                             </div>
-                        `).join('')}
-                    </div>
-                `).join('')}
+                        `);
+
+            if (isLong) {
+                return copies.map(copy => `<div class="print-page">${copy}</div>`).join('');
+            } else {
+                return `<div class="print-page">${copies.join('')}</div>`;
+            }
+        }).join('')}
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
             </html>
@@ -1632,9 +1637,10 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                             ) : filteredOrders.map((order: any) => (
                                 <div key={order.id} className="border border-[var(--border)] bg-white dark:bg-slate-800 rounded-2xl p-4 flex flex-col md:flex-row justify-between md:items-center gap-4 hover:border-indigo-500 transition-colors">
                                     <div>
-                                        <div className="flex items-center gap-2 mb-1">
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                                             <span className="font-black text-lg text-slate-800 dark:text-slate-100">{order.cliente_nombre}</span>
                                             {order._editado && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-black uppercase">Editado</span>}
+                                            {order.items?.length > 14 && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><AlertCircle size={10} /> Remito Largo</span>}
                                         </div>
                                         <div className="text-xs text-slate-500 font-bold font-mono tracking-tight">#{order.id} • {order.items?.length || 0} ítems</div>
                                         {order.direccion && <div className="text-xs text-slate-500 mt-1">📍 {order.direccion}</div>}
