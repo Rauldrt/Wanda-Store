@@ -369,7 +369,7 @@ export default function LogisticaPage() {
                 const subtotal = (qty * price) * (1 - disc / 100);
 
                 let displayQty = "";
-                if (item._formato === 'BULTO') {
+                if (item._formato === 'BULTO' || item.formato === 'BULTO') {
                     displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
                 } else if (isKg) {
                     displayQty = `${qty.toFixed(2)} KG`;
