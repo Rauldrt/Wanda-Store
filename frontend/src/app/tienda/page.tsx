@@ -118,7 +118,7 @@ export default function TiendaOnlinePage() {
     }, []);
 
     const carouselBanners = useMemo(() => {
-        const banners = [];
+        const banners: any[] = [];
         const config = data?.config || {};
         const systemNotifsRaw = config.SYSTEM_NOTIFICATIONS;
 
@@ -153,17 +153,6 @@ export default function TiendaOnlinePage() {
             });
         });
 
-        if (banners.length === 0) {
-            banners.push({
-                id: 'welcome',
-                type: 'info',
-                title: 'Wanda Store',
-                subtitle: '¡Bienvenido!',
-                icon: '🛍️',
-                color: 'bg-indigo-500',
-                details: 'Explora nuestros productos y realiza tu pedido online.'
-            });
-        }
         return banners;
     }, [data, products]);
 
@@ -388,26 +377,28 @@ export default function TiendaOnlinePage() {
                 </div>
 
                 {/* Banner Carrusel */}
-                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar">
-                    {carouselBanners.map(banner => (
-                        <motion.div
-                            key={banner.id}
-                            layout
-                            onClick={() => setExpandedBanner(expandedBanner === banner.id ? null : banner.id)}
-                            animate={{ width: expandedBanner === banner.id ? 300 : 160 }}
-                            className={`flex-shrink-0 p-4 rounded-[28px] ${banner.color} text-white space-y-2 cursor-pointer relative min-h-[128px] h-auto flex flex-col justify-end overflow-hidden`}
-                        >
-                            <div className="absolute top-4 right-4 text-2xl opacity-40">{banner.icon}</div>
-                            <div className="z-10">
-                                <span className="text-[10px] font-black uppercase opacity-80">{banner.title}</span>
-                                <h3 className={`text-sm font-black leading-tight ${expandedBanner === banner.id ? '' : 'line-clamp-1'}`}>{banner.subtitle}</h3>
-                                {expandedBanner === banner.id && (
-                                    <p className="text-[10px] font-bold mt-2 opacity-90 leading-tight">{banner.details}</p>
-                                )}
-                            </div>
-                        </motion.div>
-                    ))}
-                </div>
+                {carouselBanners.length > 0 && (
+                    <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar">
+                        {carouselBanners.map(banner => (
+                            <motion.div
+                                key={banner.id}
+                                layout
+                                onClick={() => setExpandedBanner(expandedBanner === banner.id ? null : banner.id)}
+                                animate={{ width: expandedBanner === banner.id ? 300 : 160 }}
+                                className={`flex-shrink-0 p-4 rounded-[28px] ${banner.color} text-white space-y-2 cursor-pointer relative min-h-[128px] h-auto flex flex-col justify-end overflow-hidden`}
+                            >
+                                <div className="absolute top-4 right-4 text-2xl opacity-40">{banner.icon}</div>
+                                <div className="z-10">
+                                    <span className="text-[10px] font-black uppercase opacity-80">{banner.title}</span>
+                                    <h3 className={`text-sm font-black leading-tight ${expandedBanner === banner.id ? '' : 'line-clamp-1'}`}>{banner.subtitle}</h3>
+                                    {expandedBanner === banner.id && (
+                                        <p className="text-[10px] font-bold mt-2 opacity-90 leading-tight">{banner.details}</p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                )}
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {filteredProducts.map((p: any) => {

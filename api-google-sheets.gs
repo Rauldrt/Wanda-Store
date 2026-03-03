@@ -410,45 +410,106 @@ function guardarCorreccionPedido(pedidoEditado) {
     const sheetPedidos = SS.getSheetByName("PEDIDOS");
     const sheetProductos = SS.getSheetByName("PRODUCTOS");
     
-    const dataDetalle = sheetDetalle.getDataRange().getValues();
-    const dataProductos = sheetProductos.getDataRange().getValues();
+    let dataDetalle = sheetDetalle.getDataRange().getValues();
+    let dataProductos = sheetProductos.getDataRange().getValues();
     const headersProd = dataProductos[0];
     const sIdx = headersProd.findIndex(h => String(h).toLowerCase().includes("stock"));
 
-    // 1. Actualizar Detalle y preparar ajustes de stock
-    pedidoEditado.items.forEach(item => {
-      for (let i = 1; i < dataDetalle.length; i++) {
-        if (String(dataDetalle[i][0]) === String(pedidoEditado.id) && String(dataDetalle[i][1]) === String(item.id_prod)) {
-          const cantAnterior = parseFloat(dataDetalle[i][4]) || 0;
-          const cantNueva = parseFloat(item.cantidad) || 0;
-          const diferencia = cantAnterior - cantNueva; 
-
-          const discP = parseFloat(item.descuento || 0);
-          const rawSubtotal = parseFloat(item.cantidad) * parseFloat(item.precio);
-          const finalSubtotal = rawSubtotal * (1 - discP / 100);
-
-          sheetDetalle.getRange(i + 1, 5).setValue(cantNueva);
-          sheetDetalle.getRange(i + 1, 6).setValue(finalSubtotal);
-          sheetDetalle.getRange(i + 1, 7).setValue(discP);
-          
-          if (diferencia !== 0 && sIdx > -1) {
-             for (let j = 1; j < dataProductos.length; j++) {
-               if (String(dataProductos[j][0]) === String(item.id_prod)) {
-                 const stockActual = parseFloat(dataProductos[j][sIdx]) || 0;
-                 sheetProductos.getRange(j + 1, sIdx + 1).setValue(stockActual + diferencia);
-                 break;
-               }
-             }
-          }
-          break;
+    // 1. Obtener items actuales del pedido en la base de datos
+    const itemsAnteriores = [];
+    for (let i = 1; i < dataDetalle.length; i++) {
+        if (String(dataDetalle[i][0]) === String(pedidoEditado.id)) {
+            itemsAnteriores.push({
+                rowIdx: i + 1,
+                id_prod: String(dataDetalle[i][1]),
+                cantidad: parseFloat(dataDetalle[i][4]) || 0
+            });
         }
-      }
+    }
+
+    // Mapear nuevos items
+    const nuevosItemsMap = {};
+    pedidoEditado.items.forEach(item => {
+        const itemId = String(item.id_prod || item.id);
+        nuevosItemsMap[itemId] = {
+            ...item,
+            id_prod: itemId, // Aseguramos que existe id_prod
+            procesado: false
+        };
     });
 
-    // 2. Actualizar Encabezado
+    const filasAEliminar = [];
+
+    // 2. Procesar Modificaciones y Eliminaciones
+    itemsAnteriores.forEach(itemAnt => {
+        const nuevoItem = nuevosItemsMap[itemAnt.id_prod];
+        
+        if (nuevoItem) {
+            // El item persiste: Actualizar
+            const cantNueva = parseFloat(nuevoItem.cantidad) || 0;
+            const diferencia = itemAnt.cantidad - cantNueva; 
+
+            const discP = parseFloat(nuevoItem.descuento || 0);
+            const rawSubtotal = cantNueva * parseFloat(nuevoItem.precio || 0);
+            const finalSubtotal = rawSubtotal * (1 - discP / 100);
+
+            sheetDetalle.getRange(itemAnt.rowIdx, 5).setValue(cantNueva);
+            sheetDetalle.getRange(itemAnt.rowIdx, 6).setValue(finalSubtotal);
+            sheetDetalle.getRange(itemAnt.rowIdx, 7).setValue(discP);
+            
+            if (diferencia !== 0 && sIdx > -1) {
+                actualizarStockSingle(itemAnt.id_prod, diferencia, dataProductos, sheetProductos, sIdx);
+                dataProductos = sheetProductos.getDataRange().getValues(); // Recargar tras update
+            }
+            nuevoItem.procesado = true;
+        } else {
+            // El item fue eliminado
+            filasAEliminar.push(itemAnt.rowIdx);
+            
+            // Restaurar stock entero
+            if (sIdx > -1) {
+                 actualizarStockSingle(itemAnt.id_prod, itemAnt.cantidad, dataProductos, sheetProductos, sIdx);
+                 dataProductos = sheetProductos.getDataRange().getValues(); // Recargar tras update
+            }
+        }
+    });
+
+    // 3. Procesar Agregados (Nuevos)
+    Object.values(nuevosItemsMap).forEach(nuevoItem => {
+        if (!nuevoItem.procesado) {
+            const cantNueva = parseFloat(nuevoItem.cantidad) || 0;
+            const discP = parseFloat(nuevoItem.descuento || 0);
+            const rawSubtotal = cantNueva * parseFloat(nuevoItem.precio || 0);
+            const finalSubtotal = rawSubtotal * (1 - discP / 100);
+            const idItem = nuevoItem.id_prod || nuevoItem.id || "";
+            const detalle = nuevoItem.descripcion || nuevoItem.detalle || "";
+
+            sheetDetalle.appendRow([pedidoEditado.id, idItem, nuevoItem.nombre, detalle, cantNueva, finalSubtotal, discP]);
+            
+            // Restar stock
+            if (sIdx > -1) {
+                actualizarStockSingle(idItem, -cantNueva, dataProductos, sheetProductos, sIdx);
+                dataProductos = sheetProductos.getDataRange().getValues(); // Recargar tras update
+            }
+        }
+    });
+
+    // 4. Eliminar las filas de Detalle marcadas (desde abajo hacia arriba)
+    filasAEliminar.sort((a, b) => b - a).forEach(rowIdx => {
+        sheetDetalle.deleteRow(rowIdx);
+    });
+
+    // 5. Actualizar Encabezado (Cliente, Total, Descuento)
     const dataPedidos = sheetPedidos.getDataRange().getValues();
     for (let i = 1; i < dataPedidos.length; i++) {
       if (String(dataPedidos[i][0]) === String(pedidoEditado.id)) {
+        if (pedidoEditado.id_cliente && pedidoEditado.id_cliente !== String(dataPedidos[i][2])) {
+           sheetPedidos.getRange(i + 1, 3).setValue(pedidoEditado.id_cliente);
+        }
+        if (pedidoEditado.cliente_nombre && pedidoEditado.cliente_nombre !== String(dataPedidos[i][3])) {
+           sheetPedidos.getRange(i + 1, 4).setValue(pedidoEditado.cliente_nombre);
+        }
+        
         sheetPedidos.getRange(i + 1, 6).setValue(pedidoEditado.total);
         sheetPedidos.getRange(i + 1, 12).setValue(pedidoEditado.descuento_general || 0);
         break;

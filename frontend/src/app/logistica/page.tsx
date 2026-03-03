@@ -47,6 +47,16 @@ import {
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 
+const normalizeText = (text: string) =>
+    String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+const smartSearch = (text: string, query: string) => {
+    if (!query) return true;
+    const normText = normalizeText(text);
+    const terms = normalizeText(query).split(/\s+/).filter(t => t.length > 0);
+    return terms.every(t => normText.includes(t));
+};
+
 export default function LogisticaPage() {
     const { data, loading, refreshData, setIsSyncing } = useData();
     const products: any[] = data?.products || [];
@@ -239,12 +249,12 @@ export default function LogisticaPage() {
             <head>
                 <title>Remitos de Entrega</title>
                 <style>
-                    body { font-family: sans-serif; margin: 0; padding: 0; color: #333; }
-                    .print-page { page-break-after: always; padding: 10px; }
+                    body { font-family: sans-serif; margin: 0; padding: 0; color: #333; line-height: 1; }
+                    .print-page { page-break-after: always; padding: 8px; }
                     .remito { 
                         border: 1px solid #000; 
-                        padding: 15px; 
-                        margin-bottom: 10px; 
+                        padding: 6px; 
+                        margin-bottom: 8px; 
                         position: relative; 
                         display: flex;
                         flex-direction: column;
@@ -252,7 +262,7 @@ export default function LogisticaPage() {
                     }
                     .separator {
                         border-top: 1px dashed #ccc;
-                        margin: 20px 0;
+                        margin: 10px 0;
                         position: relative;
                         height: 1px;
                         width: 100%;
@@ -266,23 +276,23 @@ export default function LogisticaPage() {
                         color: #999;
                         text-transform: uppercase;
                     }
-                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
-                    .title { font-size: 22px; font-weight: 900; letter-spacing: -1px; }
+                    .header { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 6px; }
+                    .title { font-size: 16px; font-weight: 900; letter-spacing: -1px; }
                     .copy-type { 
                         position: absolute; 
-                        top: 5px; 
-                        right: 15px; 
-                        font-size: 9px; 
+                        top: 4px; 
+                        right: 12px; 
+                        font-size: 8px; 
                         font-weight: bold; 
                         text-transform: uppercase; 
                         color: #999; 
                     }
-                    .info { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-radius: 8px; }
-                    .info-block div { margin-bottom: 3px; font-size: 11px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-                    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 11px; }
-                    th { background: #eee; font-weight: 900; text-transform: uppercase; font-size: 9px; }
-                    .total { text-align: right; font-size: 18px; font-weight: 900; margin-top: 15px; border-top: 2px solid #000; padding-top: 8px; color: #000; }
+                    .info { display: flex; justify-content: space-between; margin-bottom: 4px; padding: 3px 8px; background: #f9f9f9; border-radius: 6px; }
+                    .info-block div { margin-bottom: 1px; font-size: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 2px; }
+                    th, td { border: 1px solid #ddd; padding: 0.5px 6px; text-align: left; font-size: 10px; }
+                    th { background: #eee; font-weight: 900; text-transform: uppercase; font-size: 8px; }
+                    .total { text-align: right; font-size: 15px; font-weight: 900; margin-top: 6px; border-top: 1px solid #000; padding-top: 4px; color: #000; }
                     .badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); border: 2px solid #000; padding: 2px 10px; font-weight: 900; font-size: 16px; }
                     
                     @media print {
@@ -552,16 +562,16 @@ export default function LogisticaPage() {
             <head>
                 <title>Hoja de Ruta - ${routeName}</title>
                 <style>
-                    body { font-family: sans-serif; padding: 15px; line-height: 1.1; font-size: 11px; color: #333; }
-                    .header-route { display: flex; justify-content: space-between; border-bottom: 3px solid #4338ca; padding-bottom: 8px; margin-bottom: 15px; }
-                    h1 { margin: 0; font-size: 18px; font-weight: 900; color: #4338ca; text-transform: uppercase; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-                    th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
-                    th { background: #f8fafc; font-weight: 900; text-transform: uppercase; font-size: 9px; color: #64748b; }
-                    .footer { margin-top: 25px; display: grid; grid-template-cols: 1fr 1fr; gap: 20px; }
-                    .firma { border-top: 1px solid #000; padding-top: 5px; text-align: center; font-weight: bold; text-transform: uppercase; font-size: 9px; }
-                    .summary { background: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-top: 15px; display: flex; gap: 30px; font-size: 10px; }
-                    .summary-item b { font-size: 13px; color: #4338ca; }
+                    body { font-family: sans-serif; padding: 10px; line-height: 1; font-size: 10.5px; color: #333; }
+                    .header-route { display: flex; justify-content: space-between; border-bottom: 2px solid #4338ca; padding-bottom: 4px; margin-bottom: 10px; }
+                    h1 { margin: 0; font-size: 16px; font-weight: 900; color: #4338ca; text-transform: uppercase; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 2px; }
+                    th, td { border: 1px solid #ccc; padding: 1px 6px; text-align: left; }
+                    th { background: #f8fafc; font-weight: 900; text-transform: uppercase; font-size: 8.5px; color: #64748b; }
+                    .footer { margin-top: 15px; display: grid; grid-template-cols: 1fr 1fr; gap: 15px; }
+                    .firma { border-top: 1px solid #000; padding-top: 3px; text-align: center; font-weight: bold; text-transform: uppercase; font-size: 8.5px; }
+                    .summary { background: #f1f5f9; padding: 6px 12px; border-radius: 6px; margin-top: 10px; display: flex; gap: 20px; font-size: 9px; }
+                    .summary-item b { font-size: 11px; color: #4338ca; }
                 </style>
             </head>
             <body>
@@ -581,7 +591,7 @@ export default function LogisticaPage() {
                     <thead>
                         <tr>
                             <th width="30">#</th>
-                            <th>CLIENTE / DIRECCIÓN</th>
+                            <th>CLIENTE</th>
                             <th width="120">FORMA PAGO</th>
                             <th width="120">A COBRAR</th>
                             <th width="150">ESTADO / FIRMA</th>
@@ -592,9 +602,8 @@ export default function LogisticaPage() {
                             <tr>
                                 <td style="color: #94a3b8; font-weight: bold; font-size: 10px;">${i + 1}</td>
                                 <td>
-                                    <div style="font-weight: 900; font-size: 11px; line-height: 1;">${order.cliente_nombre}</div>
-                                    <div style="color: #64748b; font-size: 9px; margin-top: 1px;">${order.direccion || 'Sin dirección'}</div>
-                                    ${order.notas ? `<div style="color: #d97706; font-size: 8px; margin-top: 2px; font-weight: bold;">${order.notas}</div>` : ''}
+                                    <div style="font-weight: 900; font-size: 11px; line-height: 1.1;">${order.cliente_nombre}</div>
+                                    ${order.notas ? `<div style="color: #d97706; font-size: 8px; margin-top: 1px; font-weight: bold;">${order.notas}</div>` : ''}
                                 </td>
                                 <td style="font-weight: bold; text-transform: uppercase; color: #475569; font-size: 9px;"></td>
                                 <td style="font-weight: 900; font-size: 12px;">$${parseFloat(order.total).toLocaleString()}</td>
@@ -1166,11 +1175,12 @@ export default function LogisticaPage() {
             <AnimatePresence>
                 {viewingDetailId && (
                     <OrderDetailModal
-                        order={orders.find(o => o.id === viewingDetailId)}
+                        order={orders.find((o: any) => o.id === viewingDetailId)}
                         products={products}
+                        clients={clients}
                         config={data?.config}
                         onClose={() => setViewingDetailId(null)}
-                        onPrint={() => printOrders([orders.find(o => o.id === viewingDetailId)])}
+                        onPrint={() => printOrders([orders.find((o: any) => o.id === viewingDetailId)])}
                     />
                 )}
             </AnimatePresence>
@@ -1219,6 +1229,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
     const [localOrders, setLocalOrders] = useState(() => JSON.parse(JSON.stringify(orders)));
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
     const [orderDetailId, setOrderDetailId] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const consolidated = useMemo(() => {
         const map: Record<string, any> = {};
@@ -1273,6 +1284,13 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
         });
         return Object.values(map).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
     }, [localOrders, products]);
+
+    const filteredConsolidated = useMemo(() => {
+        return consolidated.filter((prod: any) =>
+            smartSearch(prod.nombre, searchTerm) ||
+            prod.deliveries.some((d: any) => smartSearch(d.cliente, searchTerm))
+        );
+    }, [consolidated, searchTerm]);
 
     const formatQtyWithBultos = (qty: number, ub: number, isKg: boolean) => {
         if (isKg) return `${qty.toFixed(2)} Kg`;
@@ -1417,8 +1435,21 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                         </button>
                     </div>
 
+                    <div className="relative mb-4">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Buscar por producto o por cliente..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-sm text-slate-800 dark:text-slate-100"
+                        />
+                    </div>
+
                     <div className="space-y-3">
-                        {consolidated.map((prod: any) => {
+                        {filteredConsolidated.length === 0 ? (
+                            <div className="text-center p-8 text-slate-400 font-bold">No se encontraron productos o clientes con esa búsqueda.</div>
+                        ) : filteredConsolidated.map((prod: any) => {
                             const isExpanded = expandedProduct === (prod.id_prod || prod.nombre);
                             return (
                                 <div key={prod.id_prod || prod.nombre} className={`border rounded-2xl overflow-hidden transition-all ${isExpanded ? 'border-indigo-500 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
@@ -1540,6 +1571,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                         <OrderDetailModal
                             order={localOrders.find((o: any) => o.id === orderDetailId)}
                             products={products}
+                            clients={clients}
                             config={config}
                             onClose={() => setOrderDetailId(null)}
                             onUpdateOrder={(updated: any) => {
@@ -2070,7 +2102,7 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
     );
 }
 
-function OrderDetailModal({ order, products, config, onClose, onPrint, onUpdateOrder }: any) {
+function OrderDetailModal({ order, products, clients, config, onClose, onPrint, onUpdateOrder }: any) {
     const [localOrder, setLocalOrder] = useState<any>(null);
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
 
@@ -2189,7 +2221,26 @@ function OrderDetailModal({ order, products, config, onClose, onPrint, onUpdateO
                         </div>
                         <div>
                             <h4 className="text-xl font-black">Detalle del Pedido</h4>
-                            <p className="text-xs opacity-80 font-bold uppercase tracking-widest">{localOrder.cliente_nombre}</p>
+                            {isEditable && clients ? (
+                                <select
+                                    value={localOrder.id_cliente || ''}
+                                    onChange={(e) => {
+                                        const cl: any = clients.find((c: any) => c.ID_Cliente === e.target.value);
+                                        if (cl) {
+                                            const next = { ...localOrder, id_cliente: cl.ID_Cliente, cliente_nombre: cl.Nombre_Negocio, direccion: cl.Direccion, telefono: cl.Telefono };
+                                            setLocalOrder(recalculatedOrder(next));
+                                        }
+                                    }}
+                                    className="bg-white/20 border-none rounded-lg text-xs font-black px-2 py-1 mt-1 outline-none focus:ring-2 focus:ring-white/50 text-white truncate max-w-[200px] cursor-pointer"
+                                >
+                                    <option value={localOrder.id_cliente || ''} className="text-slate-800">{localOrder.cliente_nombre}</option>
+                                    {clients.map((c: any) => (
+                                        c.ID_Cliente !== localOrder.id_cliente && <option key={c.ID_Cliente} value={c.ID_Cliente} className="text-slate-800">{c.Nombre_Negocio}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <p className="text-xs opacity-80 font-bold uppercase tracking-widest">{localOrder.cliente_nombre}</p>
+                            )}
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
@@ -2356,6 +2407,45 @@ function OrderDetailModal({ order, products, config, onClose, onPrint, onUpdateO
                                 );
                             })}
                         </div>
+
+                        {isEditable && (
+                            <div className="mt-4 p-4 border border-dashed border-indigo-200 dark:border-indigo-500/30 rounded-2xl flex flex-col sm:flex-row gap-3 items-center">
+                                <select
+                                    className="flex-1 w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold outline-none cursor-pointer"
+                                    onChange={(e) => {
+                                        if (!e.target.value) return;
+                                        const p = products.find((prod: any) => String(prod.ID_Producto) === String(e.target.value));
+                                        const exists = localOrder.items.find((item: any) => String(item.id_prod) === String(e.target.value));
+                                        if (p && !exists) {
+                                            const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
+                                            const weightAvg = parseFloat(p.Peso || p.Peso_Promedio || 1);
+                                            const newItem = {
+                                                id: p.ID_Producto,
+                                                id_prod: p.ID_Producto,
+                                                nombre: p.Nombre,
+                                                cantidad: 1,
+                                                _formato: isKg ? 'KG' : 'UNID',
+                                                precio: parseFloat(p.Precio_Unitario || 0) * (isKg ? weightAvg : 1),
+                                                descuento: 0,
+                                                subtotal: parseFloat(p.Precio_Unitario || 0) * (isKg ? weightAvg : 1),
+                                                _pesableTratado: isKg
+                                            };
+                                            const next = { ...localOrder, items: [...localOrder.items, newItem] };
+                                            setLocalOrder(recalculatedOrder(next));
+                                            e.target.value = "";
+                                        } else if (exists) {
+                                            alert("Ese producto ya está en el pedido. Por favor, edita la cantidad existente.");
+                                            e.target.value = "";
+                                        }
+                                    }}
+                                >
+                                    <option value="">+ Agregar Producto al Pedido...</option>
+                                    {products.map((p: any) => (
+                                        <option key={p.ID_Producto} value={p.ID_Producto}>{p.Nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {isEditable && (
                             <div className="p-4 bg-indigo-50 dark:bg-indigo-500/5 rounded-2xl border border-indigo-100 dark:border-indigo-500/20 flex justify-between items-center mt-4">

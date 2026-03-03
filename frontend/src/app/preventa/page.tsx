@@ -109,7 +109,7 @@ export default function PreventaPage() {
     const [orderNotes, setOrderNotes] = useState("");
 
     const carouselBanners = useMemo(() => {
-        const banners = [];
+        const banners: any[] = [];
 
         // 1. Notificaciones del Sistema (Prioridad 1)
         const config = data?.config || {};
@@ -148,19 +148,6 @@ export default function PreventaPage() {
                 details: p.Nota_Oferta || p.nota_oferta || 'Aprovecha este precio especial hoy.'
             });
         });
-
-        // 3. Banner por defecto si no hay nada
-        if (banners.length === 0) {
-            banners.push({
-                id: 'welcome',
-                type: 'info',
-                title: 'Wanda Preventa',
-                subtitle: 'Bienvenido al sistema',
-                icon: '🚀',
-                color: 'bg-indigo-500',
-                details: 'Usa los buscadores para encontrar clientes y productos.'
-            });
-        }
 
         return banners;
     }, [data, products]);
@@ -952,49 +939,51 @@ export default function PreventaPage() {
                 </div>
             </div>
 
-            <div className="pt-4 px-4 max-w-full overflow-hidden">
-                <div className="px-1">
-                    <div className="flex overflow-x-auto gap-3 pb-3 no-scrollbar snap-x snap-mandatory">
-                        {carouselBanners.map((banner) => (
-                            <motion.div
-                                key={banner.id}
-                                layout
-                                onClick={() => setExpandedBanner(expandedBanner === banner.id ? null : banner.id)}
-                                initial={false}
-                                animate={{
-                                    width: expandedBanner === banner.id ? '300px' : '140px',
-                                    height: expandedBanner === banner.id ? 'auto' : '64px'
-                                }}
-                                transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                                className={`snap-start flex-shrink-0 flex items-center gap-3 p-3 rounded-[28px] ${banner.color} text-white cursor-pointer shadow-lg shadow-black/5 relative overflow-hidden`}
-                            >
-                                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">
-                                    {banner.icon}
-                                </div>
-                                <div className="flex flex-col min-w-0">
-                                    <span className="text-[11px] font-black uppercase tracking-tighter leading-none opacity-90">{banner.title}</span>
-                                    <span className={`text-[13px] font-black leading-tight ${expandedBanner === banner.id ? '' : 'truncate'}`}>{banner.subtitle}</span>
-
-                                    {expandedBanner === banner.id && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="mt-2 text-[10px] font-bold opacity-80"
-                                        >
-                                            {banner.details}
-                                        </motion.div>
-                                    )}
-                                </div>
-                                {expandedBanner === banner.id && (
-                                    <div className="absolute top-2 right-2">
-                                        <X size={12} className="opacity-50" />
+            {carouselBanners.length > 0 && (
+                <div className="pt-4 px-4 max-w-full overflow-hidden">
+                    <div className="px-1">
+                        <div className="flex overflow-x-auto gap-3 pb-3 no-scrollbar snap-x snap-mandatory">
+                            {carouselBanners.map((banner) => (
+                                <motion.div
+                                    key={banner.id}
+                                    layout
+                                    onClick={() => setExpandedBanner(expandedBanner === banner.id ? null : banner.id)}
+                                    initial={false}
+                                    animate={{
+                                        width: expandedBanner === banner.id ? '300px' : '140px',
+                                        height: expandedBanner === banner.id ? 'auto' : '64px'
+                                    }}
+                                    transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                                    className={`snap-start flex-shrink-0 flex items-center gap-3 p-3 rounded-[28px] ${banner.color} text-white cursor-pointer shadow-lg shadow-black/5 relative overflow-hidden`}
+                                >
+                                    <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">
+                                        {banner.icon}
                                     </div>
-                                )}
-                            </motion.div>
-                        ))}
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-[11px] font-black uppercase tracking-tighter leading-none opacity-90">{banner.title}</span>
+                                        <span className={`text-[13px] font-black leading-tight ${expandedBanner === banner.id ? '' : 'truncate'}`}>{banner.subtitle}</span>
+
+                                        {expandedBanner === banner.id && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="mt-2 text-[10px] font-bold opacity-80"
+                                            >
+                                                {banner.details}
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                    {expandedBanner === banner.id && (
+                                        <div className="absolute top-2 right-2">
+                                            <X size={12} className="opacity-50" />
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ))}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             <main className="flex-1 p-4 pb-32">
                 <div className="flex justify-between items-center mb-4 px-2">
