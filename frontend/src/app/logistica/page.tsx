@@ -448,7 +448,7 @@ export default function LogisticaPage() {
                     aggregates[id] = {
                         nombre: item.nombre,
                         cantidad: 0,
-                        formato: item._formato || (isKg ? 'KG' : 'UNID'),
+                        formato: item._formato || item.formato || (isKg ? 'KG' : 'UNID'),
                         isKg: isKg,
                         ub: ub,
                         clientes: []
@@ -456,7 +456,7 @@ export default function LogisticaPage() {
                 }
 
                 let itemQty = parseFloat(item.cantidad) || 0;
-                if (item._formato === 'BULTO') {
+                if (item._formato === 'BULTO' || item.formato === 'BULTO') {
                     itemQty *= ub;
                 }
 
@@ -1267,7 +1267,17 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
 }) {
     const { setIsSyncing, isSyncing } = useData();
     const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
-    const [localOrders, setLocalOrders] = useState(() => JSON.parse(JSON.stringify(orders)));
+    const [localOrders, setLocalOrders] = useState(() => {
+        const _orders = JSON.parse(JSON.stringify(orders));
+        _orders.forEach((o: any) => {
+            if (o.items) {
+                o.items.forEach((item: any) => {
+                    item._formato = item._formato || item.formato || 'UNID';
+                });
+            }
+        });
+        return _orders;
+    });
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
     const [orderDetailId, setOrderDetailId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -1296,7 +1306,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
 
                 let qtyInUnits = parseFloat(item.cantidad) || 0;
                 // Si el item viene marcado como bulto en el objeto (aunque intentemos normalizar), multiplicamos
-                if (item._formato === 'BULTO') qtyInUnits *= ub;
+                if (item._formato === 'BULTO' || item.formato === 'BULTO') qtyInUnits *= ub;
 
                 const itemPrice = parseFloat(item.precio) || 0;
                 const itemDiscPercent = parseFloat(item.descuento || 0);
