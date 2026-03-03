@@ -2205,6 +2205,10 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
 function OrderDetailModal({ order, products, clients, config, onClose, onPrint, onUpdateOrder }: any) {
     const [localOrder, setLocalOrder] = useState<any>(null);
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
+    const [clientSearch, setClientSearch] = useState("");
+    const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
+    const [productSearch, setProductSearch] = useState("");
+    const [productDropdownOpen, setProductDropdownOpen] = useState(false);
 
     useEffect(() => {
         if (order) setLocalOrder(JSON.parse(JSON.stringify(order)));
@@ -2322,22 +2326,48 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                         <div>
                             <h4 className="text-xl font-black">Detalle del Pedido</h4>
                             {isEditable && clients ? (
-                                <select
-                                    value={localOrder.id_cliente || ''}
-                                    onChange={(e) => {
-                                        const cl: any = clients.find((c: any) => c.ID_Cliente === e.target.value);
-                                        if (cl) {
-                                            const next = { ...localOrder, id_cliente: cl.ID_Cliente, cliente_nombre: cl.Nombre_Negocio, direccion: cl.Direccion, telefono: cl.Telefono };
-                                            setLocalOrder(recalculatedOrder(next));
-                                        }
-                                    }}
-                                    className="bg-white/20 border-none rounded-lg text-xs font-black px-2 py-1 mt-1 outline-none focus:ring-2 focus:ring-white/50 text-white truncate max-w-[200px] cursor-pointer"
-                                >
-                                    <option value={localOrder.id_cliente || ''} className="text-slate-800">{localOrder.cliente_nombre}</option>
-                                    {clients.map((c: any) => (
-                                        c.ID_Cliente !== localOrder.id_cliente && <option key={c.ID_Cliente} value={c.ID_Cliente} className="text-slate-800">{c.Nombre_Negocio}</option>
-                                    ))}
-                                </select>
+                                <div className="relative mt-1">
+                                    <div
+                                        className="bg-white/20 border-none rounded-lg text-xs font-black px-3 py-1.5 outline-none text-white truncate max-w-[250px] cursor-pointer hover:bg-white/30 transition-colors flex justify-between items-center"
+                                        onClick={() => setClientDropdownOpen(!clientDropdownOpen)}
+                                    >
+                                        <span className="truncate">{localOrder.cliente_nombre || 'Seleccionar cliente...'}</span>
+                                        <ChevronDown size={14} className="ml-2 shrink-0 opacity-70" />
+                                    </div>
+                                    {clientDropdownOpen && (
+                                        <div className="absolute top-full left-0 mt-2 w-[280px] sm:w-[350px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                                            <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Escriba para buscar cliente..."
+                                                    value={clientSearch}
+                                                    onChange={(e) => setClientSearch(e.target.value)}
+                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/20"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="max-h-[200px] overflow-auto py-1">
+                                                {clients.filter((c: any) => smartSearch(c.Nombre_Negocio, clientSearch)).length === 0 ? (
+                                                    <div className="p-3 text-center text-xs text-slate-400 font-bold">Sin resultados</div>
+                                                ) : clients.filter((c: any) => smartSearch(c.Nombre_Negocio, clientSearch)).map((c: any) => (
+                                                    <div
+                                                        key={c.ID_Cliente}
+                                                        className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 cursor-pointer flex flex-col"
+                                                        onClick={() => {
+                                                            const next = { ...localOrder, id_cliente: c.ID_Cliente, cliente_nombre: c.Nombre_Negocio, direccion: c.Direccion, telefono: c.Telefono };
+                                                            setLocalOrder(recalculatedOrder(next));
+                                                            setClientDropdownOpen(false);
+                                                            setClientSearch("");
+                                                        }}
+                                                    >
+                                                        <span>{c.Nombre_Negocio}</span>
+                                                        {c.Direccion && <span className="text-[9px] font-normal text-slate-400 truncate mt-0.5">{c.Direccion}</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
                                 <p className="text-xs opacity-80 font-bold uppercase tracking-widest">{localOrder.cliente_nombre}</p>
                             )}
@@ -2509,41 +2539,66 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                         </div>
 
                         {isEditable && (
-                            <div className="mt-4 p-4 border border-dashed border-indigo-200 dark:border-indigo-500/30 rounded-2xl flex flex-col sm:flex-row gap-3 items-center">
-                                <select
-                                    className="flex-1 w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold outline-none cursor-pointer"
-                                    onChange={(e) => {
-                                        if (!e.target.value) return;
-                                        const p = products.find((prod: any) => String(prod.ID_Producto) === String(e.target.value));
-                                        const exists = localOrder.items.find((item: any) => String(item.id_prod) === String(e.target.value));
-                                        if (p && !exists) {
-                                            const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
-                                            const weightAvg = parseFloat(p.Peso || p.Peso_Promedio || 1);
-                                            const newItem = {
-                                                id: p.ID_Producto,
-                                                id_prod: p.ID_Producto,
-                                                nombre: p.Nombre,
-                                                cantidad: 1,
-                                                _formato: isKg ? 'KG' : 'UNID',
-                                                precio: parseFloat(p.Precio_Unitario || 0) * (isKg ? weightAvg : 1),
-                                                descuento: 0,
-                                                subtotal: parseFloat(p.Precio_Unitario || 0) * (isKg ? weightAvg : 1),
-                                                _pesableTratado: isKg
-                                            };
-                                            const next = { ...localOrder, items: [...localOrder.items, newItem] };
-                                            setLocalOrder(recalculatedOrder(next));
-                                            e.target.value = "";
-                                        } else if (exists) {
-                                            alert("Ese producto ya está en el pedido. Por favor, edita la cantidad existente.");
-                                            e.target.value = "";
-                                        }
-                                    }}
+                            <div className="mt-4 p-4 border border-dashed border-indigo-200 dark:border-indigo-500/30 rounded-2xl flex flex-col gap-3 relative">
+                                <div
+                                    className="flex-1 w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold outline-none cursor-pointer flex justify-between items-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                    onClick={() => setProductDropdownOpen(!productDropdownOpen)}
                                 >
-                                    <option value="">+ Agregar Producto al Pedido...</option>
-                                    {products.map((p: any) => (
-                                        <option key={p.ID_Producto} value={p.ID_Producto}>{p.Nombre}</option>
-                                    ))}
-                                </select>
+                                    <span>+ Agregar Producto al Pedido...</span>
+                                    <Search size={14} className="opacity-50" />
+                                </div>
+
+                                {productDropdownOpen && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[250px] mb-4">
+                                        <div className="p-2 border-b border-slate-100 dark:border-slate-700 shrink-0 bg-slate-50 dark:bg-slate-800/50">
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar producto por nombre..."
+                                                value={productSearch}
+                                                onChange={(e) => setProductSearch(e.target.value)}
+                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/20"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="overflow-auto flex-1 p-1">
+                                            {products.filter((p: any) => smartSearch(p.Nombre, productSearch)).length === 0 ? (
+                                                <div className="p-4 text-center text-xs text-slate-400 font-bold">No se encontraron productos</div>
+                                            ) : products.filter((p: any) => smartSearch(p.Nombre, productSearch)).map((p: any) => (
+                                                <div
+                                                    key={p.ID_Producto}
+                                                    className="px-3 py-3 md:py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 cursor-pointer rounded-lg mb-1 flex flex-col md:flex-row justify-between md:items-center transition-colors"
+                                                    onClick={() => {
+                                                        const exists = localOrder.items.find((item: any) => String(item.id_prod) === String(p.ID_Producto));
+                                                        if (!exists) {
+                                                            const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
+                                                            const weightAvg = parseFloat(p.Peso || p.Peso_Promedio || 1);
+                                                            const newItem = {
+                                                                id: p.ID_Producto,
+                                                                id_prod: p.ID_Producto,
+                                                                nombre: p.Nombre,
+                                                                cantidad: 1,
+                                                                _formato: isKg ? 'KG' : 'UNID',
+                                                                precio: parseFloat(p.Precio_Unitario || 0) * (isKg ? weightAvg : 1),
+                                                                descuento: 0,
+                                                                subtotal: parseFloat(p.Precio_Unitario || 0) * (isKg ? weightAvg : 1),
+                                                                _pesableTratado: isKg
+                                                            };
+                                                            const next = { ...localOrder, items: [...localOrder.items, newItem] };
+                                                            setLocalOrder(recalculatedOrder(next));
+                                                        } else {
+                                                            alert("Ese producto ya está en el pedido. Por favor, edita la cantidad existente.");
+                                                        }
+                                                        setProductDropdownOpen(false);
+                                                        setProductSearch("");
+                                                    }}
+                                                >
+                                                    <span className="truncate pr-2 mb-1 md:mb-0">{p.Nombre}</span>
+                                                    <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 px-2 py-0.5 rounded-full shrink-0 self-start md:self-auto">${parseFloat(p.Precio_Unitario || 0).toLocaleString()}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
