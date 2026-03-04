@@ -363,8 +363,7 @@ export default function LogisticaPage() {
                 const prod = products.find(p => p.ID_Producto === item.id_prod);
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
                 const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
-                const isExclusiveBulto = !rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0;
-                const ub = isExclusiveBulto ? 1 : parseFloat(rawUb);
+                const ub = (!rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0) ? 1 : parseFloat(rawUb);
                 const qty = parseFloat(item.cantidad) || 0;
                 const price = parseFloat(item.precio) || 0;
                 const disc = parseFloat(item.descuento || 0);
@@ -372,14 +371,15 @@ export default function LogisticaPage() {
 
                 let displayQty = "";
                 const formatVal = String(item._formato || item.formato || '').toUpperCase();
-                if (isExclusiveBulto) {
-                    displayQty = `${qty} BUL`;
-                } else if (formatVal === 'BULTO' && ub > 1) {
+                const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
+                const displayFormat = formatVal || (isKg ? 'KG' : baseUnit);
+
+                if (displayFormat === 'BULTO' && ub > 1) {
                     displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
-                } else if (isKg) {
-                    displayQty = `${qty.toFixed(2)} KG`;
+                } else if (displayFormat === 'BULTO') {
+                    displayQty = `${qty} BUL`;
                 } else {
-                    displayQty = `${qty} UNID`;
+                    displayQty = `${qty} ${displayFormat}`;
                 }
 
                 return `
@@ -446,26 +446,26 @@ export default function LogisticaPage() {
             order.items?.forEach((item: any) => {
                 const prod = products.find(p => p.ID_Producto === item.id_prod);
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
+                const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
                 const id = item.id_prod || item.nombre;
                 const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
-                const isExclusiveBulto = !rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0;
-                const ub = isExclusiveBulto ? 1 : parseFloat(rawUb);
+                const ub = (!rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0) ? 1 : parseFloat(rawUb);
 
                 if (!aggregates[id]) {
                     aggregates[id] = {
                         nombre: item.nombre,
                         cantidad: 0,
-                        formato: item._formato || item.formato || (isKg ? 'KG' : 'UNID'),
+                        formato: item._formato || item.formato || (isKg ? 'KG' : baseUnit),
                         isKg: isKg,
                         ub: ub,
-                        isExclusiveBulto: isExclusiveBulto,
+                        baseUnit: baseUnit,
                         clientes: []
                     };
                 }
 
                 let itemQty = parseFloat(item.cantidad) || 0;
                 const formatVal = String(item._formato || item.formato || '').toUpperCase();
-                if (formatVal === 'BULTO' && ub > 1 && !isExclusiveBulto) {
+                if (formatVal === 'BULTO' && ub > 1) {
                     itemQty *= ub;
                 }
 
@@ -474,22 +474,21 @@ export default function LogisticaPage() {
                     nombre: order.cliente_nombre,
                     cantidad: itemQty,
                     ub: ub,
-                    isKg: isKg,
-                    isExclusiveBulto: isExclusiveBulto
+                    isKg: isKg
                 });
             });
         });
 
-        const formatCompact = (qty: number, ub: number, isKg: boolean, isExclusiveBulto?: boolean) => {
+        const formatCompact = (qty: number, ub: number, isKg: boolean, baseUnit: string) => {
             if (isKg) return `${qty.toFixed(2)} KG`;
-            if (isExclusiveBulto) return `${qty} BUL`;
-            if (ub <= 1) return `${qty} UNID`;
+            const label = baseUnit === 'BULT' ? 'BULTO' : baseUnit;
+            if (ub <= 1) return `${qty} ${label}`;
             const bul = Math.floor(qty / ub);
             const uni = Math.round((qty % ub) * 100) / 100;
-            const suffix = `<small style="font-weight: normal; font-size: 10px; color: #666; margin-left: 4px;">(x${ub} UNI)</small>`;
-            if (bul === 0) return `${uni} UNID`;
+            const suffix = `<small style="font-weight: normal; font-size: 10px; color: #666; margin-left: 4px;">(x${ub} ${label})</small>`;
+            if (bul === 0) return `${uni} ${label}`;
             if (uni === 0) return `${bul} BUL ${suffix}`;
-            return `${bul} BUL + ${uni} UNI ${suffix}`;
+            return `${bul} BUL + ${uni} ${label} ${suffix}`;
         };
 
         const sorted = Object.values(aggregates).sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -543,7 +542,7 @@ export default function LogisticaPage() {
                                 ${noPesables.map(item => `
                                     <tr style="line-height: 1;">
                                         <td style="font-weight: bold; font-size: 11px; padding: 1px 8px;">${item.nombre}</td>
-                                        <td class="qty" style="padding: 1px 8px; font-size: 11px;">${formatCompact(item.cantidad, item.ub, item.isKg, item.isExclusiveBulto)}</td>
+                                        <td class="qty" style="padding: 1px 8px; font-size: 11px;">${formatCompact(item.cantidad, item.ub, item.isKg, item.baseUnit)}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1301,9 +1300,9 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                 const key = item.id_prod || item.nombre;
                 const product = products.find((p: any) => p.ID_Producto === item.id_prod);
                 const isKg = (product?.Unidad || '').toLowerCase() === 'kg';
+                const baseUnit = String(product?.Unidad || 'UNID').toUpperCase();
                 const rawUb = product?.UB ?? product?.Unidades_Bulto;
-                const isExclusiveBulto = !rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0;
-                const ub = isExclusiveBulto ? 1 : parseFloat(rawUb);
+                const ub = (!rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0) ? 1 : parseFloat(rawUb);
 
                 if (!map[key]) {
                     map[key] = {
@@ -1313,7 +1312,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                         totalPrice: 0,
                         isKg,
                         ub,
-                        isExclusiveBulto,
+                        baseUnit,
                         deliveries: []
                     };
                 }
@@ -1321,7 +1320,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                 let qtyInUnits = parseFloat(item.cantidad) || 0;
                 const formatVal = String(item._formato || item.formato || '').toUpperCase();
                 // Si el item viene marcado como bulto en el objeto (aunque intentemos normalizar), multiplicamos
-                if (formatVal === 'BULTO' && ub > 1 && !isExclusiveBulto) qtyInUnits *= ub;
+                if (formatVal === 'BULTO' && ub > 1) qtyInUnits *= ub;
 
                 const itemPrice = parseFloat(item.precio) || 0;
                 const itemDiscPercent = parseFloat(item.descuento || 0);
@@ -1343,7 +1342,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                     pesoPromedio,
                     isKg,
                     ub,
-                    isExclusiveBulto,
+                    baseUnit,
                     precio: item.precio,
                     descuento: item.descuento || 0,
                     formato: item._formato || 'UNID'
@@ -1368,15 +1367,15 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
         );
     }, [localOrders, searchTerm]);
 
-    const formatQtyWithBultos = (qty: number, ub: number, isKg: boolean, isExclusiveBulto?: boolean) => {
+    const formatQtyWithBultos = (qty: number, ub: number, isKg: boolean, baseUnit: string) => {
         if (isKg) return `${qty.toFixed(2)} Kg`;
-        if (isExclusiveBulto) return `${qty} Bultos`;
-        if (ub <= 1) return `${qty} Unid`;
+        const label = baseUnit === 'BULT' ? 'Bulto' : baseUnit;
+        if (ub <= 1) return `${qty} ${label}`;
         const bul = Math.floor(qty / ub);
         const uni = Math.round((qty % ub) * 100) / 100;
-        if (bul === 0) return `${uni} Unid`;
+        if (bul === 0) return `${uni} ${label}`;
         if (uni === 0) return `${bul} Bultos`;
-        return `${bul} Bul + ${uni} Uni`;
+        return `${bul} Bul + ${uni} ${label.substring(0, 3)}`;
     };
 
     const totalRuta = useMemo(() => {
@@ -1560,7 +1559,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                             </div>
                                             <div className="text-right">
                                                 <span className="font-black text-sm text-indigo-600">
-                                                    {formatQtyWithBultos(prod.totalQty, prod.ub, prod.isKg, prod.isExclusiveBulto)}
+                                                    {formatQtyWithBultos(prod.totalQty, prod.ub, prod.isKg, prod.baseUnit)}
                                                 </span>
                                             </div>
                                         </div>
@@ -1608,7 +1607,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                                                                 })}
                                                                                 className="w-12 text-center font-black text-xs bg-transparent outline-none"
                                                                             />
-                                                                            <span className="text-[9px] font-black text-slate-400 ml-1">{delivery.isExclusiveBulto || (String(delivery.formato || '').toUpperCase() === 'BULTO' && delivery.ub > 1) ? 'BUL' : (delivery.isKg ? 'KG' : 'UNI')}</span>
+                                                                            <span className="text-[9px] font-black text-slate-400 ml-1">{(String(delivery.formato || '').toUpperCase() === 'BULTO' && delivery.ub > 1) ? 'BUL' : (delivery.isKg ? 'KG' : delivery.baseUnit)}</span>
                                                                         </div>
 
                                                                     </div>
@@ -2454,9 +2453,9 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                             {localOrder.items?.map((item: any, idx: number) => {
                                 const p = products.find((prod: any) => prod.ID_Producto === item.id_prod);
                                 const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
+                                const baseUnit = String(p?.Unidad || 'UNID').toUpperCase();
                                 const rawUb = p?.UB ?? p?.Unidades_Bulto;
-                                const isExclusiveBulto = !rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0;
-                                const ub = isExclusiveBulto ? 1 : parseFloat(rawUb);
+                                const ub = (!rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0) ? 1 : parseFloat(rawUb);
                                 const itemPrice = parseFloat(item.precio) || 0;
                                 const itemQty = parseFloat(item.cantidad) || 0;
                                 const itemDiscPercent = parseFloat(item.descuento || 0);
@@ -2478,10 +2477,10 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                                                 <label className="text-[9px] font-black text-slate-400 uppercase">Cant.</label>
                                                                 <button
                                                                     onClick={() => handleToggleFormato(idx)}
-                                                                    className={`text-[8px] font-black px-1 rounded ${(isExclusiveBulto || (String(item._formato || item.formato || '').toUpperCase() === 'BULTO' && ub > 1)) ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}
-                                                                    disabled={(ub <= 1 && !isExclusiveBulto) || isExclusiveBulto}
+                                                                    className={`text-[8px] font-black px-1 rounded ${(String(item._formato || item.formato || '').toUpperCase() === 'BULTO' && ub > 1) ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}
+                                                                    disabled={ub <= 1}
                                                                 >
-                                                                    {isExclusiveBulto || (String(item._formato || item.formato || '').toUpperCase() === 'BULTO' && ub > 1) ? 'BUL' : (isKg ? 'KG' : 'UNI')}
+                                                                    {(String(item._formato || item.formato || '').toUpperCase() === 'BULTO' && ub > 1) ? 'BUL' : (isKg ? 'KG' : baseUnit)}
                                                                 </button>
                                                             </div>
 
