@@ -70,15 +70,26 @@ export default function LogisticaPage() {
         return rawOrders.map((order: any) => ({
             ...order,
             items: (order.items || []).map((it: any) => {
-                const product = products.find(p => p.ID_Producto === it.id_prod);
-                if (!product) return it;
+                const id = it.id_prod || it.id_producto || it.id;
+                const product = products.find(p => String(p.ID_Producto) === String(id));
+                const isDetalleBulto = String(it.detalle || it.nombre || '').toUpperCase().includes('BULTO');
+                const detectedFormat = (it._formato || it.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+
+                // Normalización base del item para que el resto del código no falle
+                const normalized = {
+                    ...it,
+                    id_prod: id,
+                    _formato: detectedFormat || 'UNID'
+                };
+
+                if (!product) return normalized;
 
                 const isKg = (product.Unidad || '').toLowerCase() === 'kg';
-                if (!isKg) return it;
+                if (!isKg) return normalized;
 
-                const weightAvg = parseFloat(product.Peso || product.Peso_Promedio || 1);
-                const priceKg = parseFloat(product.Precio_Unitario || 0);
-                const itemPrice = parseFloat(it.precio || 0);
+                const weightAvg = parseFloat(String(product.Peso || product.Peso_Promedio || "1").replace(',', '.'));
+                const priceKg = parseFloat(String(product.Precio_Unitario || "0").replace(',', '.'));
+                const itemPrice = parseFloat(String(it.precio || "0").replace(',', '.')) || 0;
 
                 // Si el precio del item se parece más al precio por pieza (kg * peso) que al precio por kg,
                 // entonces es porque viene del preventista en modo "pieza" y debemos normalizarlo a Kg para logística.
@@ -88,14 +99,14 @@ export default function LogisticaPage() {
 
                 if (diffPiece < diffKg || (itemPrice > priceKg * 1.5 && weightAvg > 1.1)) {
                     return {
-                        ...it,
+                        ...normalized,
                         cantidad: (parseFloat(it.cantidad) || 0) * weightAvg,
                         precio: priceKg,
-                        _formato: 'UNID', // En logística trabajamos siempre sobre la unidad base (Kg)
+                        _formato: 'KG', // En logística trabajamos siempre sobre la unidad base (Kg)
                         _pesableTratado: true
                     };
                 }
-                return it;
+                return normalized;
             })
         }));
     }, [rawOrders, products]);
@@ -193,15 +204,53 @@ export default function LogisticaPage() {
 
         try {
             setIsSyncing(true);
-            const res = await wandaApi.asignarRepartoMasivo(Array.from(selectedOrders), routeName);
+
+            // 1. Obtener los pedidos completos para reprocesar
+            const idsToAssign = Array.from(selectedOrders);
+            const ordersToProcess = orders.filter(o => idsToAssign.includes(o.id));
+
+            // 2. Reprocesar: Normalizar Bultos a Unidades
+            const processedOrders = ordersToProcess.map(order => {
+                const normalizedItems = (order.items || []).map((it: any) => {
+                    const id = it.id_prod || it.id_producto || it.id;
+                    const p = products.find(prod => String(prod.ID_Producto) === String(id));
+                    if (!p) return { ...it, id_prod: id };
+
+                    const rawUb = p.UB || p.Unidades_Bulto || "1";
+                    const ub = parseFloat(String(rawUb).replace(',', '.'));
+                    const isKg = (p.Unidad || '').toLowerCase() === 'kg';
+                    const isDetalleBulto = String(it.detalle || it.nombre || '').toUpperCase().includes('BULTO');
+                    const formatVal = String(it._formato || it.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+
+                    if (formatVal === 'BULTO' && ub > 1) {
+                        return {
+                            ...it,
+                            id_prod: id,
+                            cantidad: (parseFloat(String(it.cantidad || "0").replace(',', '.')) || 0) * ub,
+                            precio: (parseFloat(String(it.precio || "0").replace(',', '.')) || 0) / ub,
+                            _formato: isKg ? 'KG' : 'UNID'
+                        };
+                    }
+                    return { ...it, id_prod: id };
+                });
+
+                return {
+                    ...order,
+                    estado: "En Preparación",
+                    reparto: routeName,
+                    items: normalizedItems
+                };
+            });
+
+            // 3. Guardar cambios masivamente
+            const res = await wandaApi.updateBulkOrders(processedOrders);
             if (res.error) throw new Error(res.error);
-            if (res.result?.includes("ERROR")) throw new Error(res.result);
 
             setSelectedOrders(new Set());
             await refreshData(true);
-            alert("Pedidos asignados correctamente");
+            alert("Pedidos reprocesados y asignados correctamente");
         } catch (error: any) {
-            alert("Error al asignar pedidos: " + (error.message || error));
+            alert("Error al asignar o procesar pedidos: " + (error.message || error));
         } finally {
             setIsSyncing(false);
         }
@@ -251,12 +300,14 @@ export default function LogisticaPage() {
                         const product = products.find((p: any) => String(p.ID_Producto) === String(it.id_prod));
                         const rawUb = product?.UB || product?.Unidades_Bulto || "1";
                         const ub = parseFloat(String(rawUb).replace(',', '.'));
-                        return {
-                            ...it,
-                            cantidad: (parseFloat(it.cantidad) || 0) * ub,
-                            precio: (parseFloat(it.precio) || 0) / ub,
-                            _formato: 'UNID'
-                        };
+                        if (ub > 1) {
+                            return {
+                                ...it,
+                                cantidad: (parseFloat(it.cantidad) || 0) * ub,
+                                precio: (parseFloat(it.precio) || 0) / ub,
+                                _formato: (product?.Unidad || 'UNID').toUpperCase()
+                            };
+                        }
                     }
                     return it;
                 })
@@ -405,28 +456,25 @@ export default function LogisticaPage() {
                 const subtotal = (qty * price) * (1 - disc / 100);
 
                 let displayQty = "";
-                const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+                const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
                 const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
                 const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
-                let displayFormat = formatVal || (isKg ? 'KG' : baseUnit);
+                const unitLabel = baseUnit.startsWith('UNID') || baseUnit === 'U' || baseUnit === '' ? 'U' : baseUnit;
 
-                // Enhance format string if it matches generic units
-                if (displayFormat === 'UNID') {
-                    displayFormat = qty === 1 ? 'Unidad' : 'Unidades';
-                }
-
-                const detalleStr = String(item.detalle || '').trim();
-                // Check if the original detailing string still matches the current quantity
-                const detalleHasCurrentQty = detalleStr.startsWith(String(qty)) || detalleStr.startsWith(String(Math.round(qty)));
-
-                if (detalleStr !== '' && detalleHasCurrentQty) {
-                    displayQty = detalleStr;
-                } else if (formatVal === 'BULTO' && ub > 1) {
-                    displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
-                } else if (formatVal === 'BULTO') {
-                    displayQty = `${qty} BUL`;
+                if (isKg) {
+                    displayQty = `${qty.toFixed(2)} KG`;
+                } else if (ub > 1) {
+                    const bul = Math.floor(qty / ub);
+                    const uni = Math.round((qty % ub) * 100) / 100;
+                    if (bul > 0 && uni === 0) {
+                        displayQty = `${bul} BUL <span style="font-size: 8px; font-weight: normal; color: #666;">(x${ub} ${unitLabel})</span>`;
+                    } else if (bul > 0) {
+                        displayQty = `${bul} BUL + ${uni} ${unitLabel}`;
+                    } else {
+                        displayQty = `${qty} ${unitLabel}`;
+                    }
                 } else {
-                    displayQty = `${qty} ${displayFormat}`;
+                    displayQty = `${qty} ${unitLabel}`;
                 }
 
                 return `
@@ -494,19 +542,19 @@ export default function LogisticaPage() {
                 const parsedQty = parseFloat(String(item.cantidad).replace(',', '.')) || 0;
                 if (parsedQty <= 0) return;
 
-                const prod = products.find(p => p.ID_Producto === item.id_prod);
+                const id = item.id_prod || item.id_producto || item.id || item.nombre;
+                const prod = products.find(p => String(p.ID_Producto) === String(id));
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
                 const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
-                const id = item.id_prod || item.nombre;
+
                 const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
-                const parsedUb = parseFloat(String(rawUb).replace(',', '.'));
+                const parsedUb = parseFloat(String(rawUb || "1").replace(',', '.'));
                 const ub = (!rawUb || String(rawUb).trim() === '' || isNaN(parsedUb) || parsedUb === 0) ? 1 : parsedUb;
 
                 if (!aggregates[id]) {
                     aggregates[id] = {
                         nombre: item.nombre,
                         cantidad: 0,
-                        formato: item._formato || item.formato || (String(item.detalle || '').toUpperCase().includes('BULTO') ? 'BULTO' : (isKg ? 'KG' : baseUnit)),
                         isKg: isKg,
                         ub: ub,
                         baseUnit: baseUnit,
@@ -515,8 +563,9 @@ export default function LogisticaPage() {
                 }
 
                 let itemQty = parsedQty;
-                const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+                const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
                 const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+
                 if (formatVal === 'BULTO' && ub > 1) {
                     itemQty *= ub;
                 }
@@ -533,14 +582,14 @@ export default function LogisticaPage() {
 
         const formatCompact = (qty: number, ub: number, isKg: boolean, baseUnit: string) => {
             if (isKg) return `${qty.toFixed(2)} KG`;
-            const label = baseUnit === 'BULT' ? 'BULTO' : baseUnit;
-            if (ub <= 1) return `${qty} ${label}`;
+            const unitLabel = baseUnit.toUpperCase().startsWith('UNID') || baseUnit.toUpperCase() === 'U' ? 'U' : baseUnit;
+            if (ub <= 1) return `${qty} ${unitLabel}`;
             const bul = Math.floor(qty / ub);
             const uni = Math.round((qty % ub) * 100) / 100;
-            const suffix = `<small style="font-weight: normal; font-size: 10px; color: #666; margin-left: 4px;">(x${ub} ${label})</small>`;
-            if (bul === 0) return `${uni} ${label}`;
-            if (uni === 0) return `${bul} BUL ${suffix}`;
-            return `${bul} BUL + ${uni} ${label} ${suffix}`;
+            const suffix = `<small style="font-weight: normal; font-size: 10px; color: #666; margin-left: 4px;">(x${ub} ${unitLabel})</small>`;
+            if (bul === 0) return `${uni} ${unitLabel}`;
+            if (uni === 0) return `<b>${bul} BUL</b> ${suffix}`;
+            return `<b>${bul} BUL + ${uni} ${unitLabel}</b> ${suffix}`;
         };
 
         const sorted = Object.values(aggregates).sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -717,8 +766,17 @@ export default function LogisticaPage() {
                 </table>
 
                 <div class="summary">
-                    <div class="summary-item">BULTOS TOTALES: <b>${orderList.reduce((acc, o) => acc + (o.items?.length || 0), 0)}</b></div>
-                    <div class="summary-item">VALOR TOTAL CARGA: <b>$${totalValue.toLocaleString()}</b></div>
+                    <div class="summary-item">BULTOS TOTALES: <b>${Math.round(orderList.reduce((acc, o) => {
+            return acc + (o.items?.reduce((iAcc: number, it: any) => {
+                const p = products.find(prod => String(prod.ID_Producto) === String(it.id_prod || it.id_producto || it.id));
+                const rawUb = p?.UB || p?.Unidades_Bulto || "1";
+                const ub = parseFloat(String(rawUb).replace(',', '.')) || 1;
+                const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
+                if (isKg) return iAcc;
+                return iAcc + (parseFloat(String(it.cantidad).replace(',', '.')) / ub);
+            }, 0) || 0);
+        }, 0))}</b></div>
+                    <div class="summary-item">VALOR TOTAL CARGA: <b>$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</b></div>
                     <div class="summary-item">TOTAL ENTREGAS: <b>${orderList.length}</b></div>
                 </div>
 
@@ -1358,12 +1416,12 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
         const map: Record<string, any> = {};
         localOrders.forEach((order: any) => {
             (order.items || []).forEach((item: any, idx: number) => {
-                const key = item.id_prod || item.nombre;
-                const product = products.find((p: any) => p.ID_Producto === item.id_prod);
+                const key = item.id_prod || item.id_producto || item.id || item.nombre;
+                const product = products.find((p: any) => String(p.ID_Producto) === String(key));
                 const isKg = (product?.Unidad || '').toLowerCase() === 'kg';
                 const baseUnit = String(product?.Unidad || 'UNID').toUpperCase();
                 const rawUb = product?.UB ?? product?.Unidades_Bulto;
-                const ub = (!rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0) ? 1 : parseFloat(rawUb);
+                const ub = (!rawUb || String(rawUb).trim() === '' || isNaN(parseFloat(String(rawUb).replace(',', '.'))) || parseFloat(String(rawUb).replace(',', '.')) === 0) ? 1 : parseFloat(String(rawUb).replace(',', '.'));
 
                 if (!map[key]) {
                     map[key] = {
@@ -1378,8 +1436,8 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                     };
                 }
 
-                let qtyInUnits = parseFloat(item.cantidad) || 0;
-                const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+                let qtyInUnits = parseFloat(String(item.cantidad).replace(',', '.')) || 0;
+                const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
                 const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
                 // Si el item viene marcado como bulto en el objeto (aunque intentemos normalizar), multiplicamos
                 if (formatVal === 'BULTO' && ub > 1) qtyInUnits *= ub;
@@ -1431,13 +1489,13 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
 
     const formatQtyWithBultos = (qty: number, ub: number, isKg: boolean, baseUnit: string) => {
         if (isKg) return `${qty.toFixed(2)} Kg`;
-        const label = baseUnit === 'BULT' ? 'Bulto' : baseUnit;
-        if (ub <= 1) return `${qty} ${label}`;
+        const unitLabel = baseUnit.toUpperCase().startsWith('UNID') || baseUnit.toUpperCase() === 'U' ? 'U' : baseUnit;
+        if (ub <= 1) return `${qty} ${unitLabel}`;
         const bul = Math.floor(qty / ub);
         const uni = Math.round((qty % ub) * 100) / 100;
-        if (bul === 0) return `${uni} ${label}`;
-        if (uni === 0) return `${bul} Bultos`;
-        return `${bul} Bul + ${uni} ${label.substring(0, 3)}`;
+        if (bul === 0) return `${uni} ${unitLabel}`;
+        if (uni === 0) return `${bul} BUL`;
+        return `${bul} BUL + ${uni} ${unitLabel}`;
     };
 
     const totalRuta = useMemo(() => {

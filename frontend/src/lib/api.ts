@@ -163,6 +163,16 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
+    updateBulkOrders: async (orders: any[]) => {
+        const batch = writeBatch(db);
+        orders.forEach(order => {
+            const orderRef = doc(db, "orders", String(order.id));
+            batch.update(orderRef, order);
+        });
+        await batch.commit();
+        return { result: "OK" };
+    },
+
     liberarReparto: async (reparto: string) => {
         const snap = await getDocs(query(collection(db, "orders"), where("reparto", "==", reparto)));
         const batch = writeBatch(db);
