@@ -276,13 +276,16 @@ export default function PreventaPage() {
 
     const handleInitialAdd = (id: string) => {
         updateQty(id, 1);
-        setTimeout(() => {
-            const input = document.getElementById(`qty-input-${id}`) as HTMLInputElement;
-            if (input) {
-                input.focus();
-                input.select();
-            }
-        }, 50);
+        // Evitar auto-focus en pantallas pequeñas para no disparar el teclado virtual
+        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+            setTimeout(() => {
+                const input = document.getElementById(`qty-input-${id}`) as HTMLInputElement;
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }, 50);
+        }
     };
 
     const toggleBulto = (id: string) => {
