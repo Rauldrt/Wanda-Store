@@ -1,0 +1,20 @@
+src/app/clientes/page.tsx(110,21): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/clientes/page.tsx(110,48): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/logistica/page.tsx(197,21): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/logistica/page.tsx(197,48): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/logistica/page.tsx(216,21): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/logistica/page.tsx(216,48): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/logistica/page.tsx(233,21): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/logistica/page.tsx(233,48): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/logistica/page.tsx(1806,45): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/logistica/page.tsx(1811,52): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/productos/page.tsx(221,21): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/productos/page.tsx(221,48): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/productos/page.tsx(264,21): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/productos/page.tsx(264,48): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/productos/page.tsx(320,21): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/productos/page.tsx(320,48): error TS2339: Property 'error' does not exist on type '{ result: string; }'.
+src/app/tienda/page.tsx(310,21): error TS2339: Property 'error' does not exist on type '{ result: string; id: string; }'.
+src/app/tienda/page.tsx(310,48): error TS2339: Property 'error' does not exist on type '{ result: string; id: string; }'.
+src/context/DataContext.tsx(27,21): error TS2339: Property 'error' does not exist on type '{ products: { id: string; }[]; clients: { id: string; }[]; orders: { id: string; }[]; liquidaciones: { id: string; }[]; config: DocumentData; }'.
+src/context/DataContext.tsx(27,48): error TS2339: Property 'error' does not exist on type '{ products: { id: string; }[]; clients: { id: string; }[]; orders: { id: string; }[]; liquidaciones: { id: string; }[]; config: DocumentData; }'.

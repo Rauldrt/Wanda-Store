@@ -63,7 +63,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     const isLoggedIn = localStorage.getItem("is_logged_in");
     const role = localStorage.getItem("user_role");
 
-    if (!isLoggedIn && pathname !== '/login' && pathname !== '/landing') {
+    if (!isLoggedIn && pathname !== '/login' && pathname !== '/landing' && pathname !== '/migracion') {
       router.push('/login');
     } else if (isLoggedIn && pathname === '/login') {
       if (role === 'admin') router.push('/productos');
@@ -121,7 +121,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   // RENDERIZADO ESPECIAL PARA PAGINAS SIN SIDEBAR (Login, Preventa, Tienda, Landing)
-  const isMinimalLayout = pathname === '/login' || pathname === '/preventa' || pathname === '/tienda' || pathname === '/landing';
+  const isMinimalLayout = pathname === '/login' || pathname === '/preventa' || pathname === '/tienda' || pathname === '/landing' || pathname === '/migracion';
 
   if (isMinimalLayout) {
     return <main className="flex-1 w-full h-full min-h-screen">{children}</main>;
