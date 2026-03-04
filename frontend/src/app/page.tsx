@@ -13,7 +13,8 @@ import {
   AlertCircle,
   RefreshCcw,
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  DatabaseBackup
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 
@@ -204,6 +205,20 @@ export default function Home() {
                 color="amber"
               />
             </div>
+          </div>
+
+          <div className="tech-card border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-transparent">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-bold text-xs uppercase tracking-widest text-indigo-500">Herramientas</h4>
+              <DatabaseBackup size={16} className="text-indigo-500" />
+            </div>
+            <p className="text-[10px] text-slate-500 mb-4 font-medium">Sincroniza pedidos rezagados desde la plataforma anterior.</p>
+            <button
+              onClick={() => window.location.href = '/migracion'}
+              className="w-full py-2.5 bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20"
+            >
+              Abrir Migración
+            </button>
           </div>
 
           <div className="tech-card">
