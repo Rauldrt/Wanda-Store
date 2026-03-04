@@ -370,8 +370,8 @@ export default function LogisticaPage() {
 
                 let displayQty = "";
                 const formatVal = String(item._formato || item.formato || '').toUpperCase();
-                if (formatVal === 'BULTO') {
-                    displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
+                if (formatVal === 'BULTO' || ub <= 1) {
+                    displayQty = `${qty} BUL ${ub > 1 ? `<span style="font-size:8px; color:#555;">(x${ub})</span>` : ''}`;
                 } else if (isKg) {
                     displayQty = `${qty.toFixed(2)} KG`;
                 } else {
@@ -474,7 +474,7 @@ export default function LogisticaPage() {
 
         const formatCompact = (qty: number, ub: number, isKg: boolean) => {
             if (isKg) return `${qty.toFixed(2)} KG`;
-            if (ub <= 1) return `${qty} UNID`;
+            if (ub <= 1) return `${qty} BUL`;
             const bul = Math.floor(qty / ub);
             const uni = Math.round((qty % ub) * 100) / 100;
             const suffix = `<small style="font-weight: normal; font-size: 10px; color: #666; margin-left: 4px;">(x${ub} UNI)</small>`;
@@ -1357,7 +1357,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
 
     const formatQtyWithBultos = (qty: number, ub: number, isKg: boolean) => {
         if (isKg) return `${qty.toFixed(2)} Kg`;
-        if (ub <= 1) return `${qty} Unid`;
+        if (ub <= 1) return `${qty} Bultos`;
         const bul = Math.floor(qty / ub);
         const uni = Math.round((qty % ub) * 100) / 100;
         if (bul === 0) return `${uni} Unid`;
@@ -1594,7 +1594,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                                                                 })}
                                                                                 className="w-12 text-center font-black text-xs bg-transparent outline-none"
                                                                             />
-                                                                            <span className="text-[9px] font-black text-slate-400 ml-1">{delivery.formato === 'BULTO' ? 'BUL' : (delivery.isKg ? 'KG' : 'UNI')}</span>
+                                                                            <span className="text-[9px] font-black text-slate-400 ml-1">{String(delivery.formato || '').toUpperCase() === 'BULTO' || delivery.ub <= 1 ? 'BUL' : (delivery.isKg ? 'KG' : 'UNI')}</span>
                                                                         </div>
 
                                                                     </div>
@@ -2461,9 +2461,9 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                                                 <label className="text-[9px] font-black text-slate-400 uppercase">Cant.</label>
                                                                 <button
                                                                     onClick={() => handleToggleFormato(idx)}
-                                                                    className={`text-[8px] font-black px-1 rounded ${item._formato === 'BULTO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}
+                                                                    className={`text-[8px] font-black px-1 rounded ${String(item._formato || item.formato || '').toUpperCase() === 'BULTO' || ub <= 1 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}
                                                                 >
-                                                                    {item._formato === 'BULTO' ? 'BUL' : (isKg ? 'KG' : 'UNI')}
+                                                                    {String(item._formato || item.formato || '').toUpperCase() === 'BULTO' || ub <= 1 ? 'BUL' : (isKg ? 'KG' : 'UNI')}
                                                                 </button>
                                                             </div>
 
