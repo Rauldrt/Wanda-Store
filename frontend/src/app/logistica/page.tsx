@@ -1242,16 +1242,24 @@ export default function LogisticaPage() {
             </AnimatePresence>
 
             <AnimatePresence>
-                {viewingDetailId && (
-                    <OrderDetailModal
-                        order={orders.find((o: any) => o.id === viewingDetailId)}
-                        products={products}
-                        clients={clients}
-                        config={data?.config}
-                        onClose={() => setViewingDetailId(null)}
-                        onPrint={() => printOrders([orders.find((o: any) => o.id === viewingDetailId)])}
-                    />
-                )}
+                {viewingDetailId && (() => {
+                    const currentIndex = filteredPendingOrders.findIndex((o: any) => o.id === viewingDetailId);
+                    const hasPrev = currentIndex > 0;
+                    const hasNext = currentIndex !== -1 && currentIndex < filteredPendingOrders.length - 1;
+
+                    return (
+                        <OrderDetailModal
+                            order={orders.find((o: any) => o.id === viewingDetailId)}
+                            products={products}
+                            clients={clients}
+                            config={data?.config}
+                            onClose={() => setViewingDetailId(null)}
+                            onPrint={() => printOrders([orders.find((o: any) => o.id === viewingDetailId)])}
+                            onNavigatePrev={hasPrev ? () => setViewingDetailId(filteredPendingOrders[currentIndex - 1].id) : undefined}
+                            onNavigateNext={hasNext ? () => setViewingDetailId(filteredPendingOrders[currentIndex + 1].id) : undefined}
+                        />
+                    );
+                })()}
             </AnimatePresence>
 
             <AnimatePresence>
@@ -1721,23 +1729,31 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                 </div>
 
                 <AnimatePresence>
-                    {orderDetailId && (
-                        <OrderDetailModal
-                            order={localOrders.find((o: any) => o.id === orderDetailId)}
-                            products={products}
-                            clients={clients}
-                            config={config}
-                            onClose={() => setOrderDetailId(null)}
-                            onUpdateOrder={(updated: any) => {
-                                setLocalOrders((prev: any) => prev.map((o: any) => o.id === updated.id ? { ...updated, _editado: true } : o));
-                                setOrderDetailId(null);
-                            }}
-                            onPrint={() => {
-                                const orderToPrintParams = localOrders.find((o: any) => o.id === orderDetailId);
-                                if (orderToPrintParams) onPrintRemitos([orderToPrintParams]);
-                            }}
-                        />
-                    )}
+                    {orderDetailId && (() => {
+                        const currentIndex = localOrders.findIndex((o: any) => o.id === orderDetailId);
+                        const hasPrev = currentIndex > 0;
+                        const hasNext = currentIndex !== -1 && currentIndex < localOrders.length - 1;
+
+                        return (
+                            <OrderDetailModal
+                                order={localOrders.find((o: any) => o.id === orderDetailId)}
+                                products={products}
+                                clients={clients}
+                                config={config}
+                                onClose={() => setOrderDetailId(null)}
+                                onUpdateOrder={(updated: any) => {
+                                    setLocalOrders((prev: any) => prev.map((o: any) => o.id === updated.id ? { ...updated, _editado: true } : o));
+                                    setOrderDetailId(null);
+                                }}
+                                onPrint={() => {
+                                    const orderToPrintParams = localOrders.find((o: any) => o.id === orderDetailId);
+                                    if (orderToPrintParams) onPrintRemitos([orderToPrintParams]);
+                                }}
+                                onNavigatePrev={hasPrev ? () => setOrderDetailId(localOrders[currentIndex - 1].id) : undefined}
+                                onNavigateNext={hasNext ? () => setOrderDetailId(localOrders[currentIndex + 1].id) : undefined}
+                            />
+                        );
+                    })()}
                 </AnimatePresence>
 
                 <div className="p-6 border-t border-[var(--border)] flex justify-between items-center bg-slate-50 dark:bg-slate-800/30">
@@ -2256,7 +2272,7 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
     );
 }
 
-function OrderDetailModal({ order, products, clients, config, onClose, onPrint, onUpdateOrder }: any) {
+function OrderDetailModal({ order, products, clients, config, onClose, onPrint, onUpdateOrder, onNavigatePrev, onNavigateNext }: any) {
     const [localOrder, setLocalOrder] = useState<any>(null);
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
     const [clientSearch, setClientSearch] = useState("");
@@ -2447,9 +2463,21 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                             )}
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {onNavigatePrev && (
+                            <button onClick={onNavigatePrev} className="p-2 hover:bg-white/20 rounded-full transition-colors" title="Pedido Anterior">
+                                <ChevronLeft size={20} />
+                            </button>
+                        )}
+                        {onNavigateNext && (
+                            <button onClick={onNavigateNext} className="p-2 hover:bg-white/20 rounded-full transition-colors" title="Pedido Siguiente">
+                                <ChevronRight size={20} />
+                            </button>
+                        )}
+                        <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors" title="Cerrar">
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-6 overflow-auto space-y-6">
