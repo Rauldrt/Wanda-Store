@@ -2514,7 +2514,10 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                             {isEditable ? (
                                                 <div className="flex flex-col sm:flex-row gap-4 flex-1 items-start sm:items-center">
                                                     <div className="flex-1 w-full sm:w-auto">
-                                                        <p className="font-black text-sm text-slate-800 dark:text-slate-100">{item.nombre}</p>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="font-black text-sm text-slate-800 dark:text-slate-100">{item.nombre}</p>
+                                                        </div>
+                                                        <span className="font-mono text-[9px] bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 px-1.5 py-0.5 rounded">ID: {item.id_producto || item.id_prod || p?.ID_Producto}</span>
                                                     </div>
                                                     <div className="w-full sm:w-auto grid grid-cols-3 gap-3">
                                                         <div className="space-y-1">
@@ -2602,7 +2605,10 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                             ) : (
                                                 <div className="flex justify-between items-center w-full">
                                                     <div>
-                                                        <p className="font-black text-sm text-slate-800 dark:text-slate-100">{item.nombre}</p>
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <p className="font-black text-sm text-slate-800 dark:text-slate-100">{item.nombre}</p>
+                                                        </div>
+                                                        <span className="font-mono text-[9px] bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 px-1.5 py-0.5 rounded">ID: {item.id_producto || item.id_prod || p?.ID_Producto}</span>
                                                         <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">
                                                             {item.cantidad} {item._formato || 'UNID'} x ${itemPrice.toLocaleString()}
                                                         </p>
