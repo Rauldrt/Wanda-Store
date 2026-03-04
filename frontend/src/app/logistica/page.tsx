@@ -359,14 +359,15 @@ export default function LogisticaPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                ${order.items?.filter((item: any) => (parseFloat(item.cantidad) || 0) > 0).map((item: any) => {
+                                                ${order.items?.filter((item: any) => (parseFloat(String(item.cantidad).replace(',', '.')) || 0) > 0).map((item: any) => {
                 const prod = products.find(p => p.ID_Producto === item.id_prod);
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
                 const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
-                const ub = (!rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0) ? 1 : parseFloat(rawUb);
-                const qty = parseFloat(item.cantidad) || 0;
-                const price = parseFloat(item.precio) || 0;
-                const disc = parseFloat(item.descuento || 0);
+                const parsedUb = parseFloat(String(rawUb).replace(',', '.'));
+                const ub = (!rawUb || String(rawUb).trim() === '' || isNaN(parsedUb) || parsedUb === 0) ? 1 : parsedUb;
+                const qty = parseFloat(String(item.cantidad).replace(',', '.')) || 0;
+                const price = parseFloat(String(item.precio).replace(',', '.')) || 0;
+                const disc = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
                 const subtotal = (qty * price) * (1 - disc / 100);
 
                 let displayQty = "";
@@ -408,9 +409,9 @@ export default function LogisticaPage() {
                                         <div class="totals-box">
                                             <div class="subtotal-row">
                                                 <span>Subtotal:</span>
-                                                <span>$ ${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                <span>$ ${parseFloat(String(order.items?.reduce((acc: number, val: any) => acc + (parseFloat(String(val.subtotal).replace(',', '.')) || 0), 0) || order.total).replace(',', '.')).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                             </div>
-                                            ${parseFloat(order.descuento_general || 0) > 0 ? `
+                                            ${parseFloat(String(order.descuento_general || 0).replace(',', '.')) > 0 ? `
                                             <div class="subtotal-row" style="color: #444;">
                                                 <span>Desc. General:</span>
                                                 <span>-${order.descuento_general}%</span>
@@ -418,7 +419,7 @@ export default function LogisticaPage() {
                                             ` : ''}
                                             <div class="total-row">
                                                 <span>Total:</span>
-                                                <span>$ ${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                <span>$ ${parseFloat(String(order.total).replace(',', '.')).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -447,14 +448,16 @@ export default function LogisticaPage() {
         const aggregates: Record<string, any> = {};
         orderList.forEach(order => {
             order.items?.forEach((item: any) => {
-                if ((parseFloat(item.cantidad) || 0) <= 0) return;
+                const parsedQty = parseFloat(String(item.cantidad).replace(',', '.')) || 0;
+                if (parsedQty <= 0) return;
 
                 const prod = products.find(p => p.ID_Producto === item.id_prod);
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
                 const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
                 const id = item.id_prod || item.nombre;
                 const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
-                const ub = (!rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0) ? 1 : parseFloat(rawUb);
+                const parsedUb = parseFloat(String(rawUb).replace(',', '.'));
+                const ub = (!rawUb || String(rawUb).trim() === '' || isNaN(parsedUb) || parsedUb === 0) ? 1 : parsedUb;
 
                 if (!aggregates[id]) {
                     aggregates[id] = {
@@ -468,7 +471,7 @@ export default function LogisticaPage() {
                     };
                 }
 
-                let itemQty = parseFloat(item.cantidad) || 0;
+                let itemQty = parsedQty;
                 const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
                 const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
                 if (formatVal === 'BULTO' && ub > 1) {
@@ -612,7 +615,7 @@ export default function LogisticaPage() {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
-        const totalValue = orderList.reduce((acc, o) => acc + parseFloat(o.total), 0);
+        const totalValue = orderList.reduce((acc, o) => acc + (parseFloat(String(o.total).replace(',', '.')) || 0), 0);
 
         const html = `
             <html>
@@ -663,7 +666,7 @@ export default function LogisticaPage() {
                                     ${order.notas ? `<div style="color: #d97706; font-size: 8px; margin-top: 1px; font-weight: bold;">${order.notas}</div>` : ''}
                                 </td>
                                 <td style="font-weight: bold; text-transform: uppercase; color: #475569; font-size: 9px;"></td>
-                                <td style="font-weight: 900; font-size: 12px;">$${parseFloat(order.total).toLocaleString()}</td>
+                                <td style="font-weight: 900; font-size: 12px;">$${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                 <td align="center" style="color: #ccc; font-size: 10px;">________________</td>
                             </tr>
                         `).join('')}
