@@ -583,18 +583,18 @@ export default function LogisticaPage() {
                 ${noPesables.length > 0 ? `
                     <div class="section">
                         <h2>Productos Generales (Unidades)</h2>
-                        <table style="border-spacing: 0; border-collapse: collapse;">
+                        <table style="border-spacing: 0; border-collapse: collapse; width: auto; min-width: 60%;">
                             <thead>
                                 <tr>
-                                    <th width="80" style="padding: 2px 8px; text-align: center;">CANT.</th>
                                     <th style="padding: 2px 8px;">PRODUCTO / DESCRIPCIÓN</th>
+                                    <th style="padding: 2px 8px; text-align: left;">CANT.</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${noPesables.map(item => `
-                                    <tr style="line-height: 1;">
-                                        <td class="qty" style="padding: 4px 8px; font-size: 13px; text-align: center; border-right: 2px solid #000;">${formatCompact(item.cantidad, item.ub, item.isKg, item.baseUnit)}</td>
+                                    <tr style="line-height: 1.2;">
                                         <td style="font-weight: bold; font-size: 11px; padding: 4px 8px;">${item.nombre}</td>
+                                        <td class="qty" style="padding: 4px 8px; font-size: 13px; white-space: nowrap;">${formatCompact(item.cantidad, item.ub, item.isKg, item.baseUnit)}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
