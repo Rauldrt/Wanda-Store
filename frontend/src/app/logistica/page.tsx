@@ -592,9 +592,9 @@ export default function LogisticaPage() {
                             </thead>
                             <tbody>
                                 ${noPesables.map(item => `
-                                    <tr style="line-height: 1.2;">
-                                        <td style="font-weight: bold; font-size: 11px; padding: 4px 8px;">${item.nombre}</td>
-                                        <td class="qty" style="padding: 4px 8px; font-size: 13px; white-space: nowrap;">${formatCompact(item.cantidad, item.ub, item.isKg, item.baseUnit)}</td>
+                                    <tr style="line-height: 1.0;">
+                                        <td style="font-weight: bold; font-size: 11px; padding: 1px 8px;">${item.nombre}</td>
+                                        <td class="qty" style="padding: 1px 8px; font-size: 13px; white-space: nowrap;">${formatCompact(item.cantidad, item.ub, item.isKg, item.baseUnit)}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
