@@ -1447,12 +1447,13 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                     ...order,
                     items: order.items.map((it: any) => {
                         if (it._formato === 'BULTO') {
-                            const product = products.find((p: any) => p.ID_Producto === it.id_prod);
-                            const ub = parseFloat(product?.UB || product?.Unidades_Bulto || 1);
+                            const product = products.find((p: any) => String(p.ID_Producto) === String(it.id_prod));
+                            const rawUb = product?.UB || product?.Unidades_Bulto || "1";
+                            const ub = parseFloat(String(rawUb).replace(',', '.'));
                             return {
                                 ...it,
-                                cantidad: it.cantidad * ub,
-                                precio: it.precio / ub,
+                                cantidad: (parseFloat(it.cantidad) || 0) * ub,
+                                precio: (parseFloat(it.precio) || 0) / ub,
                                 _formato: 'UNID'
                             };
                         }
@@ -2290,20 +2291,32 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
 
         const rawUb = product.UB || product.Unidades_Bulto || "1";
         const ub = parseFloat(String(rawUb).replace(',', '.'));
-
         const isKg = (product.Unidad || '').toLowerCase() === 'kg';
-        const weightAvg = parseFloat(String(product.Peso || product.Peso_Promedio || "1").replace(',', '.'));
-        const unitPrice = parseFloat(String(product.Precio_Unitario || "0").replace(',', '.'));
-        const precioBase = unitPrice * (isKg ? weightAvg : 1);
 
         const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
         const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
         const iB = formatVal === 'BULTO';
 
+        // Usamos el precio actual del item en lugar del catálogo para no perder ediciones del usuario
+        const currentPrice = parseFloat(String(item.precio).replace(',', '.')) || 0;
+        const currentQty = parseFloat(String(item.cantidad).replace(',', '.')) || 0;
+
         if (iB) {
-            next.items[idx] = { ...item, _formato: isKg ? 'KG' : 'UNID', precio: precioBase, cantidad: (parseFloat(item.cantidad) || 0) * ub };
+            // Cambiar de BULTO a UNID (multiplicamos cantidad, dividimos precio)
+            next.items[idx] = {
+                ...item,
+                _formato: isKg ? 'KG' : 'UNID',
+                precio: currentPrice / (ub || 1),
+                cantidad: currentQty * (ub || 1)
+            };
         } else {
-            next.items[idx] = { ...item, _formato: 'BULTO', precio: precioBase * ub, cantidad: (parseFloat(item.cantidad) || 0) / ub };
+            // Cambiar de UNID a BULTO (dividimos cantidad, multiplicamos precio)
+            next.items[idx] = {
+                ...item,
+                _formato: 'BULTO',
+                precio: currentPrice * (ub || 1),
+                cantidad: currentQty / (ub || 1)
+            };
         }
         setLocalOrder(recalculatedOrder(next));
     };
@@ -2470,7 +2483,8 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                 const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
                                 const baseUnit = String(p?.Unidad || 'UNID').toUpperCase();
                                 const rawUb = p?.UB ?? p?.Unidades_Bulto;
-                                const ub = (!rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0) ? 1 : parseFloat(rawUb);
+                                const parsedUb = parseFloat(String(rawUb).replace(',', '.'));
+                                const ub = (!rawUb || String(rawUb).trim() === '' || isNaN(parsedUb) || parsedUb === 0) ? 1 : parsedUb;
                                 const itemPrice = parseFloat(item.precio) || 0;
                                 const itemQty = parseFloat(item.cantidad) || 0;
                                 const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
