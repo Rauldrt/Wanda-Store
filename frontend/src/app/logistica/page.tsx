@@ -1421,14 +1421,16 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
             const newItems = order.items.map((it: any, idx: number) => {
                 if (idx !== itemIdx) return it;
                 const nextItem = { ...it, ...updates };
-                const sub = (parseFloat(nextItem.cantidad) || 0) * (parseFloat(nextItem.precio) || 0);
-                const descPercent = parseFloat(nextItem.descuento || 0);
+                const nextCant = parseFloat(String(nextItem.cantidad).replace(',', '.')) || 0;
+                const nextPrice = parseFloat(String(nextItem.precio).replace(',', '.')) || 0;
+                const sub = nextCant * nextPrice;
+                const descPercent = parseFloat(String(nextItem.descuento || 0).replace(',', '.')) || 0;
                 nextItem.subtotal = sub * (1 - descPercent / 100);
                 return nextItem;
             });
 
-            const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(i.subtotal) || 0), 0);
-            const globalDiscPercent = parseFloat(order.descuento_general || 0);
+            const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(String(i.subtotal).replace(',', '.')) || 0), 0);
+            const globalDiscPercent = parseFloat(String(order.descuento_general || 0).replace(',', '.')) || 0;
             return { ...order, items: newItems, total: newTotal * (1 - globalDiscPercent / 100), _editado: true };
         }));
     };
@@ -2258,15 +2260,15 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
 
     const recalculatedOrder = (next: any) => {
         const itemsTotal = next.items.reduce((acc: number, item: any) => {
-            const qty = parseFloat(item.cantidad) || 0;
-            const price = parseFloat(item.precio) || 0;
-            const discPercent = parseFloat(item.descuento || 0);
+            const qty = parseFloat(String(item.cantidad).replace(',', '.')) || 0;
+            const price = parseFloat(String(item.precio).replace(',', '.')) || 0;
+            const discPercent = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
             const subtotalGross = qty * price;
             const sub = subtotalGross * (1 - discPercent / 100);
             item.subtotal = sub; // Crucial para el backend
             return acc + sub;
         }, 0);
-        const globalDiscPercent = parseFloat(next.descuento_general || 0);
+        const globalDiscPercent = parseFloat(String(next.descuento_general || 0).replace(',', '.')) || 0;
         next.total = itemsTotal * (1 - globalDiscPercent / 100);
         return next;
     };
