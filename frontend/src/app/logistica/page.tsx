@@ -370,7 +370,8 @@ export default function LogisticaPage() {
                 const subtotal = (qty * price) * (1 - disc / 100);
 
                 let displayQty = "";
-                const formatVal = String(item._formato || item.formato || '').toUpperCase();
+                const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+                const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
                 const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
                 const displayFormat = formatVal || (isKg ? 'KG' : baseUnit);
 
@@ -457,7 +458,7 @@ export default function LogisticaPage() {
                     aggregates[id] = {
                         nombre: item.nombre,
                         cantidad: 0,
-                        formato: item._formato || item.formato || (isKg ? 'KG' : baseUnit),
+                        formato: item._formato || item.formato || (String(item.detalle || '').toUpperCase().includes('BULTO') ? 'BULTO' : (isKg ? 'KG' : baseUnit)),
                         isKg: isKg,
                         ub: ub,
                         baseUnit: baseUnit,
@@ -466,7 +467,8 @@ export default function LogisticaPage() {
                 }
 
                 let itemQty = parseFloat(item.cantidad) || 0;
-                const formatVal = String(item._formato || item.formato || '').toUpperCase();
+                const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+                const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
                 if (formatVal === 'BULTO' && ub > 1) {
                     itemQty *= ub;
                 }
@@ -1320,7 +1322,8 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                 }
 
                 let qtyInUnits = parseFloat(item.cantidad) || 0;
-                const formatVal = String(item._formato || item.formato || '').toUpperCase();
+                const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+                const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
                 // Si el item viene marcado como bulto en el objeto (aunque intentemos normalizar), multiplicamos
                 if (formatVal === 'BULTO' && ub > 1) qtyInUnits *= ub;
 
@@ -1347,7 +1350,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                     baseUnit,
                     precio: item.precio,
                     descuento: item.descuento || 0,
-                    formato: item._formato || 'UNID'
+                    formato: item._formato || item.formato || (String(item.detalle || '').toUpperCase().includes('BULTO') ? 'BULTO' : 'UNID')
                 });
             });
         });
@@ -2285,7 +2288,9 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
 
         const ub = parseFloat(product.UB || product.Unidades_Bulto || 1);
         const precioBase = parseFloat(product.Precio_Unitario || 0);
-        const iB = item._formato === 'BULTO';
+        const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+        const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+        const iB = formatVal === 'BULTO';
 
         if (iB) {
             next.items[idx] = { ...item, _formato: 'UNID', precio: precioBase, cantidad: (parseFloat(item.cantidad) || 0) * ub };
@@ -2460,6 +2465,8 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                 const ub = (!rawUb || String(rawUb).trim() === '' || parseFloat(rawUb) === 0) ? 1 : parseFloat(rawUb);
                                 const itemPrice = parseFloat(item.precio) || 0;
                                 const itemQty = parseFloat(item.cantidad) || 0;
+                                const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+                                const currentFormat = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
                                 const itemDiscPercent = parseFloat(item.descuento || 0);
                                 const itemSubtotalGross = itemQty * itemPrice;
                                 const itemDiscAmount = itemSubtotalGross * (itemDiscPercent / 100);
@@ -2479,10 +2486,10 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                                                 <label className="text-[9px] font-black text-slate-400 uppercase">Cant.</label>
                                                                 <button
                                                                     onClick={() => handleToggleFormato(idx)}
-                                                                    className={`text-[8px] font-black px-1 rounded ${(String(item._formato || item.formato || '').toUpperCase() === 'BULTO' && ub > 1) ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}
+                                                                    className={`text-[8px] font-black px-1 rounded ${(currentFormat === 'BULTO' && ub > 1) ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}
                                                                     disabled={ub <= 1}
                                                                 >
-                                                                    {(String(item._formato || item.formato || '').toUpperCase() === 'BULTO' && ub > 1) ? 'BUL' : (isKg ? 'KG' : baseUnit)}
+                                                                    {(currentFormat === 'BULTO' && ub > 1) ? 'BUL' : (isKg ? 'KG' : baseUnit)}
                                                                 </button>
                                                             </div>
 
