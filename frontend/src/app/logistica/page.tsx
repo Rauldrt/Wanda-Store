@@ -213,7 +213,10 @@ export default function LogisticaPage() {
             const processedOrders = ordersToProcess.map(order => {
                 const normalizedItems = (order.items || []).map((it: any) => {
                     const id = it.id_prod || it.id_producto || it.id;
-                    const p = products.find(prod => String(prod.ID_Producto) === String(id));
+                    let p = products.find(prod => String(prod.ID_Producto) === String(id));
+                    if (!p && it.nombre) {
+                        p = products.find(prod => String(prod.Nombre || '').trim().toLowerCase() === String(it.nombre).trim().toLowerCase());
+                    }
                     if (!p) return { ...it, id_prod: id };
 
                     const rawUb = p.UB || p.Unidades_Bulto || "1";
@@ -445,7 +448,10 @@ export default function LogisticaPage() {
                                             </thead>
                                             <tbody>
                                                 ${order.items?.filter((item: any) => (parseFloat(String(item.cantidad).replace(',', '.')) || 0) > 0).map((item: any) => {
-                const prod = products.find(p => p.ID_Producto === item.id_prod);
+                let prod = products.find(p => String(p.ID_Producto) === String(item.id_prod));
+                if (!prod && item.nombre) {
+                    prod = products.find(p => String(p.Nombre || '').trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
+                }
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
                 const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
                 const parsedUb = parseFloat(String(rawUb).replace(',', '.'));
@@ -543,7 +549,10 @@ export default function LogisticaPage() {
                 if (parsedQty <= 0) return;
 
                 const id = item.id_prod || item.id_producto || item.id || item.nombre;
-                const prod = products.find(p => String(p.ID_Producto) === String(id));
+                let prod = products.find(p => String(p.ID_Producto) === String(id));
+                if (!prod && item.nombre) {
+                    prod = products.find(p => String(p.Nombre || '').trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
+                }
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
                 const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
 
@@ -1417,7 +1426,12 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
         localOrders.forEach((order: any) => {
             (order.items || []).forEach((item: any, idx: number) => {
                 const key = item.id_prod || item.id_producto || item.id || item.nombre;
-                const product = products.find((p: any) => String(p.ID_Producto) === String(key));
+                // Intento buscar por ID, y si falla busco por nombre (para pedidos importados con IDs viejos)
+                let product = products.find((p: any) => String(p.ID_Producto) === String(key));
+                if (!product && item.nombre) {
+                    product = products.find((p: any) => String(p.Nombre).trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
+                }
+
                 const isKg = (product?.Unidad || '').toLowerCase() === 'kg';
                 const baseUnit = String(product?.Unidad || 'UNID').toUpperCase();
                 const rawUb = product?.UB ?? product?.Unidades_Bulto;
@@ -1544,6 +1558,57 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
 
             const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(String(i.subtotal).replace(',', '.')) || 0), 0);
             const globalDiscPercent = parseFloat(String(order.descuento_general || 0).replace(',', '.')) || 0;
+            return { ...order, items: newItems, total: newTotal * (1 - globalDiscPercent / 100), _editado: true };
+        }));
+    };
+
+    const handleToggleFormatoItem = (orderId: string, itemIdx: number) => {
+        setLocalOrders((prev: any) => prev.map((order: any) => {
+            if (order.id !== orderId) return order;
+            const newItems = order.items.map((it: any, idx: number) => {
+                if (idx !== itemIdx) return it;
+
+                const pid = it.id_prod || it.id_producto || it.id;
+                let product = products.find((p: any) => String(p.ID_Producto) === String(pid));
+                if (!product && it.nombre) {
+                    product = products.find((p: any) => String(p.Nombre || '').trim().toLowerCase() === String(it.nombre).trim().toLowerCase());
+                }
+                if (!product) return it;
+
+                const rawUb = product.UB || product.Unidades_Bulto || "1";
+                const ub = parseFloat(String(rawUb).replace(',', '.')) || 1;
+                const isKg = (product.Unidad || '').toLowerCase() === 'kg';
+                if (isKg) return it;
+
+                const isDetalleBulto = String(it.detalle || it.nombre || '').toUpperCase().includes('BULTO');
+                const formatVal = String(it._formato || it.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+                const isBulto = formatVal === 'BULTO';
+
+                const currentPrice = parseFloat(String(it.precio).replace(',', '.')) || 0;
+                const currentQty = parseFloat(String(it.cantidad).replace(',', '.')) || 0;
+
+                let nextItem = { ...it };
+                if (isBulto) {
+                    nextItem._formato = 'UNID';
+                    nextItem.precio = currentPrice / ub;
+                    nextItem.cantidad = currentQty * ub;
+                } else {
+                    nextItem._formato = 'BULTO';
+                    nextItem.precio = currentPrice * ub;
+                    nextItem.cantidad = currentQty / ub;
+                }
+
+                // Recalcular subtotal del item
+                const nextCant = parseFloat(String(nextItem.cantidad)) || 0;
+                const nextPrice = parseFloat(String(nextItem.precio)) || 0;
+                const descPercent = parseFloat(String(nextItem.descuento || 0)) || 0;
+                nextItem.subtotal = (nextCant * nextPrice) * (1 - descPercent / 100);
+
+                return nextItem;
+            });
+
+            const newTotal = newItems.reduce((acc: number, i: any) => acc + (parseFloat(String(i.subtotal)) || 0), 0);
+            const globalDiscPercent = parseFloat(String(order.descuento_general || 0)) || 0;
             return { ...order, items: newItems, total: newTotal * (1 - globalDiscPercent / 100), _editado: true };
         }));
     };
@@ -1730,7 +1795,13 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                                                                 })}
                                                                                 className="w-12 text-center font-black text-xs bg-transparent outline-none"
                                                                             />
-                                                                            <span className="text-[9px] font-black text-slate-400 ml-1">{(String(delivery.formato || '').toUpperCase() === 'BULTO' && delivery.ub > 1) ? 'BUL' : (delivery.isKg ? 'KG' : delivery.baseUnit)}</span>
+                                                                            <button
+                                                                                onClick={() => handleToggleFormatoItem(delivery.orderId, delivery.itemIdx)}
+                                                                                className={`px-1 rounded text-[8px] font-black uppercase transition-all ${String(item?.formato || item?._formato || '').toUpperCase() === 'BULTO' ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-500'}`}
+                                                                                title="Cambiar entre Bulto y Unidad"
+                                                                            >
+                                                                                {(String(item?.formato || item?._formato || '').toUpperCase() === 'BULTO' && delivery.ub > 1) ? 'BUL' : (delivery.isKg ? 'KG' : delivery.baseUnit)}
+                                                                            </button>
                                                                         </div>
 
                                                                     </div>
@@ -2409,7 +2480,10 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
     const handleToggleFormato = (idx: number) => {
         const next = { ...localOrder };
         const item = next.items[idx];
-        const product = products.find((p: any) => p.ID_Producto === item.id_prod);
+        let product = products.find((p: any) => String(p.ID_Producto) === String(item.id_prod));
+        if (!product && item.nombre) {
+            product = products.find((p: any) => String(p.Nombre || '').trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
+        }
         if (!product) return;
 
         const rawUb = product.UB || product.Unidades_Bulto || "1";
@@ -2614,7 +2688,10 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                         </div>
                         <div className="space-y-3">
                             {localOrder.items?.map((item: any, idx: number) => {
-                                const p = products.find((prod: any) => prod.ID_Producto === item.id_prod);
+                                let p = products.find((prod: any) => String(prod.ID_Producto) === String(item.id_prod));
+                                if (!p && item.nombre) {
+                                    p = products.find((prod: any) => String(prod.Nombre || '').trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
+                                }
                                 const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
                                 const baseUnit = String(p?.Unidad || 'UNID').toUpperCase();
                                 const rawUb = p?.UB ?? p?.Unidades_Bulto;

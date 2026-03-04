@@ -175,13 +175,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="mt-auto pt-6 border-t border-[var(--border)]">
-            <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 mb-4 transition-all hover:bg-indigo-500/10 group cursor-pointer" onClick={() => window.open('/tienda', '_blank')}>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-[10px] font-bold text-indigo-500 uppercase">Vista de Tienda</p>
-                <Store size={10} className="text-indigo-500" />
-              </div>
-              <p className="text-[9px] text-slate-500 leading-relaxed">Acceder a la Tienda Online como Administrador.</p>
-            </div>
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-indigo-500 uppercase">
