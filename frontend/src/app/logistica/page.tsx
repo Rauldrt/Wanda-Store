@@ -240,6 +240,40 @@ export default function LogisticaPage() {
     };
 
 
+    const handleUpdatePendingOrder = async (updated: any) => {
+        try {
+            setIsSyncing(true);
+            // Normalización de BULTO a UNID para consistencia en la DB
+            const normalizedOrder = {
+                ...updated,
+                items: updated.items.map((it: any) => {
+                    if (it._formato === 'BULTO') {
+                        const product = products.find((p: any) => String(p.ID_Producto) === String(it.id_prod));
+                        const rawUb = product?.UB || product?.Unidades_Bulto || "1";
+                        const ub = parseFloat(String(rawUb).replace(',', '.'));
+                        return {
+                            ...it,
+                            cantidad: (parseFloat(it.cantidad) || 0) * ub,
+                            precio: (parseFloat(it.precio) || 0) / ub,
+                            _formato: 'UNID'
+                        };
+                    }
+                    return it;
+                })
+            };
+            await wandaApi.saveOrderCorrection(normalizedOrder);
+            await refreshData(true);
+            setViewingDetailId(null);
+            alert("Pedido actualizado correctamente.");
+        } catch (err) {
+            console.error(err);
+            alert("Error al actualizar el pedido.");
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+
     const printOrders = (orderList: any[]) => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
@@ -1255,6 +1289,7 @@ export default function LogisticaPage() {
                             config={data?.config}
                             onClose={() => setViewingDetailId(null)}
                             onPrint={() => printOrders([orders.find((o: any) => o.id === viewingDetailId)])}
+                            onUpdateOrder={handleUpdatePendingOrder}
                             onNavigatePrev={hasPrev ? () => setViewingDetailId(filteredPendingOrders[currentIndex - 1].id) : undefined}
                             onNavigateNext={hasNext ? () => setViewingDetailId(filteredPendingOrders[currentIndex + 1].id) : undefined}
                         />
@@ -2850,7 +2885,7 @@ function OrderCard({ order, isSelected, onSelect, onViewDetail, onPrint }: any) 
                             onViewDetail();
                         }}
                     >
-                        Ver detalle <ChevronRight size={12} />
+                        Ver / Editar <ChevronRight size={12} />
                     </span>
                 </div>
             </div>
