@@ -374,13 +374,22 @@ export default function LogisticaPage() {
                 const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
                 const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
                 const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
-                const displayFormat = formatVal || (isKg ? 'KG' : baseUnit);
+                let displayFormat = formatVal || (isKg ? 'KG' : baseUnit);
 
-                if (item.detalle && String(item.detalle).trim() !== '') {
-                    displayQty = String(item.detalle);
-                } else if (displayFormat === 'BULTO' && ub > 1) {
+                // Enhance format string if it matches generic units
+                if (displayFormat === 'UNID') {
+                    displayFormat = qty === 1 ? 'Unidad' : 'Unidades';
+                }
+
+                const detalleStr = String(item.detalle || '').trim();
+                // Check if the original detailing string still matches the current quantity
+                const detalleHasCurrentQty = detalleStr.startsWith(String(qty)) || detalleStr.startsWith(String(Math.round(qty)));
+
+                if (detalleStr !== '' && detalleHasCurrentQty) {
+                    displayQty = detalleStr;
+                } else if (formatVal === 'BULTO' && ub > 1) {
                     displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
-                } else if (displayFormat === 'BULTO') {
+                } else if (formatVal === 'BULTO') {
                     displayQty = `${qty} BUL`;
                 } else {
                     displayQty = `${qty} ${displayFormat}`;
@@ -1691,7 +1700,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <button
-                                                onClick={() => onPrintOrder(order.id)}
+                                                onClick={() => onPrintRemitos([order])}
                                                 className="p-3 bg-slate-100 dark:bg-slate-700/50 rounded-xl text-slate-500 hover:bg-slate-200 hover:text-indigo-600 transition-all"
                                                 title="Imprimir Remito Individual"
                                             >
@@ -1724,8 +1733,8 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                 setOrderDetailId(null);
                             }}
                             onPrint={() => {
-                                const order = localOrders.find((o: any) => o.id === orderDetailId);
-                                if (order) onPrintOrder(order.id);
+                                const orderToPrintParams = localOrders.find((o: any) => o.id === orderDetailId);
+                                if (orderToPrintParams) onPrintRemitos([orderToPrintParams]);
                             }}
                         />
                     )}
