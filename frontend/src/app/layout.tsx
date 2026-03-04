@@ -130,33 +130,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AnimatePresence>
-        {isSyncing && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000] flex items-center justify-center p-6"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 10 }}
-              animate={{ scale: 1, y: 0 }}
-              className="bg-white dark:bg-slate-900 px-8 py-6 rounded-[32px] shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center gap-4 max-w-xs w-full text-center"
-            >
-              <div className="relative">
-                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Save size={14} className="text-indigo-500/50" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-1">Wanda Cloud</h3>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Grabando datos en la base...</p>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0 }}
