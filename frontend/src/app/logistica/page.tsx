@@ -2288,14 +2288,20 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
         const product = products.find((p: any) => p.ID_Producto === item.id_prod);
         if (!product) return;
 
-        const ub = parseFloat(product.UB || product.Unidades_Bulto || 1);
-        const precioBase = parseFloat(product.Precio_Unitario || 0);
+        const rawUb = product.UB || product.Unidades_Bulto || "1";
+        const ub = parseFloat(String(rawUb).replace(',', '.'));
+
+        const isKg = (product.Unidad || '').toLowerCase() === 'kg';
+        const weightAvg = parseFloat(String(product.Peso || product.Peso_Promedio || "1").replace(',', '.'));
+        const unitPrice = parseFloat(String(product.Precio_Unitario || "0").replace(',', '.'));
+        const precioBase = unitPrice * (isKg ? weightAvg : 1);
+
         const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
         const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
         const iB = formatVal === 'BULTO';
 
         if (iB) {
-            next.items[idx] = { ...item, _formato: 'UNID', precio: precioBase, cantidad: (parseFloat(item.cantidad) || 0) * ub };
+            next.items[idx] = { ...item, _formato: isKg ? 'KG' : 'UNID', precio: precioBase, cantidad: (parseFloat(item.cantidad) || 0) * ub };
         } else {
             next.items[idx] = { ...item, _formato: 'BULTO', precio: precioBase * ub, cantidad: (parseFloat(item.cantidad) || 0) / ub };
         }
@@ -2618,16 +2624,19 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                                         const exists = localOrder.items.find((item: any) => String(item.id_prod) === String(p.ID_Producto));
                                                         if (!exists) {
                                                             const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
-                                                            const weightAvg = parseFloat(p.Peso || p.Peso_Promedio || 1);
+                                                            const weightAvg = parseFloat(String(p.Peso || p.Peso_Promedio || "1").replace(',', '.'));
+                                                            const unitPrice = parseFloat(String(p.Precio_Unitario || "0").replace(',', '.'));
+                                                            const finalPrice = unitPrice * (isKg ? weightAvg : 1);
+
                                                             const newItem = {
                                                                 id: p.ID_Producto,
                                                                 id_prod: p.ID_Producto,
                                                                 nombre: p.Nombre,
                                                                 cantidad: 1,
                                                                 _formato: isKg ? 'KG' : 'UNID',
-                                                                precio: parseFloat(p.Precio_Unitario || 0) * (isKg ? weightAvg : 1),
+                                                                precio: finalPrice,
                                                                 descuento: 0,
-                                                                subtotal: parseFloat(p.Precio_Unitario || 0) * (isKg ? weightAvg : 1),
+                                                                subtotal: finalPrice,
                                                                 _pesableTratado: isKg
                                                             };
                                                             const next = { ...localOrder, items: [...localOrder.items, newItem] };
@@ -2640,7 +2649,7 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                                     }}
                                                 >
                                                     <span className="truncate pr-2 mb-1 md:mb-0">{p.Nombre}</span>
-                                                    <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 px-2 py-0.5 rounded-full shrink-0 self-start md:self-auto">${parseFloat(p.Precio_Unitario || 0).toLocaleString()}</span>
+                                                    <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 px-2 py-0.5 rounded-full shrink-0 self-start md:self-auto">${parseFloat(String(p.Precio_Unitario || "0").replace(',', '.')).toLocaleString()}</span>
                                                 </div>
                                             ))}
                                         </div>
