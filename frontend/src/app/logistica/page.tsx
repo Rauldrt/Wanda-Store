@@ -375,7 +375,9 @@ export default function LogisticaPage() {
                 const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
                 const displayFormat = formatVal || (isKg ? 'KG' : baseUnit);
 
-                if (displayFormat === 'BULTO' && ub > 1) {
+                if (item.detalle && String(item.detalle).trim() !== '') {
+                    displayQty = String(item.detalle);
+                } else if (displayFormat === 'BULTO' && ub > 1) {
                     displayQty = `${qty} BUL <span style="font-size:8px; color:#555;">(x${ub})</span>`;
                 } else if (displayFormat === 'BULTO') {
                     displayQty = `${qty} BUL`;
