@@ -359,7 +359,7 @@ export default function LogisticaPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                ${order.items?.map((item: any) => {
+                                                ${order.items?.filter((item: any) => (parseFloat(item.cantidad) || 0) > 0).map((item: any) => {
                 const prod = products.find(p => p.ID_Producto === item.id_prod);
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
                 const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
@@ -444,6 +444,8 @@ export default function LogisticaPage() {
         const aggregates: Record<string, any> = {};
         orderList.forEach(order => {
             order.items?.forEach((item: any) => {
+                if ((parseFloat(item.cantidad) || 0) <= 0) return;
+
                 const prod = products.find(p => p.ID_Producto === item.id_prod);
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
                 const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
