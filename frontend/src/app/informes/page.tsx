@@ -109,7 +109,7 @@ export default function InformesPage() {
         });
 
         const grossProfit = totalRevenue - totalCost;
-        const profitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+        const profitMargin = totalCost > 0 ? (grossProfit / totalCost) * 100 : 0;
 
         // Top 5 Productos
         const topProducts = Object.values(productSales)
@@ -159,10 +159,10 @@ export default function InformesPage() {
 
     const handleExportCMV = (e: React.MouseEvent) => {
         e.preventDefault();
-        const headers = ["Producto", "Cantidad", "Costo Unitario", "Costo Total", "Ingreso Total", "Ganancia Bruta", "Margen (%)"];
+        const headers = ["Producto", "Cantidad", "Costo Unitario", "Costo Total", "Ingreso Total", "Ganancia Bruta", "Recargo (%)"];
         const rows = stats.allProductSales.map((p: any) => {
             const profit = p.revenue - p.totalCost;
-            const margin = p.revenue > 0 ? (profit / p.revenue) * 100 : 0;
+            const margin = p.totalCost > 0 ? (profit / p.totalCost) * 100 : 0;
             return [
                 `"${p.name}"`,
                 p.qty,
@@ -261,9 +261,9 @@ export default function InformesPage() {
                     color="emerald"
                 />
                 <MetricCard
-                    title="Margen de Ganancia"
+                    title="Recargo Promedio"
                     value={`${stats.profitMargin.toFixed(1)}%`}
-                    subvalue="Utilidad sobre venta"
+                    subvalue="Ganancia sobre costo"
                     icon={<PieChart size={20} />}
                     color={stats.profitMargin > 20 ? 'emerald' : 'amber'}
                 />
