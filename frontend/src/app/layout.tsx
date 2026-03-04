@@ -18,7 +18,8 @@ import {
   BarChart3,
   Map,
   Save,
-  Layout
+  Layout,
+  DatabaseBackup
 } from "lucide-react";
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -100,6 +101,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
     { href: "/informes", icon: <BarChart3 size={18} />, label: "Informes" },
     { href: "/landing", icon: <Layout size={18} />, label: "Presentación" },
+    { href: "/migracion", icon: <DatabaseBackup size={18} />, label: "Migración" },
     { href: "/settings", icon: <Settings size={18} />, label: "Ajustes" },
   ];
 
@@ -121,7 +123,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   // RENDERIZADO ESPECIAL PARA PAGINAS SIN SIDEBAR (Login, Preventa, Tienda, Landing)
-  const isMinimalLayout = pathname === '/login' || pathname === '/preventa' || pathname === '/tienda' || pathname === '/landing' || pathname === '/migracion';
+  const isMinimalLayout = pathname === '/login' || pathname === '/preventa' || pathname === '/tienda' || pathname === '/landing';
 
   if (isMinimalLayout) {
     return <main className="flex-1 w-full h-full min-h-screen">{children}</main>;
