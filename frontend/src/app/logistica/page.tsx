@@ -1613,6 +1613,156 @@ function AssignRouteModal({ recentRoutes, onClose, onSubmit, initialValue }: {
     );
 }
 
+
+function ProductReplaceModal({ products, onClose, onSelect, currentProductName, initialQty }: {
+    products: any[];
+    onClose: () => void;
+    onSelect: (p: any, qty: number) => void;
+    currentProductName: string;
+    initialQty: number;
+}) {
+    const [searchTerm, setSearchTerm] = useState("");
+    const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+    const [qty, setQty] = useState(initialQty);
+
+    const filtered = useMemo(() => {
+        if (searchTerm.length < 2) return [];
+        return products.filter(p =>
+            smartSearch(p.Nombre || "", searchTerm) ||
+            smartSearch(String(p.ID_Producto || ""), searchTerm)
+        ).slice(0, 10);
+    }, [products, searchTerm]);
+
+    return (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden shadow-indigo-500/10 border border-[var(--border)]"
+            >
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center">
+                                <RotateCcw size={20} />
+                            </div>
+                            <div>
+                                <h4 className="font-black text-lg">{selectedProduct ? 'Ajustar Cantidad' : 'Reemplazar Producto'}</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">Original: {currentProductName}</p>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {!selectedProduct ? (
+                        <>
+                            <div className="relative mb-6">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Buscar producto por nombre o ID..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-[var(--border)] rounded-2xl py-3 pl-12 pr-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                {searchTerm.length < 2 ? (
+                                    <div className="p-12 text-center">
+                                        <Package className="mx-auto text-slate-200 mb-2" size={40} />
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Escribe al menos 2 letras...</p>
+                                    </div>
+                                ) : filtered.length === 0 ? (
+                                    <div className="p-12 text-center">
+                                        <AlertCircle className="mx-auto text-rose-200 mb-2" size={40} />
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No se encontraron productos</p>
+                                    </div>
+                                ) : (
+                                    filtered.map((p) => (
+                                        <button
+                                            key={p.ID_Producto}
+                                            onClick={() => setSelectedProduct(p)}
+                                            className="w-full p-4 flex justify-between items-center bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl hover:border-indigo-500 hover:ring-2 hover:ring-indigo-500/10 transition-all text-left group"
+                                        >
+                                            <div>
+                                                <p className="font-bold text-sm text-slate-800 dark:text-slate-100 group-hover:text-indigo-500 transition-colors">{p.Nombre}</p>
+                                                <div className="flex gap-3 items-center mt-1">
+                                                    <span className="text-[10px] text-slate-400 font-mono tracking-tighter">ID: {p.ID_Producto}</span>
+                                                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">${parseFloat(String(p.Precio_Unitario || "0").replace(',', '.')).toLocaleString()}</span>
+                                                </div>
+                                            </div>
+                                            <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-500 transform group-hover:translate-x-1 transition-all" />
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border border-indigo-100 dark:border-indigo-500/20">
+                                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Nuevo Producto Seleccionado</p>
+                                <p className="font-bold text-slate-800 dark:text-slate-100">{selectedProduct.Nombre}</p>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-4">
+                                <label className="text-xs font-black uppercase text-slate-400 tracking-widest">Cantidad a entregar</label>
+                                <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800 p-2 rounded-3xl border border-[var(--border)] shadow-inner">
+                                    <button
+                                        onClick={() => setQty(q => Math.max(0, q - 1))}
+                                        className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center text-slate-600 hover:text-indigo-500 active:scale-95 transition-all text-xl font-black"
+                                    >
+                                        -
+                                    </button>
+                                    <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={qty}
+                                        onChange={(e) => setQty(parseFloat(e.target.value.replace(',', '.')) || 0)}
+                                        className="w-24 text-center bg-transparent text-2xl font-black outline-none"
+                                    />
+                                    <button
+                                        onClick={() => setQty(q => q + 1)}
+                                        className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center text-slate-600 hover:text-indigo-500 active:scale-95 transition-all text-xl font-black"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => setSelectedProduct(null)}
+                                    className="flex-1 py-4 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 rounded-2xl transition-all"
+                                >
+                                    Volver a Buscar
+                                </button>
+                                <button
+                                    onClick={() => onSelect(selectedProduct, qty)}
+                                    className="flex-[2] py-4 bg-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-600 shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+                                >
+                                    Confirmar Reemplazo
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        </div>
+    );
+}
+
 function RouteManagerModal({ routeName, orders, clients, products, config, onClose, onRefresh, onPrintOrder, onPrintRemitos, onPrintPickingList, onPrintRouteSheet }: {
     routeName: string;
     orders: any[];
@@ -1644,6 +1794,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
     const [searchTerm, setSearchTerm] = useState("");
     const [viewMode, setViewMode] = useState<"consolidated" | "orders">("orders");
     const [consolidationFilter, setConsolidationFilter] = useState<'all' | 'pesables' | 'no-pesables'>('all');
+    const [replacingItem, setReplacingItem] = useState<{ orderId: string, itemIdx: number, currentName: string, currentQty: number } | null>(null);
 
     const consolidated = useMemo(() => {
         const map: Record<string, any> = {};
@@ -1841,6 +1992,34 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
             const globalDiscPercent = parseFloat(String(order.descuento_general || 0)) || 0;
             return { ...order, items: newItems, total: newTotal * (1 - globalDiscPercent / 100), _editado: true };
         }));
+    };
+
+
+    const handleReplaceProductItem = (orderId: string, itemIdx: number, newProduct: any, newQty: number) => {
+        const newPrice = parseFloat(String(newProduct.Precio_Unitario || "0").replace(',', '.')) || 0;
+        const rawUb = newProduct.UB || newProduct.Unidades_Bulto || "1";
+        const newUb = parseFloat(String(rawUb).replace(',', '.')) || 1;
+
+        const order = localOrders.find((o: any) => o.id === orderId);
+        const item = order?.items[itemIdx];
+        if (!item) return;
+
+        const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
+        const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+        const isBulto = formatVal === 'BULTO';
+
+        const finalPrice = isBulto && newUb > 1 ? newPrice * newUb : newPrice;
+
+        handleUpdateItem(orderId, itemIdx, {
+            id_prod: newProduct.ID_Producto,
+            id_producto: newProduct.ID_Producto,
+            nombre: newProduct.Nombre,
+            precio: finalPrice,
+            cantidad: newQty,
+            _formato: isBulto ? 'BULTO' : 'UNID'
+        });
+
+        setReplacingItem(null);
     };
 
 
@@ -2081,12 +2260,17 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                                                     <button
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            onPrintOrder(delivery.orderId);
+                                                                            setReplacingItem({
+                                                                                orderId: delivery.orderId,
+                                                                                itemIdx: delivery.itemIdx,
+                                                                                currentName: item?.nombre || prod.nombre,
+                                                                                currentQty: parseFloat(item?.cantidad) || 0
+                                                                            });
                                                                         }}
-                                                                        className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:bg-slate-200 transition-all"
-                                                                        title="Imprimir Remito"
+                                                                        className="p-2 bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white rounded-xl transition-all"
+                                                                        title="Reemplazar Producto"
                                                                     >
-                                                                        <Printer size={14} />
+                                                                        <RotateCcw size={14} />
                                                                     </button>
                                                                     <button
                                                                         onClick={(e) => {
@@ -2182,6 +2366,18 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                     })()}
                 </AnimatePresence>
 
+                <AnimatePresence>
+                    {replacingItem && (
+                        <ProductReplaceModal
+                            products={products}
+                            onClose={() => setReplacingItem(null)}
+                            onSelect={(newProduct, newQty) => handleReplaceProductItem(replacingItem.orderId, replacingItem.itemIdx, newProduct, newQty)}
+                            currentProductName={replacingItem.currentName}
+                            initialQty={replacingItem.currentQty}
+                        />
+                    )}
+                </AnimatePresence>
+
                 <div className="p-6 border-t border-[var(--border)] flex justify-between items-center bg-slate-50 dark:bg-slate-800/30">
                     <button onClick={() => onRefresh()} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold transition-colors">
                         <RotateCcw size={14} /> Deshacer cambios
@@ -2222,9 +2418,11 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     // --- NUEVO: ESTADO PARA MÉTODO ALTERNATIVO ---
     const [settlementMethod, setSettlementMethod] = useState<'standard' | 'alternative'>('standard');
     const [devoluciones, setDevoluciones] = useState<{ id_prod: string, nombre: string, qty: number, precio: number, subtotal: number }[]>([]);
-    const [returnSearch, setReturnSearch] = useState("");
     const [showReturnDropdown, setShowReturnDropdown] = useState(false);
+    const [returnSearch, setReturnSearch] = useState("");
     const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'none'>('none');
+    const [showBillBreakdown, setShowBillBreakdown] = useState(false);
+    const [billetes, setBilletes] = useState<Record<number, number>>({});
 
     // --- PERSISTENCIA: Cargar borrador ---
     useEffect(() => {
@@ -2238,6 +2436,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 if (data.chofer) setChofer(data.chofer);
                 if (data.settlementMethod) setSettlementMethod(data.settlementMethod);
                 if (data.devoluciones) setDevoluciones(data.devoluciones);
+                if (data.billetes) setBilletes(data.billetes);
                 setDraftStatus('saved');
             } catch (e) {
                 console.error("Error al cargar borrador", e);
@@ -2249,12 +2448,12 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     useEffect(() => {
         setDraftStatus('saving');
         const timeout = setTimeout(() => {
-            const data = { localOrders, pagos, gastos, chofer, settlementMethod, devoluciones };
+            const data = { localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes };
             localStorage.setItem(`wanda_settlement_${routeName}`, JSON.stringify(data));
             setDraftStatus('saved');
         }, 800);
         return () => clearTimeout(timeout);
-    }, [localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, routeName]);
+    }, [localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes, routeName]);
 
     const clearDraft = () => {
         localStorage.removeItem(`wanda_settlement_${routeName}`);
@@ -2331,7 +2530,8 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                     transferencia: localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0)
                 } : pagos,
                 gastos,
-                notas: `Liquidación de ruta ${routeName}${settlementMethod === 'alternative' ? ' (Método Alternativo)' : ''}`
+                notas: `Liquidación de ruta ${routeName}${settlementMethod === 'alternative' ? ' (Método Alternativo)' : ''}`,
+                desglose_billetes: billetes // Agregamos el desglose al payload
             };
 
             const res = await wandaApi.liquidarRuta(payload);
@@ -2771,10 +2971,17 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                     type="number"
                                                     value={pagos.efectivo || ''}
                                                     onChange={e => setPagos({ ...pagos, efectivo: parseFloat(e.target.value) || 0 })}
-                                                    className="w-full bg-transparent border-none p-0 focus:ring-0 text-xl font-black text-slate-800 dark:text-slate-100"
-                                                    placeholder="0.00"
                                                 />
                                             </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowBillBreakdown(true)}
+                                                className={`p-2.5 rounded-xl transition-all shadow-sm flex items-center gap-2 ${Object.keys(billetes).length > 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white'}`}
+                                                title="Desglose de Billetes"
+                                            >
+                                                <List size={18} />
+                                                {Object.keys(billetes).length > 0 && <span className="text-[10px] font-black">{Object.values(billetes).reduce((a, b) => a + (b as number), 0)}</span>}
+                                            </button>
                                         </div>
                                         <div className="h-px bg-slate-100 dark:bg-slate-800 mx-2" />
                                         <div className="flex items-center gap-3">
@@ -2809,9 +3016,45 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                         <span>Total Pagos Recibidos</span>
                                         <span>${totalPagosPedidos.toLocaleString()}</span>
                                     </div>
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-rose-500 uppercase px-1">
+                                        <span>Menos Gastos</span>
+                                        <span className="font-black">-${totalGastos.toLocaleString()}</span>
+                                    </div>
+                                    {Object.keys(billetes).length > 0 && (
+                                        <div className="p-2 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+                                            <p className="text-[8px] font-black text-emerald-600 uppercase mb-1">Desglose Guardado ({Object.values(billetes).reduce((a, b) => a + (b as number), 0)} billetes)</p>
+                                            <div className="flex flex-wrap gap-1">
+                                                {Object.entries(billetes).map(([den, qty]) => (qty as number) > 0 && (
+                                                    <span key={den} className="text-[8px] font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-100">${den} x{qty}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => setShowBillBreakdown(true)}
+                                        className="w-full mt-2 py-2 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <List size={14} /> {Object.keys(billetes).length > 0 ? 'Editar Desglose' : 'Desglosar Billetes'}
+                                    </button>
                                 </div>
                             )}
                         </div>
+
+                        <AnimatePresence>
+                            {showBillBreakdown && (
+                                <BillBreakdownModal
+                                    billetes={billetes}
+                                    onChange={(newBilletes: any) => {
+                                        setBilletes(newBilletes);
+                                        const sum = Object.entries(newBilletes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0);
+                                        if (settlementMethod === 'standard') {
+                                            setPagos(prev => ({ ...prev, efectivo: sum }));
+                                        }
+                                    }}
+                                    onClose={() => setShowBillBreakdown(false)}
+                                />
+                            )}
+                        </AnimatePresence>
 
                         <div>
                             <div className="flex justify-between items-center mb-4">
@@ -2937,8 +3180,89 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                         />
                     )}
                 </AnimatePresence>
+
+
             </motion.div>
-        </motion.div>
+        </motion.div >
+    );
+}
+
+function BillBreakdownModal({ billetes, onChange, onClose }: any) {
+    const denominations = [20000, 10000, 2000, 1000, 500, 200, 100, 50, 20, 10];
+    const total = Object.entries(billetes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0);
+
+    const handleQtyChange = (den: number, val: string) => {
+        const n = parseInt(val) || 0;
+        onChange({ ...billetes, [den]: n });
+    };
+
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[40px] shadow-3xl overflow-hidden border border-white/20"
+            >
+                <div className="p-8">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h4 className="font-black text-xl">Desglose de Billetes</h4>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Calculadora de efectivo</p>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={20} /></button>
+                    </div>
+
+                    <div className="space-y-3 mb-8 max-h-[400px] overflow-auto pr-2 custom-scrollbar">
+                        {denominations.map(den => (
+                            <div key={den} className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 group hover:border-indigo-500 transition-all">
+                                <div className="w-16 text-right">
+                                    <span className="text-xs font-black text-slate-400">$</span>
+                                    <span className="text-lg font-black text-slate-800 dark:text-slate-100 ml-1">{den.toLocaleString()}</span>
+                                </div>
+                                <div className="flex-1">
+                                    <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        placeholder="Cant."
+                                        value={billetes[den] || ''}
+                                        onChange={(e) => handleQtyChange(den, e.target.value)}
+                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-center text-sm font-black focus:ring-2 focus:ring-indigo-500 outline-none group-hover:shadow-lg transition-all"
+                                    />
+                                </div>
+                                <div className="w-24 text-right">
+                                    <p className="text-[8px] font-black uppercase text-slate-400">Subtotal</p>
+                                    <p className="text-xs font-black text-indigo-500">${((billetes[den] || 0) * den).toLocaleString()}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="p-6 bg-indigo-500 rounded-3xl text-white shadow-xl shadow-indigo-500/20">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Total Efectivo</span>
+                            <span className="text-2xl font-black">${total.toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={onClose}
+                        className="w-full mt-6 py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                    >
+                        Listo, Aplicar Total
+                    </button>
+                    <button
+                        onClick={() => onChange({})}
+                        className="w-full mt-2 py-2 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-rose-500 transition-all"
+                    >
+                        Limpiar Todo
+                    </button>
+                </div>
+            </motion.div>
+        </div>
     );
 }
 
@@ -2994,7 +3318,6 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
                             </div>
                         );
                     })}
-
                 </div>
                 <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center border-t border-[var(--border)]">
                     <div>
