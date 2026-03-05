@@ -178,11 +178,20 @@ export default function LogisticaPage() {
     const groupedPendingOrders = useMemo(() => {
         const groups: Record<string, Record<string, any[]>> = {};
         filteredPendingOrders.forEach(o => {
-            const date = o.fecha || 'Sin Fecha';
             const seller = o.vendedor || 'Sin Vendedor';
-            if (!groups[date]) groups[date] = {};
-            if (!groups[date][seller]) groups[date][seller] = [];
-            groups[date][seller].push(o);
+            let date = 'Sin Fecha';
+            if (o.fecha) {
+                try {
+                    // Si viene como ISO "2023-10-27T15:30:00Z" o simple "2023-10-27 15:30:00"
+                    // Nos quedamos con la parte anterior al espacio o T
+                    date = o.fecha.split('T')[0].split(' ')[0];
+                } catch (e) {
+                    date = o.fecha;
+                }
+            }
+            if (!groups[seller]) groups[seller] = {};
+            if (!groups[seller][date]) groups[seller][date] = [];
+            groups[seller][date].push(o);
         });
         return groups;
     }, [filteredPendingOrders]);
@@ -1045,37 +1054,37 @@ export default function LogisticaPage() {
                                 </div>
                             ) : (
                                 <div className="space-y-6">
-                                    {Object.keys(groupedPendingOrders).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()).map(date => {
-                                        const dateKey = `date_${date}`;
-                                        const isDateExpanded = expandedGroups.has(dateKey);
-                                        const sellersInDate = Object.keys(groupedPendingOrders[date]).sort();
-                                        const totalOrdersInDate = sellersInDate.reduce((acc, s) => acc + groupedPendingOrders[date][s].length, 0);
+                                    {Object.keys(groupedPendingOrders).sort().map(seller => {
+                                        const sellerKey = `seller_${seller}`;
+                                        const isSellerExpanded = expandedGroups.has(sellerKey);
+                                        const datesInSeller = Object.keys(groupedPendingOrders[seller]).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+                                        const totalOrdersInSeller = datesInSeller.reduce((acc, d) => acc + groupedPendingOrders[seller][d].length, 0);
 
                                         return (
-                                            <div key={date} className="space-y-4">
+                                            <div key={seller} className="space-y-4">
                                                 <div
-                                                    onClick={() => toggleGroup(dateKey)}
+                                                    onClick={() => toggleGroup(sellerKey)}
                                                     className="flex items-center justify-between group cursor-pointer bg-slate-100 dark:bg-slate-800/50 p-3 rounded-2xl border border-[var(--border)] sticky top-0 z-10 backdrop-blur-md"
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                                                            <Calendar size={14} />
+                                                            <User size={14} />
                                                         </div>
                                                         <div>
-                                                            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">{date}</h4>
-                                                            <p className="text-[9px] font-bold text-slate-500 uppercase">{totalOrdersInDate} pedidos en total</p>
+                                                            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">{seller}</h4>
+                                                            <p className="text-[9px] font-bold text-slate-500 uppercase">{totalOrdersInSeller} pedidos en total</p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-4">
                                                         <div className="hidden sm:flex gap-2">
-                                                            <span className="text-[10px] font-black bg-white dark:bg-slate-900 px-3 py-1 rounded-full border border-[var(--border)]">{sellersInDate.length} vendedores</span>
+                                                            <span className="text-[10px] font-black bg-white dark:bg-slate-900 px-3 py-1 rounded-full border border-[var(--border)]">{datesInSeller.length} días de actividad</span>
                                                         </div>
-                                                        {isDateExpanded ? <ChevronUp size={16} className="text-indigo-500" /> : <ChevronDown size={16} className="text-slate-400" />}
+                                                        {isSellerExpanded ? <ChevronUp size={16} className="text-indigo-500" /> : <ChevronDown size={16} className="text-slate-400" />}
                                                     </div>
                                                 </div>
 
                                                 <AnimatePresence>
-                                                    {isDateExpanded && (
+                                                    {isSellerExpanded && (
                                                         <motion.div
                                                             initial={{ opacity: 0, height: 0 }}
                                                             animate={{ opacity: 1, height: 'auto' }}
@@ -1083,25 +1092,25 @@ export default function LogisticaPage() {
                                                             className="overflow-hidden"
                                                         >
                                                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6 p-1">
-                                                                {sellersInDate.map(seller => {
-                                                                    const groupOrders = groupedPendingOrders[date][seller];
+                                                                {datesInSeller.map(date => {
+                                                                    const groupOrders = groupedPendingOrders[seller][date];
                                                                     const totalGroup = groupOrders.reduce((acc, o) => acc + parseFloat(o.total), 0);
                                                                     const allGroupSelected = groupOrders.every(o => selectedOrders.has(o.id));
-                                                                    const sellerKey = `seller_${date}_${seller}`;
-                                                                    const isSellerExpanded = expandedGroups.has(sellerKey);
+                                                                    const dateKey = `date_${seller}_${date}`;
+                                                                    const isDateExpanded = expandedGroups.has(dateKey);
 
                                                                     return (
-                                                                        <div key={seller} className={`tech-card border transition-all overflow-hidden ${isSellerExpanded ? 'border-indigo-500/50 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
+                                                                        <div key={date} className={`tech-card border transition-all overflow-hidden ${isDateExpanded ? 'border-indigo-500/50 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
                                                                             <div
-                                                                                onClick={() => toggleGroup(sellerKey)}
-                                                                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${isSellerExpanded ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
+                                                                                onClick={() => toggleGroup(dateKey)}
+                                                                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${isDateExpanded ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
                                                                             >
                                                                                 <div className="flex items-center gap-4">
-                                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isSellerExpanded ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                                                                                        <User size={18} />
+                                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isDateExpanded ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                                                                        <Calendar size={18} />
                                                                                     </div>
                                                                                     <div>
-                                                                                        <h5 className="font-bold text-sm">{seller}</h5>
+                                                                                        <h5 className="font-bold text-sm">{date}</h5>
                                                                                         <p className="text-[10px] font-black text-indigo-500 uppercase tracking-tight">${totalGroup.toLocaleString()}</p>
                                                                                     </div>
                                                                                 </div>
@@ -1123,13 +1132,13 @@ export default function LogisticaPage() {
                                                                                         {allGroupSelected ? 'Todos' : 'Marcar'}
                                                                                     </button>
                                                                                     <div className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-200 transition-colors">
-                                                                                        {isSellerExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                                                        {isDateExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
 
                                                                             <AnimatePresence>
-                                                                                {isSellerExpanded && (
+                                                                                {isDateExpanded && (
                                                                                     <motion.div
                                                                                         initial={{ opacity: 0, height: 0 }}
                                                                                         animate={{ opacity: 1, height: 'auto' }}
@@ -1215,7 +1224,7 @@ export default function LogisticaPage() {
                                                                                             })}
                                                                                         </div>
                                                                                         <div className="p-3 bg-indigo-500/5 border-t border-[var(--border)] flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-indigo-500">
-                                                                                            <span>Total Vendedor</span>
+                                                                                            <span>Subtotal Día</span>
                                                                                             <span className="text-sm">${totalGroup.toLocaleString()}</span>
                                                                                         </div>
                                                                                     </motion.div>
