@@ -1331,7 +1331,12 @@ export default function PreventaPage() {
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Nombre del Vendedor</label>
                                     <input type="text" value={vendedorName} onChange={(e) => { setVendedorName(e.target.value); localStorage.setItem("vendedor_name", e.target.value); }} className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" placeholder="Ej: Juan Pérez" />
                                 </div>
-                                <button onClick={() => { localStorage.clear(); window.location.href = '/login'; }} className="w-full bg-rose-50 text-rose-500 py-4 rounded-2xl font-black uppercase text-xs tracking-widest mb-2">Cerrar Sesión</button>
+                                <button onClick={() => {
+                                    localStorage.removeItem("user_role");
+                                    localStorage.removeItem("is_logged_in");
+                                    localStorage.removeItem("user_name");
+                                    window.location.href = '/login';
+                                }} className="w-full bg-rose-50 text-rose-500 py-4 rounded-2xl font-black uppercase text-xs tracking-widest mb-2">Cerrar Sesión</button>
                                 <button onClick={() => setIsConfigOpen(false)} className="w-full bg-indigo-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest">Aceptar</button>
                             </div>
                         </motion.div>

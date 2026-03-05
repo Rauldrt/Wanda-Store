@@ -187,7 +187,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
               </div>
               <button
                 onClick={() => {
-                  localStorage.clear();
+                  localStorage.removeItem("user_role");
+                  localStorage.removeItem("is_logged_in");
+                  localStorage.removeItem("user_name");
+                  localStorage.removeItem("user_email");
+                  localStorage.removeItem("user_photo");
                   window.location.href = '/login';
                 }}
                 className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
