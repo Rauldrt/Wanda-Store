@@ -53,6 +53,7 @@ export default function TiendaOnlinePage() {
     const [modoBulto, setModoBulto] = useState<{ [key: string]: boolean }>({});
     const [isListening, setIsListening] = useState<null | 'product'>(null);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
     const productInputRef = useRef<HTMLInputElement>(null);
 
@@ -167,11 +168,15 @@ export default function TiendaOnlinePage() {
 
     const filteredProducts = useMemo(() => {
         if (!deferredSearchTerm) return products;
+        const query = normalizeText(deferredSearchTerm);
         return products.filter(p => {
+            if (searchOnlyByCode) {
+                return normalizeText(p.ID_Producto).includes(query);
+            }
             const searchPayload = `${p.Nombre} ${p.Categoria || ''} ${p.Nota_Oferta || ''}`;
             return smartSearch(searchPayload, deferredSearchTerm);
         });
-    }, [products, deferredSearchTerm]);
+    }, [products, deferredSearchTerm, searchOnlyByCode]);
 
     const addToCart = (id: string, qty: number = 1) => {
         setCarrito(prev => ({ ...prev, [id]: (prev[id] || 0) + qty }));
@@ -371,9 +376,19 @@ export default function TiendaOnlinePage() {
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Buscar productos o categorías..."
+                        placeholder={searchOnlyByCode ? "Buscar por código..." : "Buscar productos o categorías..."}
                         className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-[28px] py-5 px-14 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all"
                     />
+                    <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden xs:block">Código</span>
+                            <div className="relative flex items-center">
+                                <input type="checkbox" className="sr-only" checked={searchOnlyByCode} onChange={(e) => setSearchOnlyByCode(e.target.checked)} />
+                                <div className={`block w-9 h-5 rounded-full transition-colors ${searchOnlyByCode ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
+                                <div className={`absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-transform ${searchOnlyByCode ? 'translate-x-[16px]' : 'translate-x-0'}`}></div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
 
                 {/* Banner Carrusel */}

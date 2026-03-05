@@ -81,6 +81,7 @@ export default function PreventaPage() {
     const [modoBulto, setModoBulto] = useState<{ [key: string]: boolean }>({});
     const [isListening, setIsListening] = useState<'client' | null | 'product'>(null);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
     const [viewingOrder, setViewingOrder] = useState<any>(null);
     const [activeSearch, setActiveSearch] = useState<'client' | 'product' | null>(null);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
@@ -178,8 +179,8 @@ export default function PreventaPage() {
         if (savedPending) setPendingOrders(JSON.parse(savedPending));
     }, []);
 
-    const normalizeText = (text: string) =>
-        text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const normalizeText = (text: any) =>
+        String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
     const smartSearch = (text: string, query: string) => {
         if (!query) return true;
@@ -220,11 +221,15 @@ export default function PreventaPage() {
 
     const filteredProducts = useMemo(() => {
         if (!deferredSearchTerm) return products;
+        if (searchOnlyByCode) {
+            const query = normalizeText(deferredSearchTerm);
+            return products.filter(p => normalizeText(p.ID_Producto).includes(query));
+        }
         const terms = normalizeText(deferredSearchTerm).split(/\s+/).filter(t => t.length > 0);
         return searchableProducts
             .filter(p => terms.every(t => p.searchKey.includes(t)))
             .map(p => p.item);
-    }, [searchableProducts, deferredSearchTerm]);
+    }, [searchableProducts, deferredSearchTerm, searchOnlyByCode, products]);
 
     const searchableClients = useMemo(() => {
         return allClients.map(c => ({
@@ -926,12 +931,24 @@ export default function PreventaPage() {
                         <input
                             ref={productInputRef}
                             type="text"
-                            placeholder={activeSearch === 'product' ? "Buscar productos..." : ""}
+                            placeholder={activeSearch === 'product' ? (searchOnlyByCode ? "ID exacto..." : "Buscar productos...") : ""}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onFocus={() => setActiveSearch('product')}
                             className={`flex-1 bg-transparent text-[15px] font-medium outline-none transition-all ${activeSearch !== 'product' ? 'w-0 opacity-0' : 'w-full opacity-100'}`}
                         />
+                        {activeSearch === 'product' && (
+                            <div className="flex items-center gap-1 shrink-0">
+                                <label className="flex items-center gap-1.5 cursor-pointer group">
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tight hidden xs:block">ID</span>
+                                    <div className="relative flex items-center">
+                                        <input type="checkbox" className="sr-only" checked={searchOnlyByCode} onChange={(e) => setSearchOnlyByCode(e.target.checked)} />
+                                        <div className={`block w-7 h-4 rounded-full transition-colors ${searchOnlyByCode ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
+                                        <div className={`absolute left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${searchOnlyByCode ? 'translate-x-[12px]' : 'translate-x-0'}`}></div>
+                                    </div>
+                                </label>
+                            </div>
+                        )}
                         {activeSearch === 'product' && searchTerm && (
                             <button onClick={(e) => { e.stopPropagation(); setSearchTerm(""); }} className="text-slate-400 p-1"><X size={16} /></button>
                         )}

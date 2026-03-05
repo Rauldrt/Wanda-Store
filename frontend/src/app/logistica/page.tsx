@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
+import { increment } from "firebase/firestore";
 
 const normalizeText = (text: string) =>
     String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -1657,7 +1658,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+            className="fixed md:left-64 inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
         >
             <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -1945,7 +1946,9 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             estado_rendicion: 'Entregado', // 'Entregado', 'Rechazado', 'Parcial'
             total_original: parseFloat(o.total),
             total_final: parseFloat(o.total),
-            items_originales: JSON.parse(JSON.stringify(o.items || []))
+            items_originales: JSON.parse(JSON.stringify(o.items || [])),
+            pago_efectivo: 0,
+            pago_transferencia: 0
         }))
     );
     const [pagos, setPagos] = useState({ efectivo: 0, transferencia: 0 });
@@ -1954,6 +1957,12 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const [editingPartialId, setEditingPartialId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [searchTerm, setSearchTerm] = useState("");
+
+    // --- NUEVO: ESTADO PARA MÉTODO ALTERNATIVO ---
+    const [settlementMethod, setSettlementMethod] = useState<'standard' | 'alternative'>('standard');
+    const [devoluciones, setDevoluciones] = useState<{ id_prod: string, nombre: string, qty: number, precio: number, subtotal: number }[]>([]);
+    const [returnSearch, setReturnSearch] = useState("");
+    const [showReturnDropdown, setShowReturnDropdown] = useState(false);
 
     const filteredOrders = useMemo(() => {
         if (!searchTerm.trim()) return localOrders;
@@ -1977,24 +1986,56 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
         return acc + o.total_final;
     }, 0);
 
+    const totalCargaRuta = orders.reduce((acc: number, o: any) => acc + (parseFloat(o.total) || 0), 0);
+    const totalDevolucionesVal = devoluciones.reduce((acc, d) => acc + d.subtotal, 0);
+    const totalPagosPedidos = localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0) + (o.pago_transferencia || 0), 0);
+
     const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
-    const totalCaja = pagos.efectivo + pagos.transferencia;
+    const totalCaja = settlementMethod === 'standard'
+        ? (pagos.efectivo + pagos.transferencia)
+        : totalPagosPedidos;
 
     const handleSave = async () => {
         try {
             setIsSyncing(true);
+
+            // Si es método alternativo, pre-procesamos los estados basados en pagos o marcándolos como entregados
+            // y procesamos el stock de las devoluciones manuales.
+            let finalOrders = JSON.parse(JSON.stringify(localOrders));
+
+            if (settlementMethod === 'alternative') {
+                // En el método alternativo, asumimos que todo se entregó menos lo que ingresamos como devolución manual
+                // El stock de devoluciones manuales lo manejamos aparte.
+                finalOrders = finalOrders.map((o: any) => ({
+                    ...o,
+                    estado: 'Entregado', // Por defecto en Alt, se marca entregado
+                    total: o.total_original // Mantiene su total original
+                }));
+
+                // Actualizar stock de devoluciones manuales
+                if (devoluciones.length > 0) {
+                    await wandaApi.bulkUpdateProducts(devoluciones.map(d => ({
+                        id: d.id_prod,
+                        Stock: increment(d.qty)
+                    })));
+                }
+            }
+
             const payload = {
                 reparto: routeName,
                 chofer,
-                ordenes: localOrders.map((o: any) => ({
+                ordenes: finalOrders.map((o: any) => ({
                     id: o.id,
-                    estado: o.estado_rendicion,
-                    total: o.total_final,
+                    estado: o.estado_rendicion || 'Entregado',
+                    total: o.total_final || o.total_original,
                     items: o.items
                 })),
-                pagos,
+                pagos: settlementMethod === 'alternative' ? {
+                    efectivo: localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0), 0),
+                    transferencia: localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0)
+                } : pagos,
                 gastos,
-                notas: `Liquidación de ruta ${routeName}`
+                notas: `Liquidación de ruta ${routeName}${settlementMethod === 'alternative' ? ' (Método Alternativo)' : ''}`
             };
 
             const res = await wandaApi.liquidarRuta(payload);
@@ -2027,21 +2068,37 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     return (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+            className="fixed md:left-64 inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
         >
             <motion.div
                 initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
                 className="bg-white dark:bg-slate-900 w-full max-w-5xl h-[95vh] sm:h-[90vh] rounded-[30px] sm:rounded-[40px] overflow-hidden shadow-2xl flex flex-col border border-white/20"
             >
                 {/* Header */}
-                <div className="p-4 sm:p-5 border-b border-[var(--border)] flex justify-between items-center bg-gradient-to-r from-slate-900 to-indigo-950 text-white">
+                <div className="p-4 sm:p-5 border-b border-[var(--border)] flex justify-between items-center bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white border border-white/10 shadow-inner">
                             <Check size={20} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-black tracking-tight leading-none">Rendición de Ruta</h3>
-                            <div className="flex items-center gap-3 mt-1">
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-black tracking-tight leading-none">Rendición de Ruta</h3>
+                                <div className="flex bg-white/10 p-1 rounded-xl">
+                                    <button
+                                        onClick={() => setSettlementMethod('standard')}
+                                        className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${settlementMethod === 'standard' ? 'bg-indigo-500 text-white' : 'text-white/40 hover:text-white/60'}`}
+                                    >
+                                        Estándar
+                                    </button>
+                                    <button
+                                        onClick={() => setSettlementMethod('alternative')}
+                                        className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${settlementMethod === 'alternative' ? 'bg-indigo-500 text-white' : 'text-white/40 hover:text-white/60'}`}
+                                    >
+                                        Alternativo
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1.5">
                                 <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest">{routeName}</p>
                                 <span className="text-slate-500 text-[10px] opacity-30">|</span>
                                 <input
@@ -2061,151 +2118,330 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
                 <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
                     <div className="flex-[1.5] overflow-auto p-6 space-y-4 border-r border-[var(--border)]">
-                        <div className="flex flex-col gap-3 mb-6 px-2">
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <LayoutGrid size={14} className="text-indigo-500" /> Detalle de Entregas
-                            </h4>
-                            <div className="flex items-center gap-3">
-                                <div className="relative group flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar por cliente, ID o ruta..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl py-2 pl-9 pr-4 text-[11px] font-bold focus:ring-2 ring-indigo-500/20 transition-all shadow-sm"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                                        <button
-                                            onClick={() => setViewMode('grid')}
-                                            className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
-                                        >
-                                            <LayoutGrid size={14} />
-                                        </button>
-                                        <button
-                                            onClick={() => setViewMode('list')}
-                                            className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
-                                        >
-                                            <List size={14} />
-                                        </button>
-                                    </div>
-                                    <span className="text-[10px] font-black py-1.5 px-3 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 rounded-lg hidden sm:block">
-                                        {localOrders.length}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {viewMode === 'grid' ? (
-                            <div className="space-y-4">
-                                {filteredOrders.map((order: any) => (
-                                    <div key={order.id} className={`p-5 rounded-3xl border transition-all ${order.estado_rendicion === 'Rechazado' ? 'bg-rose-50/50 border-rose-100 dark:bg-rose-500/5 dark:border-rose-500/20 grayscale' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-800 shadow-sm'}`}>
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <p className="font-black text-sm text-slate-800 dark:text-slate-100">{order.cliente_nombre}</p>
-                                                <p className="text-[10px] text-slate-400 font-mono">#{order.id.slice(-8)}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className={`font-black text-sm ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
-                                                    ${order.total_final.toLocaleString()}
-                                                </p>
-                                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter line-through">
-                                                    Orig: ${order.total_original.toLocaleString()}
-                                                </p>
-                                            </div>
+                        {settlementMethod === 'standard' ? (
+                            <>
+                                <div className="flex flex-col gap-3 mb-6 px-2">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <LayoutGrid size={14} className="text-indigo-500" /> Detalle de Entregas
+                                    </h4>
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative group flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar por cliente, ID o ruta..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl py-2 pl-9 pr-4 text-[11px] font-bold focus:ring-2 ring-indigo-500/20 transition-all shadow-sm"
+                                            />
                                         </div>
-
-                                        <div className="flex gap-2">
-                                            {['Entregado', 'Parcial', 'Rechazado'].map(st => (
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                                                 <button
-                                                    key={st}
-                                                    onClick={() => toggleStatus(order.id, st)}
-                                                    className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${order.estado_rendicion === st
-                                                        ? (st === 'Entregado' ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                                            : st === 'Rechazado' ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20'
-                                                                : 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20')
-                                                        : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-indigo-300'
-                                                        }`}
+                                                    onClick={() => setViewMode('grid')}
+                                                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
                                                 >
-                                                    {st}
+                                                    <LayoutGrid size={14} />
                                                 </button>
-                                            ))}
+                                                <button
+                                                    onClick={() => setViewMode('list')}
+                                                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
+                                                >
+                                                    <List size={14} />
+                                                </button>
+                                            </div>
                                         </div>
-
-                                        {order.estado_rendicion === 'Parcial' && (
-                                            <button
-                                                onClick={() => setEditingPartialId(order.id)}
-                                                className="w-full mt-3 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-[9px] font-black uppercase border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
-                                            >
-                                                <Edit2 size={12} /> Ajustar Cantidades
-                                            </button>
-                                        )}
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="bg-white dark:bg-slate-900 rounded-[30px] border border-[var(--border)] overflow-hidden">
-                                <table className="w-full text-left">
-                                    <thead className="bg-slate-50 dark:bg-slate-800/50">
-                                        <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                            <th className="px-6 py-4">Cliente / ID</th>
-                                            <th className="px-6 py-4">Importe</th>
-                                            <th className="px-6 py-4 text-center">Estado</th>
-                                            <th className="px-6 py-4 text-right">Ajuste</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                </div>
+
+                                {viewMode === 'grid' ? (
+                                    <div className="space-y-4">
                                         {filteredOrders.map((order: any) => (
-                                            <tr key={order.id} className={`group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors ${order.estado_rendicion === 'Rechazado' ? 'opacity-50' : ''}`}>
-                                                <td className="px-6 py-4">
-                                                    <p className="font-bold text-xs">{order.cliente_nombre}</p>
-                                                    <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <p className={`font-black text-xs ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
-                                                        ${order.total_final.toLocaleString()}
-                                                    </p>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex justify-center">
-                                                        <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
-                                                            {['E', 'P', 'R'].map((label, idx) => {
-                                                                const statuses = ['Entregado', 'Parcial', 'Rechazado'];
-                                                                const st = statuses[idx];
-                                                                const isActive = order.estado_rendicion === st;
-                                                                return (
-                                                                    <button
-                                                                        key={st}
-                                                                        onClick={() => toggleStatus(order.id, st)}
-                                                                        title={st}
-                                                                        className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-black transition-all ${isActive
-                                                                            ? (st === 'Entregado' ? 'bg-emerald-500 text-white' : st === 'Rechazado' ? 'bg-rose-500 text-white' : 'bg-indigo-500 text-white')
-                                                                            : 'text-slate-400 hover:text-slate-600'
-                                                                            }`}
-                                                                    >
-                                                                        {label}
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
+                                            <div key={order.id} className={`p-5 rounded-3xl border transition-all ${order.estado_rendicion === 'Rechazado' ? 'bg-rose-50/50 border-rose-100 dark:bg-rose-500/5 dark:border-rose-500/20 grayscale' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-800 shadow-sm'}`}>
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <p className="font-black text-sm text-slate-800 dark:text-slate-100">{order.cliente_nombre}</p>
+                                                        <p className="text-[10px] text-slate-400 font-mono">#{order.id.slice(-8)}</p>
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    {order.estado_rendicion === 'Parcial' && (
+                                                    <div className="text-right">
+                                                        <p className={`font-black text-sm ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
+                                                            ${order.total_final.toLocaleString()}
+                                                        </p>
+                                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter line-through">
+                                                            Orig: ${order.total_original.toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex gap-2">
+                                                    {['Entregado', 'Parcial', 'Rechazado'].map(st => (
                                                         <button
-                                                            onClick={() => setEditingPartialId(order.id)}
-                                                            className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 rounded-lg hover:bg-indigo-500 hover:text-white transition-all"
+                                                            key={st}
+                                                            onClick={() => toggleStatus(order.id, st)}
+                                                            className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${order.estado_rendicion === st
+                                                                ? (st === 'Entregado' ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                                    : st === 'Rechazado' ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20'
+                                                                        : 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20')
+                                                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-indigo-300'
+                                                                }`}
                                                         >
-                                                            <Edit2 size={12} />
+                                                            {st}
                                                         </button>
-                                                    )}
-                                                </td>
-                                            </tr>
+                                                    ))}
+                                                </div>
+
+                                                {order.estado_rendicion === 'Parcial' && (
+                                                    <button
+                                                        onClick={() => setEditingPartialId(order.id)}
+                                                        className="w-full mt-3 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-[9px] font-black uppercase border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <Edit2 size={12} /> Ajustar Cantidades
+                                                    </button>
+                                                )}
+                                            </div>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white dark:bg-slate-900 rounded-[30px] border border-[var(--border)] overflow-hidden">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-slate-50 dark:bg-slate-800/50">
+                                                <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                    <th className="px-6 py-4">Cliente / ID</th>
+                                                    <th className="px-6 py-4">Importe</th>
+                                                    <th className="px-6 py-4 text-center">Estado</th>
+                                                    <th className="px-6 py-4 text-right">Ajuste</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                {filteredOrders.map((order: any) => (
+                                                    <tr key={order.id} className={`group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors ${order.estado_rendicion === 'Rechazado' ? 'opacity-50' : ''}`}>
+                                                        <td className="px-6 py-4">
+                                                            <p className="font-bold text-xs">{order.cliente_nombre}</p>
+                                                            <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <p className={`font-black text-xs ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
+                                                                ${order.total_final.toLocaleString()}
+                                                            </p>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <div className="flex justify-center">
+                                                                <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
+                                                                    {['E', 'P', 'R'].map((label, idx) => {
+                                                                        const statuses = ['Entregado', 'Parcial', 'Rechazado'];
+                                                                        const st = statuses[idx];
+                                                                        const isActive = order.estado_rendicion === st;
+                                                                        return (
+                                                                            <button
+                                                                                key={st}
+                                                                                onClick={() => toggleStatus(order.id, st)}
+                                                                                className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-black transition-all ${isActive
+                                                                                    ? (st === 'Entregado' ? 'bg-emerald-500 text-white' : st === 'Rechazado' ? 'bg-rose-500 text-white' : 'bg-indigo-500 text-white')
+                                                                                    : 'text-slate-400 hover:text-slate-600'
+                                                                                    }`}
+                                                                            >
+                                                                                {label}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            {order.estado_rendicion === 'Parcial' && (
+                                                                <button
+                                                                    onClick={() => setEditingPartialId(order.id)}
+                                                                    className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 rounded-lg"
+                                                                >
+                                                                    <Edit2 size={12} />
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            // --- MÉTODO ALTERNATIVO: DEVOLUCIONES MANUALES ---
+                            <div className="space-y-6">
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <RotateCcw size={14} className="text-rose-500" /> Ingreso de Devoluciones (Stock)
+                                        </h4>
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setShowReturnDropdown(!showReturnDropdown)}
+                                                className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
+                                            >
+                                                <Plus size={14} /> Agregar Devolución
+                                            </button>
+
+                                            {showReturnDropdown && (
+                                                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl shadow-2xl z-[60] overflow-hidden p-2">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Buscar producto..."
+                                                        autoFocus
+                                                        value={returnSearch}
+                                                        onChange={(e) => setReturnSearch(e.target.value)}
+                                                        className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-xl px-3 py-2 text-xs font-bold mb-2 outline-none"
+                                                    />
+                                                    <div className="max-h-48 overflow-auto space-y-1">
+                                                        {products.filter((p: any) => smartSearch(p.Nombre, returnSearch)).slice(0, 10).map((p: any) => (
+                                                            <button
+                                                                key={p.ID_Producto}
+                                                                onClick={() => {
+                                                                    const exists = devoluciones.find(d => d.id_prod === p.ID_Producto);
+                                                                    const price = parseFloat(String(p.Precio_Unitario || 0).replace(',', '.'));
+                                                                    if (exists) {
+                                                                        setDevoluciones(prev => prev.map(d => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * d.precio } : d));
+                                                                    } else {
+                                                                        setDevoluciones([...devoluciones, { id_prod: p.ID_Producto, nombre: p.Nombre, qty: 1, precio: price, subtotal: price }]);
+                                                                    }
+                                                                    setShowReturnDropdown(false);
+                                                                    setReturnSearch("");
+                                                                }}
+                                                                className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold"
+                                                            >
+                                                                {p.Nombre}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] overflow-hidden">
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                    <th className="px-4 py-3">Producto</th>
+                                                    <th className="px-4 py-3 text-center">Cant.</th>
+                                                    <th className="px-4 py-3 text-center">Precio</th>
+                                                    <th className="px-4 py-3 text-right">Subtotal</th>
+                                                    <th className="px-4 py-3 text-right">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                {devoluciones.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-bold text-xs italic">
+                                                            No hay devoluciones registradas manualmente
+                                                        </td>
+                                                    </tr>
+                                                ) : devoluciones.map((dev, idx) => (
+                                                    <tr key={dev.id_prod}>
+                                                        <td className="px-4 py-3">
+                                                            <p className="font-bold text-xs">{dev.nombre}</p>
+                                                            <p className="text-[9px] font-mono text-slate-400">{dev.id_prod}</p>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <input
+                                                                    type="number"
+                                                                    value={dev.qty}
+                                                                    onChange={(e) => {
+                                                                        const n = parseFloat(e.target.value) || 0;
+                                                                        setDevoluciones(prev => prev.map((d, i) => i === idx ? { ...d, qty: n, subtotal: n * d.precio } : d));
+                                                                    }}
+                                                                    className="w-12 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black"
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex justify-center">
+                                                                <input
+                                                                    type="number"
+                                                                    value={dev.precio}
+                                                                    onChange={(e) => {
+                                                                        const p = parseFloat(e.target.value) || 0;
+                                                                        setDevoluciones(prev => prev.map((d, i) => i === idx ? { ...d, precio: p, subtotal: d.qty * p } : d));
+                                                                    }}
+                                                                    className="w-16 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black"
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <p className="font-black text-xs text-rose-500">${dev.subtotal.toLocaleString()}</p>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <button
+                                                                onClick={() => setDevoluciones(devoluciones.filter((_, i) => i !== idx))}
+                                                                className="p-1.5 text-slate-400 hover:text-rose-500 rounded"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <DollarSign size={14} className="text-emerald-500" /> Cobranza por Pedido
+                                    </h4>
+                                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] overflow-hidden">
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                    <th className="px-4 py-3">Cliente</th>
+                                                    <th className="px-4 py-3">Total Pedido</th>
+                                                    <th className="px-4 py-3 text-center">Pagado EF</th>
+                                                    <th className="px-4 py-3 text-center">Pagado TR</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                {localOrders.map((order: any, idx) => (
+                                                    <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                                                        <td className="px-4 py-3">
+                                                            <p className="font-bold text-xs">{order.cliente_nombre}</p>
+                                                            <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <p className="font-black text-xs text-indigo-600">${order.total_original.toLocaleString()}</p>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex justify-center">
+                                                                <input
+                                                                    type="number"
+                                                                    value={order.pago_efectivo || ''}
+                                                                    onChange={(e) => {
+                                                                        const val = parseFloat(e.target.value) || 0;
+                                                                        setLocalOrders(prev => prev.map((o, i) => i === idx ? { ...o, pago_efectivo: val } : o));
+                                                                    }}
+                                                                    className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-emerald-600"
+                                                                    placeholder="$ 0"
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex justify-center">
+                                                                <input
+                                                                    type="number"
+                                                                    value={order.pago_transferencia || ''}
+                                                                    onChange={(e) => {
+                                                                        const val = parseFloat(e.target.value) || 0;
+                                                                        setLocalOrders(prev => prev.map((o, i) => i === idx ? { ...o, pago_transferencia: val } : o));
+                                                                    }}
+                                                                    className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-blue-600"
+                                                                    placeholder="$ 0"
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -2217,41 +2453,59 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                 <DollarSign size={14} className="text-indigo-500" /> Conciliación de Caja
                             </h4>
 
-                            <div className="space-y-3">
-                                <div className="p-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-inner">
-                                            <DollarSign size={20} />
+                            {settlementMethod === 'standard' ? (
+                                <div className="space-y-3">
+                                    <div className="p-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-inner">
+                                                <DollarSign size={20} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Efectivo Recibido</label>
+                                                <input
+                                                    type="number"
+                                                    value={pagos.efectivo || ''}
+                                                    onChange={e => setPagos({ ...pagos, efectivo: parseFloat(e.target.value) || 0 })}
+                                                    className="w-full bg-transparent border-none p-0 focus:ring-0 text-xl font-black text-slate-800 dark:text-slate-100"
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Efectivo Recibido</label>
-                                            <input
-                                                type="number"
-                                                value={pagos.efectivo || ''}
-                                                onChange={e => setPagos({ ...pagos, efectivo: parseFloat(e.target.value) || 0 })}
-                                                className="w-full bg-transparent border-none p-0 focus:ring-0 text-xl font-black text-slate-800 dark:text-slate-100"
-                                                placeholder="0.00"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="h-px bg-slate-100 dark:bg-slate-800 mx-2" />
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner">
-                                            <CreditCard size={20} />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Transferencias / Otros</label>
-                                            <input
-                                                type="number"
-                                                value={pagos.transferencia || ''}
-                                                onChange={e => setPagos({ ...pagos, transferencia: parseFloat(e.target.value) || 0 })}
-                                                className="w-full bg-transparent border-none p-0 focus:ring-0 text-xl font-black text-slate-800 dark:text-slate-100"
-                                                placeholder="0.00"
-                                            />
+                                        <div className="h-px bg-slate-100 dark:bg-slate-800 mx-2" />
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner">
+                                                <CreditCard size={20} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Transferencias / Otros</label>
+                                                <input
+                                                    type="number"
+                                                    value={pagos.transferencia || ''}
+                                                    onChange={e => setPagos({ ...pagos, transferencia: parseFloat(e.target.value) || 0 })}
+                                                    className="w-full bg-transparent border-none p-0 focus:ring-0 text-xl font-black text-slate-800 dark:text-slate-100"
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="p-4 bg-indigo-50 dark:bg-indigo-500/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 space-y-3">
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase px-1">
+                                        <span>Total Cobrado Efectivo</span>
+                                        <span className="text-emerald-600 font-black">${localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0), 0).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase px-1">
+                                        <span>Total Transferencias</span>
+                                        <span className="text-blue-600 font-black">${localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0).toLocaleString()}</span>
+                                    </div>
+                                    <div className="h-px bg-indigo-100 dark:bg-indigo-500/20" />
+                                    <div className="flex justify-between items-center text-xs font-black text-indigo-600 px-1">
+                                        <span>Total Pagos Recibidos</span>
+                                        <span>${totalPagosPedidos.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div>
@@ -2304,9 +2558,15 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
                         <div className="pt-6 border-t border-[var(--border)] mt-auto space-y-4">
                             <div className="flex justify-between items-center text-slate-400 text-[10px] font-black uppercase tracking-widest px-2">
-                                <span>Total Vendido</span>
-                                <span className="text-slate-600 dark:text-slate-100">${totalRendicion.toLocaleString()}</span>
+                                <span>{settlementMethod === 'standard' ? 'Total Vendido' : 'Carga Total Distribuida'}</span>
+                                <span className="text-slate-600 dark:text-slate-100">${(settlementMethod === 'standard' ? totalRendicion : totalCargaRuta).toLocaleString()}</span>
                             </div>
+                            {settlementMethod === 'alternative' && (
+                                <div className="flex justify-between items-center text-slate-400 text-[10px] font-black uppercase tracking-widest px-2">
+                                    <span>Total Devoluciones</span>
+                                    <span className="text-rose-500">-${totalDevolucionesVal.toLocaleString()}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between items-center text-slate-400 text-[10px] font-black uppercase tracking-widest px-2">
                                 <span>Gastos de Ruta</span>
                                 <span className="text-rose-500">-${totalGastos.toLocaleString()}</span>
@@ -2316,16 +2576,28 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                 <div className="flex justify-between items-end mb-1">
                                     <p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Saldo Neto a Rendir</p>
                                     <div className="text-right">
-                                        <p className={`text-[10px] font-black px-2 py-0.5 rounded-full ${Math.abs(totalCaja - (totalRendicion - totalGastos)) < 10 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                                            {Math.abs(totalCaja - (totalRendicion - totalGastos)) < 10
-                                                ? 'BALANCEADO'
-                                                : `${totalCaja - (totalRendicion - totalGastos) > 0 ? 'SOBRANTE' : 'FALTANTE'}: $${Math.abs(totalCaja - (totalRendicion - totalGastos)).toLocaleString()}`
-                                            }
-                                        </p>
+                                        {settlementMethod === 'standard' ? (
+                                            <p className={`text-[10px] font-black px-2 py-0.5 rounded-full ${Math.abs(totalCaja - (totalRendicion - totalGastos)) < 10 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                                {Math.abs(totalCaja - (totalRendicion - totalGastos)) < 10
+                                                    ? 'BALANCEADO'
+                                                    : `${totalCaja - (totalRendicion - totalGastos) > 0 ? 'SOBRANTE' : 'FALTANTE'}: $${Math.abs(totalCaja - (totalRendicion - totalGastos)).toLocaleString()}`
+                                                }
+                                            </p>
+                                        ) : (
+                                            <p className={`text-[10px] font-black px-2 py-0.5 rounded-full ${Math.abs(totalCaja - (totalCargaRuta - totalDevolucionesVal - totalGastos)) < 10 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                                {Math.abs(totalCaja - (totalCargaRuta - totalDevolucionesVal - totalGastos)) < 10
+                                                    ? 'BALANCEADO'
+                                                    : `${totalCaja - (totalCargaRuta - totalDevolucionesVal - totalGastos) > 0 ? 'SOBRANTE' : 'FALTANTE'}: $${Math.abs(totalCaja - (totalCargaRuta - totalDevolucionesVal - totalGastos)).toLocaleString()}`
+                                                }
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                                 <h3 className="text-3xl font-black mb-4">
-                                    ${(totalRendicion - totalGastos).toLocaleString()}
+                                    ${(settlementMethod === 'standard'
+                                        ? (totalRendicion - totalGastos)
+                                        : (totalCargaRuta - totalDevolucionesVal - totalGastos)
+                                    ).toLocaleString()}
                                 </h3>
 
                                 <div className="flex justify-between items-center">
@@ -2380,7 +2652,7 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
     return (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xl"
+            className="fixed md:left-64 inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xl"
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -2568,7 +2840,7 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+            className="fixed md:left-64 inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -3150,7 +3422,7 @@ function RouteOrdersModal({ routeName, orders, onClose, onRemoveOrder }: any) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+            className="fixed md:left-64 inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}

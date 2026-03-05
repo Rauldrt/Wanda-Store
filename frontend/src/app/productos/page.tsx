@@ -62,6 +62,7 @@ export default function ProductosPage() {
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
     const [showMetrics, setShowMetrics] = useState(false);
+    const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
 
     // Estados para Edición Masiva
     const [isMassEditing, setIsMassEditing] = useState(false);
@@ -121,8 +122,15 @@ export default function ProductosPage() {
 
     const filteredProducts = useMemo(() => {
         const result = products.filter((p: any) => {
-            const searchPayload = `${p.Nombre} ${p.ID_Producto} ${p.Categoria}`;
-            const matchesSearch = smartSearch(searchPayload, searchTerm);
+            let matchesSearch = true;
+            if (searchTerm) {
+                if (searchOnlyByCode) {
+                    matchesSearch = normalizeText(p.ID_Producto).includes(normalizeText(searchTerm));
+                } else {
+                    const searchPayload = `${p.Nombre} ${p.ID_Producto} ${p.Categoria}`;
+                    matchesSearch = smartSearch(searchPayload, searchTerm);
+                }
+            }
             const matchesCat = categoryFilter === "ALL" || p.Categoria === categoryFilter;
 
             let matchesStatus = true;
@@ -163,7 +171,7 @@ export default function ProductosPage() {
             });
         }
         return result;
-    }, [products, searchTerm, categoryFilter, quickStatus, sortConfig, hideLowPrice, hideNoStock]);
+    }, [products, searchTerm, categoryFilter, quickStatus, sortConfig, hideLowPrice, hideNoStock, searchOnlyByCode]);
 
     // KPIs de Inventario
     const stats = useMemo(() => {
@@ -538,11 +546,21 @@ export default function ProductosPage() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Buscar por nombre, SKU o categoría..."
+                        placeholder={searchOnlyByCode ? "Ingresar código exacto..." : "Buscar por nombre, SKU o categoría..."}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-sm text-slate-800 dark:text-slate-100"
                     />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">Solo Código</span>
+                            <div className="relative flex items-center">
+                                <input type="checkbox" className="sr-only" checked={searchOnlyByCode} onChange={(e) => setSearchOnlyByCode(e.target.checked)} />
+                                <div className={`block w-8 h-4.5 rounded-full transition-colors ${searchOnlyByCode ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
+                                <div className={`absolute left-0.5 w-3.5 h-3.5 bg-white rounded-full transition-transform ${searchOnlyByCode ? 'translate-x-[16px]' : 'translate-x-0'}`}></div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto xl:flex-1">
