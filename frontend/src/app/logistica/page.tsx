@@ -2023,6 +2023,41 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const [devoluciones, setDevoluciones] = useState<{ id_prod: string, nombre: string, qty: number, precio: number, subtotal: number }[]>([]);
     const [returnSearch, setReturnSearch] = useState("");
     const [showReturnDropdown, setShowReturnDropdown] = useState(false);
+    const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'none'>('none');
+
+    // --- PERSISTENCIA: Cargar borrador ---
+    useEffect(() => {
+        const saved = localStorage.getItem(`wanda_settlement_${routeName}`);
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                if (data.localOrders) setLocalOrders(data.localOrders);
+                if (data.pagos) setPagos(data.pagos);
+                if (data.gastos) setGastos(data.gastos);
+                if (data.chofer) setChofer(data.chofer);
+                if (data.settlementMethod) setSettlementMethod(data.settlementMethod);
+                if (data.devoluciones) setDevoluciones(data.devoluciones);
+                setDraftStatus('saved');
+            } catch (e) {
+                console.error("Error al cargar borrador", e);
+            }
+        }
+    }, [routeName]);
+
+    // --- PERSISTENCIA: Guardar borrador autom. ---
+    useEffect(() => {
+        setDraftStatus('saving');
+        const timeout = setTimeout(() => {
+            const data = { localOrders, pagos, gastos, chofer, settlementMethod, devoluciones };
+            localStorage.setItem(`wanda_settlement_${routeName}`, JSON.stringify(data));
+            setDraftStatus('saved');
+        }, 800);
+        return () => clearTimeout(timeout);
+    }, [localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, routeName]);
+
+    const clearDraft = () => {
+        localStorage.removeItem(`wanda_settlement_${routeName}`);
+    };
 
     const filteredOrders = useMemo(() => {
         if (!searchTerm.trim()) return localOrders;
@@ -2101,6 +2136,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             const res = await wandaApi.liquidarRuta(payload);
             if (res.result === 'OK' || !res.error) {
                 alert("Ruta liquidada con éxito");
+                clearDraft(); // Limpiar el borrador al terminar con éxito
                 await onRefresh();
                 onClose();
             } else {
@@ -2168,15 +2204,23 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                     onChange={e => setChofer(e.target.value)}
                                     className="bg-white/10 border-none rounded-lg px-2 py-1 text-[10px] font-black text-white placeholder:text-white/30 focus:ring-1 ring-white/20 w-32 sm:w-48"
                                 />
-                                <div className="relative group ml-2">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-white transition-colors" size={12} />
-                                    <input
-                                        type="text"
-                                        placeholder="BUSCAR PEDIDO..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="bg-white/10 border-none rounded-lg pl-8 pr-3 py-1 text-[10px] font-black text-white placeholder:text-white/30 focus:ring-1 ring-white/20 w-32 sm:w-48 uppercase"
-                                    />
+                                <div className="relative group ml-2 flex items-center gap-3">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-white transition-colors" size={12} />
+                                        <input
+                                            type="text"
+                                            placeholder="BUSCAR PEDIDO..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="bg-white/10 border-none rounded-lg pl-8 pr-3 py-1 text-[10px] font-black text-white placeholder:text-white/30 focus:ring-1 ring-white/20 w-32 sm:w-48 uppercase"
+                                        />
+                                    </div>
+                                    {draftStatus !== 'none' && (
+                                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-tighter transition-all ${draftStatus === 'saving' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                                            <div className={`w-1 h-1 rounded-full ${draftStatus === 'saving' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></div>
+                                            {draftStatus === 'saving' ? 'Auto-guardando...' : 'Borrador Guardado'}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
