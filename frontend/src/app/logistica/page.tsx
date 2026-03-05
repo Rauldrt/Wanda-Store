@@ -1340,12 +1340,12 @@ export default function LogisticaPage() {
                             ) : (
                                 liquidaciones.map((liq) => (
                                     <SettlementHistoryCard
-                                        key={liq.id_liq}
+                                        key={liq.id}
                                         liquidacion={liq}
                                         onRevert={async () => {
-                                            if (!confirm(`¿Estás seguro de REVERTIR la liquidación ${liq.id_liq}? Esto restaurará los estados de los pedidos y borrará este registro.`)) return;
+                                            if (!confirm(`¿Estás seguro de REVERTIR la liquidación ${liq.id}? Esto restaurará los estados de los pedidos y borrará este registro.`)) return;
                                             try {
-                                                const res = await wandaApi.revertLiquidacion(liq.id_liq);
+                                                const res = await wandaApi.revertLiquidacion(liq.id);
                                                 if (res.result === 'OK') {
                                                     alert("Liquidación revertida con éxito.");
                                                     refreshData(true);
@@ -4127,21 +4127,28 @@ function RouteOrdersModal({ routeName, orders, onClose, onRemoveOrder }: any) {
 }
 
 function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, onRevert: () => void }) {
+    const affectedOrdersCount = useMemo(() => {
+        try {
+            const wrapper = JSON.parse(liquidacion.ORDENES_JSON || '{}');
+            return wrapper.ordenes?.length || 0;
+        } catch (e) { return 0; }
+    }, [liquidacion.ORDENES_JSON]);
+
     return (
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden p-6 gap-4 flex flex-col sm:flex-row sm:items-center justify-between transition-all hover:bg-slate-50 dark:hover:bg-slate-900/50">
             <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-black px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 rounded-lg">{liquidacion.id_liq}</span>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(liquidacion.fecha).toLocaleString()}</span>
+                    <span className="font-mono text-xs font-black px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 rounded-lg">{liquidacion.ID_LIQ}</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(liquidacion.FECHA).toLocaleString()}</span>
                 </div>
-                <h4 className="font-black text-lg">{liquidacion.reparto} {liquidacion.chofer ? `- ${liquidacion.chofer}` : ''}</h4>
+                <h4 className="font-black text-lg">{liquidacion.REPARTO} {liquidacion.CHOFER ? `- ${liquidacion.CHOFER}` : ''}</h4>
                 <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold mt-2">
                     <Package size={14} className="text-slate-400" />
-                    {liquidacion.ordenes?.length || 0} Registros afectados
+                    {affectedOrdersCount} Registros afectados
                 </div>
-                {liquidacion.obs && (
+                {liquidacion.OBS && (
                     <div className="text-xs text-slate-500 mt-2 bg-orange-50 dark:bg-orange-500/10 p-2 rounded-lg inline-block text-orange-600 dark:text-orange-400">
-                        <b>Obs:</b> {liquidacion.obs}
+                        <b>Obs:</b> {liquidacion.OBS}
                     </div>
                 )}
             </div>
@@ -4150,11 +4157,11 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
                 <div className="flex gap-4">
                     <div className="text-right">
                         <p className="text-[10px] uppercase text-slate-400 font-bold mb-1 border-b border-[var(--border)] pb-1">Efectivo</p>
-                        <p className="text-sm font-black text-emerald-600">${parseFloat(liquidacion.efectivo || 0).toLocaleString()}</p>
+                        <p className="text-sm font-black text-emerald-600">${parseFloat(liquidacion.EFECTIVO || 0).toLocaleString()}</p>
                     </div>
                     <div className="text-right">
                         <p className="text-[10px] uppercase text-slate-400 font-bold mb-1 border-b border-[var(--border)] pb-1">Total Neto</p>
-                        <p className="text-sm font-black text-indigo-600">${parseFloat(liquidacion.total_neto || 0).toLocaleString()}</p>
+                        <p className="text-sm font-black text-indigo-600">${parseFloat(liquidacion.TOTAL_NETO || 0).toLocaleString()}</p>
                     </div>
                 </div>
                 <button
