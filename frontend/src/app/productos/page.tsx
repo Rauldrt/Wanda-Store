@@ -40,8 +40,8 @@ import { useData } from "@/context/DataContext";
 
 // --- UTIL: CÁLCULO DE RENTABILIDAD ---
 const calculateProfitability = (price: number, cost: number) => {
-    if (!price || price <= 0) return 0;
-    return ((price - cost) / price) * 100;
+    if (!cost || cost <= 0) return 0;
+    return ((price - cost) / cost) * 100;
 };
 
 // --- UTIL: BÚSQUEDA FLEXIBLE ---
@@ -629,7 +629,7 @@ export default function ProductosPage() {
                                     </th>
                                     <th className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => handleSort('margin')}>
                                         <div className="flex items-center justify-center gap-2">
-                                            Margen {sortConfig.key === 'margin' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-indigo-500" /> : <ArrowDown size={12} className="text-indigo-500" />)}
+                                            Recargo {sortConfig.key === 'margin' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-indigo-500" /> : <ArrowDown size={12} className="text-indigo-500" />)}
                                         </div>
                                     </th>
                                     <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => handleSort('Stock_Actual')}>
@@ -1066,7 +1066,7 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                             </div>
                             <div className="relative">
                                 <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-300 mb-6 flex items-center gap-2">
-                                    <Percent size={12} /> Análisis de Margen Neto
+                                    <Percent size={12} /> Análisis de Recargo (Markup)
                                 </h4>
                                 <div className="grid grid-cols-2 gap-8">
                                     <div>
@@ -1081,7 +1081,7 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                                         </p>
                                         <div className="flex items-center justify-end gap-1 mt-1">
                                             <div className={`w-2 h-2 rounded-full ${currentMargin >= 30 ? 'bg-emerald-400' : currentMargin >= 15 ? 'bg-amber-400' : 'bg-rose-400'}`} />
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Marque Actual</span>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Recargo Actual</span>
                                         </div>
                                     </div>
                                 </div>
