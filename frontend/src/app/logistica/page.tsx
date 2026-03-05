@@ -42,7 +42,9 @@ import {
     Layers,
     Eye,
     ShoppingCart,
-    Tag
+    Tag,
+    Scale,
+    Box
 } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
@@ -1641,6 +1643,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
     const [orderDetailId, setOrderDetailId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [viewMode, setViewMode] = useState<"consolidated" | "orders">("orders");
+    const [consolidationFilter, setConsolidationFilter] = useState<'all' | 'pesables' | 'no-pesables'>('all');
 
     const consolidated = useMemo(() => {
         const map: Record<string, any> = {};
@@ -1708,11 +1711,17 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
     }, [localOrders, products]);
 
     const filteredConsolidated = useMemo(() => {
-        return consolidated.filter((prod: any) =>
-            smartSearch(prod.nombre, searchTerm) ||
-            prod.deliveries.some((d: any) => smartSearch(d.cliente, searchTerm))
-        );
-    }, [consolidated, searchTerm]);
+        return consolidated.filter((prod: any) => {
+            const matchesSearch = smartSearch(prod.nombre, searchTerm) ||
+                prod.deliveries.some((d: any) => smartSearch(d.cliente, searchTerm));
+
+            if (!matchesSearch) return false;
+
+            if (consolidationFilter === 'pesables') return prod.isKg;
+            if (consolidationFilter === 'no-pesables') return !prod.isKg;
+            return true;
+        });
+    }, [consolidated, searchTerm, consolidationFilter]);
 
     const filteredOrders = useMemo(() => {
         return localOrders.filter((order: any) =>
@@ -1946,6 +1955,28 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                             </button>
                         </div>
                     </div>
+
+                    {viewMode === 'consolidated' && (
+                        <div className="flex gap-2 mb-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            {[
+                                { id: 'all', label: 'Todos', icon: Package },
+                                { id: 'pesables', label: 'Pesables', icon: Scale },
+                                { id: 'no-pesables', label: 'No Pesables', icon: Box }
+                            ].map((f) => {
+                                const Icon = f.icon as any;
+                                return (
+                                    <button
+                                        key={f.id}
+                                        onClick={() => setConsolidationFilter(f.id as any)}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${consolidationFilter === f.id ? 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-white dark:bg-slate-800 text-slate-500 border-[var(--border)] hover:border-slate-400'}`}
+                                    >
+                                        <Icon size={12} />
+                                        {f.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
 
                     <div className="space-y-3">
                         {viewMode === 'consolidated' && (
