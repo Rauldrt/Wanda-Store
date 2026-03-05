@@ -2821,7 +2821,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                         </div>
                                     </div>
 
-                                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] overflow-hidden">
+                                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] max-h-[400px] overflow-y-auto custom-scrollbar">
                                         <table className="w-full text-left">
                                             <thead>
                                                 <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
