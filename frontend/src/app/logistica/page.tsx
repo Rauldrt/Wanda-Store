@@ -139,6 +139,8 @@ export default function LogisticaPage() {
     const [viewingOrdersRoute, setViewingOrdersRoute] = useState<string | null>(null);
     const [viewingDetailId, setViewingDetailId] = useState<string | null>(null);
     const [routeSearchTerm, setRouteSearchTerm] = useState("");
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [assignRouteName, setAssignRouteName] = useState("");
 
     const allPendingOrders = useMemo(() => {
         return orders.filter(o => !o.reparto || o.reparto === '' || o.reparto === 'null');
@@ -174,6 +176,20 @@ export default function LogisticaPage() {
         if (!routeSearchTerm) return allRoutes;
         return allRoutes.filter(rn => smartSearch(rn, routeSearchTerm));
     }, [orders, routeSearchTerm]);
+
+    const recentRoutes = useMemo(() => {
+        const routeData: Record<string, { name: string, lastDate: string }> = {};
+        orders.forEach(o => {
+            if (o.reparto && o.reparto !== 'null' && o.reparto !== '') {
+                // Normalizamos la fecha para comparar (ISO o simple string)
+                const d = o.fecha || '';
+                if (!routeData[o.reparto] || d > routeData[o.reparto].lastDate) {
+                    routeData[o.reparto] = { name: o.reparto, lastDate: d };
+                }
+            }
+        });
+        return Object.values(routeData).sort((a, b) => b.lastDate.localeCompare(a.lastDate)).map(r => r.name);
+    }, [orders]);
 
     const groupedPendingOrders = useMemo(() => {
         const groups: Record<string, Record<string, any[]>> = {};
@@ -211,8 +227,13 @@ export default function LogisticaPage() {
         }
     };
 
-    const handleAssignToRoute = async () => {
-        const routeName = prompt("Ingrese el nombre de la ruta (Chofer/Vehículo):");
+    const handleAssignToRoute = () => {
+        if (selectedOrders.size === 0) return;
+        setAssignRouteName(recentRoutes[0] || "");
+        setShowAssignModal(true);
+    };
+
+    const submitRouteAssignment = async (routeName: string) => {
         if (!routeName) return;
 
         try {
@@ -264,6 +285,7 @@ export default function LogisticaPage() {
 
             setSelectedOrders(new Set());
             await refreshData(true);
+            setShowAssignModal(false);
             alert("Pedidos reprocesados y asignados correctamente");
         } catch (error: any) {
             alert("Error al asignar o procesar pedidos: " + (error.message || error));
@@ -1394,6 +1416,17 @@ export default function LogisticaPage() {
             </AnimatePresence>
 
             <AnimatePresence>
+                {showAssignModal && (
+                    <AssignRouteModal
+                        recentRoutes={recentRoutes}
+                        onClose={() => setShowAssignModal(false)}
+                        onSubmit={submitRouteAssignment}
+                        initialValue={assignRouteName}
+                    />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
                 {viewingDetailId && (() => {
                     const currentIndex = filteredPendingOrders.findIndex((o: any) => o.id === viewingDetailId);
                     const hasPrev = currentIndex > 0;
@@ -1437,6 +1470,143 @@ export default function LogisticaPage() {
                     />
                 )}
             </AnimatePresence>
+        </div>
+    );
+}
+
+
+function AssignRouteModal({ recentRoutes, onClose, onSubmit, initialValue }: {
+    recentRoutes: string[];
+    onClose: () => void;
+    onSubmit: (name: string) => void;
+    initialValue: string;
+}) {
+    const [routeName, setRouteName] = useState(initialValue);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [showOptions, setShowOptions] = useState(false);
+
+    const filteredOptions = useMemo(() => {
+        if (!searchTerm) return recentRoutes;
+        return recentRoutes.filter(r => r.toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [recentRoutes, searchTerm]);
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-[var(--border)]"
+            >
+                <div className="p-6 space-y-6">
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <Truck size={20} />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-lg">Asignar Ruta</h3>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Chofer / Vehículo / Recorrido</p>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                            <X size={20} className="text-slate-400" />
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="relative">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Nombre de la Ruta</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={routeName}
+                                    onChange={(e) => {
+                                        setRouteName(e.target.value);
+                                        setSearchTerm(e.target.value);
+                                        setShowOptions(true);
+                                    }}
+                                    onFocus={() => setShowOptions(true)}
+                                    placeholder="Escriba o seleccione..."
+                                    className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-[var(--border)] rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                />
+                                <ChevronDown
+                                    size={18}
+                                    className={`absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform ${showOptions ? 'rotate-180' : ''}`}
+                                    onClick={() => setShowOptions(!showOptions)}
+                                />
+                            </div>
+
+                            <AnimatePresence>
+                                {showOptions && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute z-10 w-full mt-2 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl shadow-xl overflow-hidden max-h-48 overflow-y-auto"
+                                    >
+                                        <div className="p-1">
+                                            {filteredOptions.length > 0 ? (
+                                                filteredOptions.map((opt, i) => (
+                                                    <button
+                                                        key={opt}
+                                                        onClick={() => {
+                                                            setRouteName(opt);
+                                                            setShowOptions(false);
+                                                        }}
+                                                        className="w-full text-left px-4 py-2.5 hover:bg-indigo-500 hover:text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-between group"
+                                                    >
+                                                        <span>{opt}</span>
+                                                        {i === 0 && !searchTerm && (
+                                                            <span className="text-[8px] bg-indigo-500 text-white px-2 py-0.5 rounded-full group-hover:bg-white group-hover:text-indigo-500">ÚLTIMA</span>
+                                                        )}
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="p-3 text-center text-[10px] font-bold text-slate-400 uppercase">
+                                                    Presione Enter para crear nueva
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        <div className="bg-indigo-50 dark:bg-indigo-500/5 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-500/10">
+                            <div className="flex gap-3">
+                                <Info size={16} className="text-indigo-500 shrink-0" />
+                                <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 leading-normal uppercase">
+                                    Al asignar a una ruta existente, los pedidos nuevos se sumarán a la hoja de ruta actual.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={() => onSubmit(routeName)}
+                            disabled={!routeName.trim()}
+                            className="flex-2 py-3 px-8 bg-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:shadow-none"
+                        >
+                            Confirmar Asignación
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
         </div>
     );
 }
