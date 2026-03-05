@@ -407,7 +407,7 @@ export default function LogisticaPage() {
                 </style>
             </head>
             <body>
-                ${orderList.map(order => {
+                ${orderList.map((order, index) => {
             const isLong = order.items && order.items.length > 14;
             const copies = ['ORIGINAL', 'DUPLICADO'].map((type) => `
                             <div class="remito ${isLong ? 'long-format' : ''}">
@@ -418,17 +418,28 @@ export default function LogisticaPage() {
                                             <div class="company-details">${data?.config?.REMITO_DIRECCION || ''}</div>
                                             <div class="company-details">Tel: ${data?.config?.REMITO_TELEFONO || ''}</div>
                                         </div>
-                                        <div style="display: flex; gap: 15px; align-items: center; width: 25%;">
+                                        <div style="display: flex; gap: 10px; align-items: center; width: 30%;">
                                             <div class="x-box">
                                                 <span class="x-mark">X</span>
                                                 <span class="x-sub">Doc. no válido<br>como factura</span>
                                             </div>
                                             <div>
-                                                <div style="font-weight: 900; font-size: 12px;">PEDIDO</div>
-                                                <div style="font-weight: 900; font-size: 14px;">${order.id.slice(-8)}</div>
+                                                ${(() => {
+                    let orderIdx = index + 1;
+                    if (order.reparto) {
+                        // Filtramos igual que en la Hoja de Ruta para que el número sea idéntico
+                        const inRoute = orders.filter(o => o.reparto === order.reparto && (parseFloat(String(o.total).replace(',', '.')) || 0) > 0);
+                        const foundIdx = inRoute.findIndex(o => o.id === order.id);
+                        if (foundIdx !== -1) orderIdx = foundIdx + 1;
+                        return `<div style="font-weight: 900; font-size: 14px; color: #000; border: 2px solid #000; padding: 1px 5px; background: #eee; margin-bottom: 2px;">ORDEN: ${orderIdx}</div>`;
+                    }
+                    return orderList.length > 1 ? `<div style="font-weight: bold; font-size: 9px; color: #555;">Bulto ${index + 1}/${orderList.length}</div>` : '';
+                })()}
+                                                <div style="font-weight: 900; font-size: 10px; margin-top: 1px;">PEDIDO</div>
+                                                <div style="font-weight: 900; font-size: 14px; margin-top: -2px;">${order.id.slice(-8)}</div>
                                             </div>
                                         </div>
-                                        <div style="width: 30%; text-align: right; font-size: 10px; font-weight: bold;">
+                                        <div style="width: 25%; text-align: right; font-size: 10px; font-weight: bold;">
                                             <div>Fecha: ${order.fecha}</div>
                                             <div style="margin-top:2px;">Vendedor: ${order.vendedor || 'S/V'}</div>
                                         </div>
@@ -461,42 +472,42 @@ export default function LogisticaPage() {
                                             </thead>
                                             <tbody>
                                                 ${order.items?.filter((item: any) => (parseFloat(String(item.cantidad).replace(',', '.')) || 0) > 0).map((item: any) => {
-                let prod = products.find(p => String(p.ID_Producto) === String(item.id_prod));
-                if (!prod && item.nombre) {
-                    prod = products.find(p => String(p.Nombre || '').trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
-                }
-                const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
-                const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
-                const parsedUb = parseFloat(String(rawUb).replace(',', '.'));
-                const ub = (!rawUb || String(rawUb).trim() === '' || isNaN(parsedUb) || parsedUb === 0) ? 1 : parsedUb;
-                const qty = parseFloat(String(item.cantidad).replace(',', '.')) || 0;
-                const price = parseFloat(String(item.precio).replace(',', '.')) || 0;
-                const disc = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
-                const subtotal = (qty * price) * (1 - disc / 100);
+                    let prod = products.find(p => String(p.ID_Producto) === String(item.id_prod));
+                    if (!prod && item.nombre) {
+                        prod = products.find(p => String(p.Nombre || '').trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
+                    }
+                    const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
+                    const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
+                    const parsedUb = parseFloat(String(rawUb).replace(',', '.'));
+                    const ub = (!rawUb || String(rawUb).trim() === '' || isNaN(parsedUb) || parsedUb === 0) ? 1 : parsedUb;
+                    const qty = parseFloat(String(item.cantidad).replace(',', '.')) || 0;
+                    const price = parseFloat(String(item.precio).replace(',', '.')) || 0;
+                    const disc = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
+                    const subtotal = (qty * price) * (1 - disc / 100);
 
-                let displayQty = "";
-                const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
-                const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
-                const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
-                const unitLabel = baseUnit.startsWith('UNID') || baseUnit === 'U' || baseUnit === '' ? 'U' : baseUnit;
+                    let displayQty = "";
+                    const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
+                    const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+                    const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
+                    const unitLabel = baseUnit.startsWith('UNID') || baseUnit === 'U' || baseUnit === '' ? 'U' : baseUnit;
 
-                if (isKg) {
-                    displayQty = `${qty.toFixed(2)} KG`;
-                } else if (ub > 1) {
-                    const bul = Math.floor(qty / ub);
-                    const uni = Math.round((qty % ub) * 100) / 100;
-                    if (bul > 0 && uni === 0) {
-                        displayQty = `${bul} BUL <span style="font-size: 8px; font-weight: bold; color: #333;">(x${ub} ${unitLabel})</span>`;
-                    } else if (bul > 0) {
-                        displayQty = `${bul} BUL + ${uni} ${unitLabel}`;
+                    if (isKg) {
+                        displayQty = `${qty.toFixed(2)} KG`;
+                    } else if (ub > 1) {
+                        const bul = Math.floor(qty / ub);
+                        const uni = Math.round((qty % ub) * 100) / 100;
+                        if (bul > 0 && uni === 0) {
+                            displayQty = `${bul} BUL <span style="font-size: 8px; font-weight: bold; color: #333;">(x${ub} ${unitLabel})</span>`;
+                        } else if (bul > 0) {
+                            displayQty = `${bul} BUL + ${uni} ${unitLabel}`;
+                        } else {
+                            displayQty = `${qty} ${unitLabel}`;
+                        }
                     } else {
                         displayQty = `${qty} ${unitLabel}`;
                     }
-                } else {
-                    displayQty = `${qty} ${unitLabel}`;
-                }
 
-                return `
+                    return `
                                                         <tr class="item-row">
                                                             <td class="cen" style="font-weight: bold">${displayQty}</td>
                                                             <td style="font-weight: bold">${item.nombre}</td>
@@ -505,7 +516,7 @@ export default function LogisticaPage() {
                                                             <td class="num" style="font-weight: bold">$ ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                                         </tr>
                                                     `;
-            }).join('')}
+                }).join('')}
                                                 <!-- Empty row to stretch borders to bottom -->
                                                 <tr>
                                                     <td></td><td></td><td></td><td></td><td></td>
@@ -2121,7 +2132,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
         >
             <motion.div
                 initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-                className="bg-white dark:bg-slate-900 w-full max-w-5xl h-[95vh] sm:h-[90vh] rounded-[30px] sm:rounded-[40px] overflow-hidden shadow-2xl flex flex-col border border-white/20"
+                className="bg-white dark:bg-slate-900 w-full max-w-5xl h-[98vh] sm:h-[96vh] rounded-[30px] sm:rounded-[40px] overflow-hidden shadow-2xl flex flex-col border border-white/20"
             >
                 {/* Header */}
                 <div className="p-4 sm:p-5 border-b border-[var(--border)] flex justify-between items-center bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
@@ -2157,6 +2168,16 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                     onChange={e => setChofer(e.target.value)}
                                     className="bg-white/10 border-none rounded-lg px-2 py-1 text-[10px] font-black text-white placeholder:text-white/30 focus:ring-1 ring-white/20 w-32 sm:w-48"
                                 />
+                                <div className="relative group ml-2">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-white transition-colors" size={12} />
+                                    <input
+                                        type="text"
+                                        placeholder="BUSCAR PEDIDO..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="bg-white/10 border-none rounded-lg pl-8 pr-3 py-1 text-[10px] font-black text-white placeholder:text-white/30 focus:ring-1 ring-white/20 w-32 sm:w-48 uppercase"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2173,17 +2194,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                         <LayoutGrid size={14} className="text-indigo-500" /> Detalle de Entregas
                                     </h4>
-                                    <div className="flex items-center gap-3">
-                                        <div className="relative group flex-1">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
-                                            <input
-                                                type="text"
-                                                placeholder="Buscar por cliente, ID o ruta..."
-                                                value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl py-2 pl-9 pr-4 text-[11px] font-bold focus:ring-2 ring-indigo-500/20 transition-all shadow-sm"
-                                            />
-                                        </div>
+                                    <div className="flex items-center justify-end">
                                         <div className="flex items-center gap-2">
                                             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                                                 <button
@@ -2448,7 +2459,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {localOrders.map((order: any, idx: number) => (
+                                                {filteredOrders.map((order: any) => (
                                                     <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                                                         <td className="px-4 py-3">
                                                             <p className="font-bold text-xs">{order.cliente_nombre}</p>
@@ -2464,7 +2475,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                     value={order.pago_efectivo || ''}
                                                                     onChange={(e) => {
                                                                         const val = parseFloat(e.target.value) || 0;
-                                                                        setLocalOrders((prev: any[]) => prev.map((o: any, i: number) => i === idx ? { ...o, pago_efectivo: val } : o));
+                                                                        setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_efectivo: val } : o));
                                                                     }}
                                                                     className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-emerald-600"
                                                                     placeholder="$ 0"
@@ -2478,7 +2489,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                     value={order.pago_transferencia || ''}
                                                                     onChange={(e) => {
                                                                         const val = parseFloat(e.target.value) || 0;
-                                                                        setLocalOrders((prev: any[]) => prev.map((o: any, i: number) => i === idx ? { ...o, pago_transferencia: val } : o));
+                                                                        setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_transferencia: val } : o));
                                                                     }}
                                                                     className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-blue-600"
                                                                     placeholder="$ 0"
