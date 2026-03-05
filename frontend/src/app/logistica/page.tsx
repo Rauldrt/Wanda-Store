@@ -713,7 +713,8 @@ export default function LogisticaPage() {
         printWindow.document.close();
     };
 
-    const printRouteSheet = (orderList: any[], routeName: string) => {
+    const printRouteSheet = (rawOrderList: any[], routeName: string) => {
+        const orderList = rawOrderList.filter(o => (parseFloat(String(o.total).replace(',', '.')) || 0) > 0);
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
@@ -1947,7 +1948,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             total_original: parseFloat(o.total),
             total_final: parseFloat(o.total),
             items_originales: JSON.parse(JSON.stringify(o.items || [])),
-            pago_efectivo: 0,
+            pago_efectivo: parseFloat(o.total),
             pago_transferencia: 0
         }))
     );
@@ -2298,7 +2299,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                     const exists = devoluciones.find(d => d.id_prod === p.ID_Producto);
                                                                     const price = parseFloat(String(p.Precio_Unitario || 0).replace(',', '.'));
                                                                     if (exists) {
-                                                                        setDevoluciones(prev => prev.map(d => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * d.precio } : d));
+                                                                        setDevoluciones((prev: any[]) => prev.map((d: any) => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * d.precio } : d));
                                                                     } else {
                                                                         setDevoluciones([...devoluciones, { id_prod: p.ID_Producto, nombre: p.Nombre, qty: 1, precio: price, subtotal: price }]);
                                                                     }
@@ -2347,7 +2348,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                     value={dev.qty}
                                                                     onChange={(e) => {
                                                                         const n = parseFloat(e.target.value) || 0;
-                                                                        setDevoluciones(prev => prev.map((d, i) => i === idx ? { ...d, qty: n, subtotal: n * d.precio } : d));
+                                                                        setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio } : d));
                                                                     }}
                                                                     className="w-12 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black"
                                                                 />
@@ -2360,7 +2361,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                     value={dev.precio}
                                                                     onChange={(e) => {
                                                                         const p = parseFloat(e.target.value) || 0;
-                                                                        setDevoluciones(prev => prev.map((d, i) => i === idx ? { ...d, precio: p, subtotal: d.qty * p } : d));
+                                                                        setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p } : d));
                                                                     }}
                                                                     className="w-16 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black"
                                                                 />
@@ -2399,7 +2400,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {localOrders.map((order: any, idx) => (
+                                                {localOrders.map((order: any, idx: number) => (
                                                     <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                                                         <td className="px-4 py-3">
                                                             <p className="font-bold text-xs">{order.cliente_nombre}</p>
@@ -2415,7 +2416,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                     value={order.pago_efectivo || ''}
                                                                     onChange={(e) => {
                                                                         const val = parseFloat(e.target.value) || 0;
-                                                                        setLocalOrders(prev => prev.map((o, i) => i === idx ? { ...o, pago_efectivo: val } : o));
+                                                                        setLocalOrders((prev: any[]) => prev.map((o: any, i: number) => i === idx ? { ...o, pago_efectivo: val } : o));
                                                                     }}
                                                                     className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-emerald-600"
                                                                     placeholder="$ 0"
@@ -2429,7 +2430,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                     value={order.pago_transferencia || ''}
                                                                     onChange={(e) => {
                                                                         const val = parseFloat(e.target.value) || 0;
-                                                                        setLocalOrders(prev => prev.map((o, i) => i === idx ? { ...o, pago_transferencia: val } : o));
+                                                                        setLocalOrders((prev: any[]) => prev.map((o: any, i: number) => i === idx ? { ...o, pago_transferencia: val } : o));
                                                                     }}
                                                                     className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-blue-600"
                                                                     placeholder="$ 0"
