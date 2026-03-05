@@ -471,10 +471,13 @@ export default function PreventaPage() {
 
                 return {
                     id,
+                    id_prod: id,
                     id_producto: id,
                     nombre: p?.Nombre || "Producto",
                     cantidad: qty,
+                    precio: finalItemPrice,
                     esBulto: isB,
+                    detalle: isB ? 'BULTO' : 'UNIDAD',
                     descripcion: desc,
                     descuento: disc,
                     subtotal: subtotal
