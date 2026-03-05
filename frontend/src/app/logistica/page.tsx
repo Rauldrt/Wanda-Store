@@ -1172,6 +1172,12 @@ export default function LogisticaPage() {
                                                                                                                     <span className="w-1 h-1 rounded-full bg-slate-300" />
                                                                                                                     <span className="text-[9px] font-black text-indigo-500">${parseFloat(order.total).toLocaleString()}</span>
                                                                                                                 </div>
+                                                                                                                {order.notas && (
+                                                                                                                    <div className="mt-1.5 flex items-start gap-1 p-1.5 bg-amber-50 dark:bg-amber-500/5 rounded-lg border border-amber-100 dark:border-amber-500/10">
+                                                                                                                        <Info size={8} className="text-amber-500 shrink-0 mt-0.5" />
+                                                                                                                        <p className="text-[8px] font-bold text-amber-700 dark:text-amber-400 line-clamp-2">{order.notas}</p>
+                                                                                                                    </div>
+                                                                                                                )}
                                                                                                             </div>
                                                                                                             <div className="flex items-center gap-1">
                                                                                                                 <button
@@ -1797,14 +1803,24 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
 
                                                     return (
                                                         <div key={idx} className="p-4 flex justify-between items-center bg-white dark:bg-transparent">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">
-                                                                    {idx + 1}
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">
+                                                                        {idx + 1}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="font-bold text-xs">{delivery.cliente}</p>
+                                                                        <div className="flex items-center gap-3 mt-1">
+                                                                            <span className="text-[10px] text-slate-400 font-mono tracking-tighter">#{order.id}</span>
+                                                                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{order.vendedor}</span>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                                <div>
-                                                                    <p className="font-bold text-xs">{delivery.cliente}</p>
-                                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">#{delivery.orderId}</p>
-                                                                </div>
+                                                                {order.notas && (
+                                                                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold mt-1.5 flex items-center gap-1 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-100 dark:border-amber-500/20">
+                                                                        <Info size={10} /> {order.notas}
+                                                                    </p>
+                                                                )}
                                                             </div>
 
                                                             <div className="flex items-center gap-6">
@@ -3297,6 +3313,12 @@ function OrderCard({ order, isSelected, onSelect, onViewDetail, onPrint }: any) 
                     <div>
                         <p className="font-bold text-sm leading-tight">{order.cliente_nombre}</p>
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">#{order.id}</p>
+                        {order.notas && (
+                            <div className="mt-1 flex items-start gap-1 p-1 bg-amber-50 dark:bg-amber-500/10 rounded-md border border-amber-100 dark:border-amber-500/20">
+                                <Info size={10} className="text-amber-500 shrink-0 mt-0.5" />
+                                <p className="text-[9px] font-bold text-amber-700 dark:text-amber-400 line-clamp-1">{order.notas}</p>
+                            </div>
+                        )}
                     </div>
                     <div className="text-right">
                         <p className="font-black text-xs text-indigo-600">${parseFloat(order.total).toLocaleString()}</p>
@@ -3490,6 +3512,12 @@ function RouteOrdersModal({ routeName, orders, onClose, onRemoveOrder }: any) {
                                         <span className="text-[9px] font-bold text-indigo-500 uppercase">{order.estado}</span>
                                     </div>
                                     <p className="text-[10px] text-slate-500 mt-1 italic line-clamp-1">{order.direccion || 'Sin dirección'}</p>
+                                    {order.notas && (
+                                        <div className="mt-2 flex items-start gap-1.5 p-2 bg-amber-50 dark:bg-amber-500/10 rounded-lg border border-amber-100 dark:border-amber-500/20 max-w-md">
+                                            <Info size={12} className="text-amber-500 shrink-0 mt-0.5" />
+                                            <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 capitalize-first leading-tight">{order.notas}</p>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <p className="font-black text-sm text-slate-600 dark:text-slate-300">${parseFloat(order.total).toLocaleString()}</p>

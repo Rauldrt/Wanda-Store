@@ -796,28 +796,46 @@ export default function PreventaPage() {
         const label = isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unidad');
 
         return (
-            <div key={id} className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-800">
-                <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center text-indigo-500"><Package size={20} /></div>
-                <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-sm truncate">{p.Nombre}</h4>
-                    <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                            <p className={`text-[10px] font-bold uppercase ${disc > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
-                                {label} • ${(finalItemPrice * (1 - disc / 100)).toLocaleString()}
-                            </p>
-                            {disc > 0 && <span className="text-[7px] font-black bg-rose-100 text-rose-600 px-1 rounded">-{disc}%</span>}
+            <div key={id} className="flex flex-col bg-slate-50 dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 gap-3">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center text-indigo-500 shrink-0"><Package size={20} /></div>
+                    <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-sm truncate">{p.Nombre}</h4>
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                                <p className={`text-[10px] font-bold uppercase ${disc > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
+                                    {label} • ${(finalItemPrice * (1 - disc / 100)).toLocaleString()}
+                                </p>
+                                {disc > 0 && <span className="text-[7px] font-black bg-rose-100 text-rose-600 px-1 rounded">-{disc}%</span>}
+                            </div>
+                            <div className="text-xs font-black text-indigo-600 mt-0.5">
+                                Subtotal: ${(finalItemPrice * (1 - disc / 100) * qty).toLocaleString()}
+                            </div>
                         </div>
-                        <div className="text-xs font-black text-indigo-600 mt-0.5">
-                            Subtotal: ${(finalItemPrice * (1 - disc / 100) * qty).toLocaleString()}
-                        </div>
+                        {isKg && <p className="text-[8px] text-slate-400 font-medium">${pr.toLocaleString()}/kg ({pe}kg prom.)</p>}
                     </div>
-                    {isKg && <p className="text-[8px] text-slate-400 font-medium">${pr.toLocaleString()}/kg ({pe}kg prom.)</p>}
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => updateQty(id, -1)} className="text-rose-500"><Trash2 size={16} /></button>
+                        <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(id, v); else setQtyExact(id, 0) }} className="w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
+                        <button onClick={() => updateQty(id, 1)} className="text-indigo-500"><Plus size={16} /></button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button onClick={() => updateQty(id, -1)} className="text-rose-500"><Trash2 size={16} /></button>
-                    <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(id, v); else setQtyExact(id, 0) }} className="w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
-                    <button onClick={() => updateQty(id, 1)} className="text-indigo-500"><Plus size={16} /></button>
-                </div>
+                {ub > 1 && (
+                    <div className="flex bg-white/50 dark:bg-slate-900/50 p-1 rounded-2xl self-end">
+                        <button
+                            onClick={() => isB && toggleBulto(id)}
+                            className={`px-3 py-1 rounded-xl text-[8px] font-black uppercase transition-all ${!isB ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                        >
+                            {isKg ? 'Pieza' : 'Unidad'}
+                        </button>
+                        <button
+                            onClick={() => !isB && toggleBulto(id)}
+                            className={`px-3 py-1 rounded-xl text-[8px] font-black uppercase transition-all ${isB ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
+                        >
+                            Bulto
+                        </button>
+                    </div>
+                )}
             </div>
         );
     });
