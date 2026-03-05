@@ -138,6 +138,7 @@ export default function LogisticaPage() {
     const [settlingRoute, setSettlingRoute] = useState<string | null>(null);
     const [viewingOrdersRoute, setViewingOrdersRoute] = useState<string | null>(null);
     const [viewingDetailId, setViewingDetailId] = useState<string | null>(null);
+    const [routeSearchTerm, setRouteSearchTerm] = useState("");
 
     const allPendingOrders = useMemo(() => {
         return orders.filter(o => !o.reparto || o.reparto === '' || o.reparto === 'null');
@@ -169,8 +170,10 @@ export default function LogisticaPage() {
 
     const routeNames = useMemo(() => {
         const set = new Set(orders.map(o => o.reparto).filter(r => r && r !== 'null' && r !== ''));
-        return Array.from(set);
-    }, [orders]);
+        const allRoutes = Array.from(set) as string[];
+        if (!routeSearchTerm) return allRoutes;
+        return allRoutes.filter(rn => smartSearch(rn, routeSearchTerm));
+    }, [orders, routeSearchTerm]);
 
     const groupedPendingOrders = useMemo(() => {
         const groups: Record<string, Record<string, any[]>> = {};
@@ -1240,21 +1243,41 @@ export default function LogisticaPage() {
                     )}
 
                     {activeTab === 'rutas' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {routeNames.map(routeName => (
-                                <RouteCard
-                                    key={routeName as string}
-                                    name={routeName as string}
-                                    orderCount={orders.filter(o => o.reparto === routeName).length}
-                                    onManage={() => setEditingRoute(routeName as string)}
-                                    onViewOrders={() => setViewingOrdersRoute(routeName as string)}
-                                    onDelete={() => handleLiberarReparto(routeName as string)}
-                                    onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === routeName))}
-                                    onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === routeName), routeName as string)}
-                                    onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === routeName), routeName as string)}
-                                    onSettlement={() => setSettlingRoute(routeName as string)}
-                                />
-                            ))}
+                        <div className="space-y-6">
+                            <div className="bg-[var(--card)] border border-[var(--border)] p-4 rounded-2xl shadow-sm">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar hoja de ruta por nombre de chofer o transporte..."
+                                        value={routeSearchTerm}
+                                        onChange={(e) => setRouteSearchTerm(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {routeNames.length === 0 ? (
+                                    <div className="col-span-full p-12 text-center text-slate-400 font-bold bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
+                                        No se encontraron hojas de ruta {routeSearchTerm ? 'que coincidan con la búsqueda' : 'activas'}
+                                    </div>
+                                ) : (
+                                    routeNames.map(routeName => (
+                                        <RouteCard
+                                            key={routeName as string}
+                                            name={routeName as string}
+                                            orderCount={orders.filter(o => o.reparto === routeName).length}
+                                            onManage={() => setEditingRoute(routeName as string)}
+                                            onViewOrders={() => setViewingOrdersRoute(routeName as string)}
+                                            onDelete={() => handleLiberarReparto(routeName as string)}
+                                            onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === routeName))}
+                                            onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === routeName), routeName as string)}
+                                            onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === routeName), routeName as string)}
+                                            onSettlement={() => setSettlingRoute(routeName as string)}
+                                        />
+                                    ))
+                                )}
+                            </div>
                         </div>
                     )}
 

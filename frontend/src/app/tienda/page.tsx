@@ -571,21 +571,24 @@ export default function TiendaOnlinePage() {
                                                 </div>
                                                 <div>
                                                     <h3 className="text-sm font-black leading-tight text-slate-800 dark:text-white">{p.Nombre}</h3>
-                                                    <div className="flex items-center gap-3 mt-1">
-                                                        <div className="flex items-center gap-2 bg-white dark:bg-slate-700 rounded-full px-2 py-1 shadow-sm border border-slate-100 dark:border-slate-600">
-                                                            <button onClick={() => updateQty(id, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500">-</button>
-                                                            <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(id, v); else setQtyExact(id, 0); }} className="w-8 text-center text-[10px] font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded" onFocus={(e) => e.target.select()} />
-                                                            <button onClick={() => updateQty(id, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-500">+</button>
-                                                        </div>
-                                                        <span className="text-[9px] font-bold text-slate-400 uppercase">
-                                                            {isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unid.')}
+                                                    <div className="flex flex-col mt-0.5">
+                                                        <span className="text-[10px] font-bold text-slate-400">
+                                                            Precio: ${finalItemPrice.toLocaleString()} {isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unid.')}
                                                         </span>
+                                                        <div className="flex items-center gap-3 mt-1.5">
+                                                            <div className="flex items-center gap-2 bg-white dark:bg-slate-700 rounded-full px-2 py-1 shadow-sm border border-slate-100 dark:border-slate-600">
+                                                                <button onClick={() => updateQty(id, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500">-</button>
+                                                                <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(id, v); else setQtyExact(id, 0); }} className="w-8 text-center text-[10px] font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded" onFocus={(e) => e.target.select()} />
+                                                                <button onClick={() => updateQty(id, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-500">+</button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-lg font-black text-indigo-500">${(finalItemPrice * qty).toLocaleString()}</div>
-                                                <button onClick={() => setCarrito(prev => { const n = { ...prev }; delete n[id]; return n; })} className="text-rose-500 p-1"><Trash2 size={16} /></button>
+                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Subtotal</div>
+                                                <div className="text-lg font-black text-indigo-500 leading-tight">${(finalItemPrice * qty).toLocaleString()}</div>
+                                                <button onClick={() => setCarrito(prev => { const n = { ...prev }; delete n[id]; return n; })} className="text-rose-500 p-1 mt-1"><Trash2 size={16} /></button>
                                             </div>
                                         </div>
                                     );

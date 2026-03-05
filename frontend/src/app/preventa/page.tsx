@@ -800,11 +800,16 @@ export default function PreventaPage() {
                 <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center text-indigo-500"><Package size={20} /></div>
                 <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-sm truncate">{p.Nombre}</h4>
-                    <div className="flex items-center gap-2">
-                        <p className={`text-[10px] font-bold uppercase ${disc > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
-                            {label} • ${(finalItemPrice * (1 - disc / 100)).toLocaleString()}
-                        </p>
-                        {disc > 0 && <span className="text-[7px] font-black bg-rose-100 text-rose-600 px-1 rounded">-{disc}%</span>}
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                            <p className={`text-[10px] font-bold uppercase ${disc > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
+                                {label} • ${(finalItemPrice * (1 - disc / 100)).toLocaleString()}
+                            </p>
+                            {disc > 0 && <span className="text-[7px] font-black bg-rose-100 text-rose-600 px-1 rounded">-{disc}%</span>}
+                        </div>
+                        <div className="text-xs font-black text-indigo-600 mt-0.5">
+                            Subtotal: ${(finalItemPrice * (1 - disc / 100) * qty).toLocaleString()}
+                        </div>
                     </div>
                     {isKg && <p className="text-[8px] text-slate-400 font-medium">${pr.toLocaleString()}/kg ({pe}kg prom.)</p>}
                 </div>
