@@ -45,6 +45,7 @@ export default function ClientesPage() {
     const { data, refreshData, setIsSyncing, isSyncing } = useData();
     const clients = data?.clients || [];
     const orders = data?.orders || [];
+    const clientRequests = data?.client_requests || [];
 
     // Estados principales
     const [searchTerm, setSearchTerm] = useState("");
@@ -58,7 +59,7 @@ export default function ClientesPage() {
     const [visibleCount, setVisibleCount] = useState(50);
 
     // Filtros
-    const [activeFilter, setActiveFilter] = useState('all');
+    const [activeFilter, setActiveFilter] = useState<'all' | 'no_gps' | 'requests'>('all');
 
     useEffect(() => {
         setVisibleCount(50);
@@ -66,19 +67,16 @@ export default function ClientesPage() {
 
     // Filtrado de clientes
     const filteredClients = useMemo(() => {
+        if (activeFilter === 'requests') return clientRequests;
+
         return clients.filter((c: any) => {
             const searchPayload = `${c.Nombre_Negocio} ${c.ID_Cliente} ${c.Direccion} ${c.Zona} ${c.Contacto}`;
             const matchesSearch = smartSearch(searchPayload, deferredSearchTerm);
 
             if (activeFilter === 'no_gps') return matchesSearch && !c.Coordenadas_GPS;
-            if (activeFilter === 'recent') {
-                // Simulación de "recientes" basándose en si tiene pedidos este mes
-                const hasRecentOrder = orders.some((o: any) => o.cliente_id === c.ID_Cliente);
-                return matchesSearch && hasRecentOrder;
-            }
             return matchesSearch;
         });
-    }, [clients, deferredSearchTerm, activeFilter, orders]);
+    }, [clients, clientRequests, deferredSearchTerm, activeFilter]);
 
     // Estadísticas
     const stats = {
@@ -119,14 +117,36 @@ export default function ClientesPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("¿Estás seguro de eliminar este cliente?")) return;
+    const handleApproveRequest = async (request: any) => {
         try {
-            await wandaApi.deleteClient(id);
+            setIsSyncing(true);
+            const { id, ...clientData } = request;
+            const res = await wandaApi.approveClientRequest(id, clientData);
+            if (res.error) throw new Error(res.error);
             await refreshData(true);
-            if (selectedClient?.ID_Cliente === id) setIsDrawerOpen(false);
+            alert("Cliente aprobado y guardado correctamente.");
+        } catch (err: any) {
+            alert("Error al aprobar cliente: " + err.message);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleDelete = async (id: string, isRequest = false) => {
+        if (!confirm(`¿Estás seguro de eliminar esta ${isRequest ? 'solicitud' : 'cliente'}?`)) return;
+        try {
+            setIsSyncing(true);
+            if (isRequest) {
+                await wandaApi.rejectClientRequest(id);
+            } else {
+                await wandaApi.deleteClient(id);
+            }
+            await refreshData(true);
+            if (selectedClient?.ID_Cliente === id || selectedClient?.id === id) setIsDrawerOpen(false);
         } catch (error) {
-            alert("Error al eliminar cliente");
+            alert("Error al eliminar");
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -144,10 +164,11 @@ export default function ClientesPage() {
                     <p className="text-slate-500 text-sm font-medium">Gestiona tu cartera de clientes y rutas de preventa.</p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full md:w-auto">
                     <StatCard label="Total" value={stats.total} color="indigo" icon={<Users size={14} />} />
                     <StatCard label="Geoloc" value={stats.withGps} color="emerald" icon={<MapPin size={14} />} />
                     <StatCard label="Activos" value={stats.active} color="amber" icon={<ArrowUpRight size={14} />} />
+                    <StatCard label="Solicitudes" value={clientRequests.length} color="rose" icon={<Info size={14} />} onClick={() => setActiveFilter('requests')} />
                 </div>
             </div>
 
@@ -168,6 +189,9 @@ export default function ClientesPage() {
                     <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex">
                         <TabButton active={activeFilter === 'all'} onClick={() => setActiveFilter('all')}>Todos</TabButton>
                         <TabButton active={activeFilter === 'no_gps'} onClick={() => setActiveFilter('no_gps')}>Sin GPS</TabButton>
+                        <TabButton active={activeFilter === 'requests'} onClick={() => setActiveFilter('requests')}>
+                            Solicitudes {clientRequests.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[8px]">{clientRequests.length}</span>}
+                        </TabButton>
                     </div>
 
                     <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-700 mx-2 hidden md:block" />
@@ -211,12 +235,14 @@ export default function ClientesPage() {
                         <>
                             {filteredClients.slice(0, visibleCount).map((client: any) => (
                                 <ClientCard
-                                    key={client.ID_Cliente}
+                                    key={client.id || client.ID_Cliente}
                                     client={client}
                                     isList={viewMode === 'list'}
-                                    onView={() => handleOpenDrawer(client, 'view')}
+                                    isRequest={activeFilter === 'requests'}
+                                    onView={() => handleOpenDrawer(client, activeFilter === 'requests' ? 'edit' : 'view')}
                                     onEdit={() => handleOpenDrawer(client, 'edit')}
-                                    onDelete={() => handleDelete(client.ID_Cliente)}
+                                    onDelete={() => handleDelete(client.id || client.ID_Cliente, activeFilter === 'requests')}
+                                    onApprove={() => handleApproveRequest(client)}
                                 />
                             ))}
                             {filteredClients.length > visibleCount && (
@@ -266,15 +292,19 @@ export default function ClientesPage() {
 
 // --- SUBCOMPONENTES ---
 
-function StatCard({ label, value, color, icon }: any) {
+function StatCard({ label, value, color, icon, onClick }: any) {
     const colors: any = {
         indigo: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
         emerald: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-        amber: 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+        amber: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+        rose: 'bg-rose-500/10 text-rose-600 border-rose-500/20'
     };
 
     return (
-        <div className={`${colors[color]} border px-4 py-3 rounded-2xl flex flex-col`}>
+        <div
+            onClick={onClick}
+            className={`${colors[color]} border px-4 py-3 rounded-2xl flex flex-col ${onClick ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
+        >
             <div className="flex items-center gap-2 opacity-60 mb-1">
                 {icon}
                 <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
@@ -295,7 +325,7 @@ function TabButton({ children, active, onClick }: any) {
     );
 }
 
-function ClientCard({ client, onView, onEdit, onDelete, isList }: any) {
+function ClientCard({ client, onView, onEdit, onDelete, isList, isRequest, onApprove }: any) {
     if (isList) {
         return (
             <motion.div
@@ -315,7 +345,7 @@ function ClientCard({ client, onView, onEdit, onDelete, isList }: any) {
                             {client.Nombre_Negocio}
                         </h3>
                         <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                            <span className="font-mono font-bold uppercase">ID: {client.ID_Cliente}</span>
+                            <span className="font-mono font-bold uppercase">ID: {client.ID_Cliente || client.id}</span>
                             <span>•</span>
                             <span className="truncate italic">{client.Direccion}</span>
                         </div>
@@ -328,10 +358,23 @@ function ClientCard({ client, onView, onEdit, onDelete, isList }: any) {
                 </div>
 
                 <div className="flex items-center gap-2 mt-2 sm:mt-0 ml-auto sm:ml-0">
+                    {client.origen && <span className="text-[8px] font-black uppercase bg-indigo-500/10 text-indigo-500 px-2 py-1 rounded-lg">{client.origen}</span>}
                     {client.Coordenadas_GPS && <MapPinned size={16} className="text-emerald-500" />}
-                    <button onClick={onView} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-500 transition-all active:scale-95 shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-700 bg-slate-50 dark:bg-slate-900/50 sm:bg-transparent sm:border-transparent">
-                        <ChevronRight size={20} />
-                    </button>
+
+                    {onApprove ? (
+                        <div className="flex gap-2">
+                            <button onClick={onDelete} className="p-3 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded-xl text-rose-500 transition-all active:scale-95">
+                                <Trash2 size={18} />
+                            </button>
+                            <button onClick={onApprove} className="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all active:scale-95">
+                                Aceptar
+                            </button>
+                        </div>
+                    ) : (
+                        <button onClick={onView} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-indigo-500 transition-all active:scale-95 shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-700 bg-slate-50 dark:bg-slate-900/50 sm:bg-transparent sm:border-transparent">
+                            <ChevronRight size={20} />
+                        </button>
+                    )}
                 </div>
             </motion.div>
         );
@@ -362,7 +405,7 @@ function ClientCard({ client, onView, onEdit, onDelete, isList }: any) {
                             {client.Nombre_Negocio}
                         </h3>
                         <div className="flex items-center gap-2">
-                            <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-tighter">ID: {client.ID_Cliente}</p>
+                            <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-tighter">ID: {client.ID_Cliente || client.id}</p>
                             <span className="text-slate-300 dark:text-slate-700">•</span>
                             <p className="text-[10px] font-bold text-slate-500 uppercase">{client.Contacto || 'Sin Titular'}</p>
                         </div>
@@ -387,26 +430,45 @@ function ClientCard({ client, onView, onEdit, onDelete, isList }: any) {
                                 <MapPinned size={16} />
                             </div>
                         )}
-                        {client.Email && (
-                            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center" title="Email Disponible">
-                                <Mail size={16} />
+                        {client.origen && (
+                            <div className="px-2 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-[8px] font-black uppercase" title="Origen">
+                                {client.origen}
                             </div>
                         )}
                     </div>
 
                     <div className="flex gap-2">
-                        <button
-                            onClick={onEdit}
-                            className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 transition-all"
-                        >
-                            <Edit3 size={16} />
-                        </button>
-                        <button
-                            onClick={onView}
-                            className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
-                        >
-                            Ficha
-                        </button>
+                        {onApprove ? (
+                            <>
+                                <button
+                                    onClick={onDelete}
+                                    className="p-2.5 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/30 text-rose-500 transition-all"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                                <button
+                                    onClick={onApprove}
+                                    className="bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all active:scale-95"
+                                >
+                                    Aceptar
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={onEdit}
+                                    className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 transition-all"
+                                >
+                                    <Edit3 size={16} />
+                                </button>
+                                <button
+                                    onClick={onView}
+                                    className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                                >
+                                    Ficha
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

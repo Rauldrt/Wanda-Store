@@ -20,12 +20,13 @@ export const wandaApi: Record<string, any> = {
         return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     },
     getAll: async () => {
-        const [prodSnap, cliSnap, ordSnap, liqSnap, cfgSnap] = await Promise.all([
+        const [prodSnap, cliSnap, ordSnap, liqSnap, cfgSnap, reqSnap] = await Promise.all([
             getDocs(collection(db, "products")),
             getDocs(collection(db, "clients")),
             getDocs(collection(db, "orders")),
             getDocs(collection(db, "liquidations")),
-            getDoc(doc(db, "settings", "global"))
+            getDoc(doc(db, "settings", "global")),
+            getDocs(collection(db, "client_requests"))
         ]);
 
         return {
@@ -33,7 +34,8 @@ export const wandaApi: Record<string, any> = {
             clients: cliSnap.docs.map(d => ({ id: d.id, ...d.data() })),
             orders: ordSnap.docs.map(d => ({ id: d.id, ...d.data() })),
             liquidaciones: liqSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-            config: cfgSnap.exists() ? cfgSnap.data() : {}
+            config: cfgSnap.exists() ? cfgSnap.data() : {},
+            client_requests: reqSnap.docs.map(d => ({ id: d.id, ...d.data() }))
         };
     },
     getConfig: async () => {
@@ -55,6 +57,24 @@ export const wandaApi: Record<string, any> = {
         client.id = id;
         client.ID_Cliente = id;
         await setDoc(doc(db, "clients", id), client, { merge: true });
+        return { result: "OK", id: id };
+    },
+    saveClientRequest: async (client: any) => {
+        const id = String(client.id || `REQ-${new Date().getTime().toString().slice(-4)}`).replace(/\//g, "-").trim();
+        client.id = id;
+        client.fecha_solicitud = new Date().toISOString();
+        await setDoc(doc(db, "client_requests", id), client, { merge: true });
+        return { result: "OK", id: id };
+    },
+    approveClientRequest: async (requestId: string, clientData: any) => {
+        // Guardar como cliente real con nuevo ID si es necesario
+        const res = await wandaApi.saveClient(clientData);
+        // Borrar solicitud
+        await deleteDoc(doc(db, "client_requests", requestId));
+        return res;
+    },
+    rejectClientRequest: async (requestId: string) => {
+        await deleteDoc(doc(db, "client_requests", requestId));
         return { result: "OK" };
     },
     deleteProduct: async (id: string) => {
@@ -92,20 +112,40 @@ export const wandaApi: Record<string, any> = {
         const clienteNombre = orderData.cliente?.Nombre_Negocio || orderData.cliente?.nombre || "Cliente Sin Nombre";
         let notas = orderData.notas || "";
 
-        // Si es venta directa (Online) sin registrar, crear un dummy-id
+        // Si es venta directa (Online)
         if (orderData.cliente?.Es_Online) {
             clienteId = orderData.cliente?.Email || `ONL-${new Date().getTime()}`;
             notas = `[ONLINE] Tel: ${orderData.cliente.Telefono || "-"} | Dir: ${orderData.cliente.Direccion || "-"} | GPS: ${orderData.cliente.Ubicacion || "-"} | Notas: ${notas}`;
+        }
 
-            // Si el cliente no existía, crearlo
-            if (orderData.cliente?.Email) {
-                await wandaApi.saveClient({
+        // Verificación de existencia del cliente para flujo de aprobación
+        if (clienteId) {
+            const cliRef = await getDoc(doc(db, "clients", String(clienteId)));
+            if (!cliRef.exists()) {
+                // El cliente no existe en DB, generar solicitud de aprobación
+                await wandaApi.saveClientRequest({
                     ...orderData.cliente,
-                    ID_Cliente: clienteId,
+                    id: clienteId,
                     Nombre_Negocio: clienteNombre,
-                    tipo: "Online"
+                    origen: orderData.cliente?.Es_Online ? "Tienda Online" : (orderData.vendedor || "Preventa"),
+                    fecha_pedido: new Date().toISOString(),
+                    id_pedido: idPedido
                 });
+                notas = `[SOLICITUD PENDIENTE] ${notas}`;
             }
+        } else {
+            // No tiene ID, es un cliente nuevo absoluto
+            const tempId = `NEW-${new Date().getTime()}`;
+            await wandaApi.saveClientRequest({
+                ...orderData.cliente,
+                id: tempId,
+                Nombre_Negocio: clienteNombre,
+                origen: orderData.vendedor || "Preventa",
+                fecha_pedido: new Date().toISOString(),
+                id_pedido: idPedido
+            });
+            clienteId = tempId;
+            notas = `[NUEVO CLIENTE] ${notas}`;
         }
 
         const finalOrder = {
@@ -130,9 +170,8 @@ export const wandaApi: Record<string, any> = {
         if (orderData.items && orderData.items.length > 0) {
             orderData.items.forEach((item: any) => {
                 const idProd = String(item.id_producto || item.id || item.id_prod).replace(/\//g, "-").trim();
-                const stockField = Object.keys(item).find(k => k.toLowerCase().includes("stock")) || "Stock"; // Firebase usaba el CSV original
                 batch.update(doc(db, "products", idProd), {
-                    Stock: increment(-item.cantidad) // Asumimos que la propiedad se llama Stock en FS principal
+                    Stock: increment(-item.cantidad)
                 });
             });
         }
