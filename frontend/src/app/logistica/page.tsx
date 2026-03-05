@@ -473,7 +473,7 @@ export default function LogisticaPage() {
                     const bul = Math.floor(qty / ub);
                     const uni = Math.round((qty % ub) * 100) / 100;
                     if (bul > 0 && uni === 0) {
-                        displayQty = `${bul} BUL <span style="font-size: 8px; font-weight: normal; color: #666;">(x${ub} ${unitLabel})</span>`;
+                        displayQty = `${bul} BUL <span style="font-size: 8px; font-weight: bold; color: #333;">(x${ub} ${unitLabel})</span>`;
                     } else if (bul > 0) {
                         displayQty = `${bul} BUL + ${uni} ${unitLabel}`;
                     } else {
@@ -595,7 +595,7 @@ export default function LogisticaPage() {
             if (ub <= 1) return `${qty} ${unitLabel}`;
             const bul = Math.floor(qty / ub);
             const uni = Math.round((qty % ub) * 100) / 100;
-            const suffix = `<small style="font-weight: normal; font-size: 10px; color: #666; margin-left: 4px;">(x${ub} ${unitLabel})</small>`;
+            const suffix = `<small style="font-weight: bold; font-size: 10px; color: #333; margin-left: 4px;">(x${ub} ${unitLabel})</small>`;
             if (bul === 0) return `${uni} ${unitLabel}`;
             if (uni === 0) return `<b>${bul} BUL</b> ${suffix}`;
             return `<b>${bul} BUL + ${uni} ${unitLabel}</b> ${suffix}`;
