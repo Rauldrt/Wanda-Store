@@ -2569,7 +2569,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
     // --- NUEVO: ESTADO PARA MÉTODO ALTERNATIVO ---
     const [settlementMethod, setSettlementMethod] = useState<'standard' | 'alternative'>('standard');
-    const [devoluciones, setDevoluciones] = useState<{ id_prod: string, nombre: string, qty: number, precio: number, subtotal: number }[]>([]);
+    const [devoluciones, setDevoluciones] = useState<{ id_prod: string, nombre: string, qty: number, precio: number, subtotal: number, formato?: string, ub?: number }[]>([]);
     const [showReturnDropdown, setShowReturnDropdown] = useState(false);
     const [returnSearch, setReturnSearch] = useState("");
     const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'none'>('none');
@@ -2985,39 +2985,41 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                         className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-xl px-3 py-2 text-xs font-bold mb-2 outline-none"
                                                     />
                                                     <div className="max-h-48 overflow-auto space-y-1">
-                                                        {products.filter((p: any) => smartSearch(p.Nombre, returnSearch)).slice(0, 10).map((p: any) => (
-                                                            <button
-                                                                key={p.ID_Producto}
-                                                                onClick={() => {
-                                                                    const exists = devoluciones.find(d => d.id_prod === p.ID_Producto);
-                                                                    const price = parseFloat(String(p.Precio_Unitario || 0).replace(',', '.'));
-                                                                    const rawUb = p.UB || p.Unidades_Bulto || "1";
-                                                                    const ub = parseFloat(String(rawUb).replace(',', '.'));
+                                                        {products.filter((p: any) => smartSearch(p.Nombre, returnSearch)).slice(0, 10).map((p: any) => {
+                                                            const itemPrice = parseFloat(String(p.Precio_Unitario || 0).replace(',', '.'));
+                                                            return (
+                                                                <button
+                                                                    key={p.ID_Producto}
+                                                                    onClick={() => {
+                                                                        const exists = devoluciones.find(d => d.id_prod === p.ID_Producto);
+                                                                        const rawUb = p.UB || p.Unidades_Bulto || "1";
+                                                                        const ub = parseFloat(String(rawUb).replace(',', '.'));
 
-                                                                    if (exists) {
-                                                                        setDevoluciones((prev: any[]) => prev.map((d: any) => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * d.precio * (d.formato === 'BULTO' ? d.ub : 1) } : d));
-                                                                    } else {
-                                                                        setDevoluciones([...devoluciones, {
-                                                                            id_prod: p.ID_Producto,
-                                                                            nombre: p.Nombre,
-                                                                            qty: 1,
-                                                                            precio: price,
-                                                                            subtotal: price,
-                                                                            formato: 'UNID',
-                                                                            ub: ub
-                                                                        }]);
-                                                                    }
-                                                                    setShowReturnDropdown(false);
-                                                                    setReturnSearch("");
-                                                                }}
-                                                                className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0"
-                                                            >
-                                                                <div className="flex justify-between items-center">
-                                                                    <span>{p.Nombre}</span>
-                                                                    <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-md font-black">${price.toLocaleString()}</span>
-                                                                </div>
-                                                            </button>
-                                                        ))}
+                                                                        if (exists) {
+                                                                            setDevoluciones((prev) => prev.map((d) => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * (d.precio || 0) * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
+                                                                        } else {
+                                                                            setDevoluciones([...devoluciones, {
+                                                                                id_prod: p.ID_Producto,
+                                                                                nombre: p.Nombre,
+                                                                                qty: 1,
+                                                                                precio: itemPrice,
+                                                                                subtotal: itemPrice,
+                                                                                formato: 'UNID',
+                                                                                ub: ub
+                                                                            }]);
+                                                                        }
+                                                                        setShowReturnDropdown(false);
+                                                                        setReturnSearch("");
+                                                                    }}
+                                                                    className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0"
+                                                                >
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span>{p.Nombre}</span>
+                                                                        <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-md font-black">${itemPrice.toLocaleString()}</span>
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             )}
@@ -3056,20 +3058,20 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                         value={dev.qty}
                                                                         onChange={(e) => {
                                                                             const n = parseFloat(e.target.value) || 0;
-                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? d.ub : 1) } : d));
+                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
                                                                         }}
                                                                         className="w-12 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
                                                                     />
                                                                 </div>
-                                                                {dev.ub > 1 && (
+                                                                {(dev.ub || 1) > 1 && (
                                                                     <button
                                                                         onClick={() => {
                                                                             const nextFmt = dev.formato === 'UNID' ? 'BULTO' : 'UNID';
-                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, formato: nextFmt, subtotal: d.qty * d.precio * (nextFmt === 'BULTO' ? d.ub : 1) } : d));
+                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, formato: nextFmt, subtotal: d.qty * d.precio * (nextFmt === 'BULTO' ? (d.ub || 1) : 1) } : d));
                                                                         }}
                                                                         className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all ${dev.formato === 'BULTO' ? 'bg-amber-500 border-amber-500 text-white' : 'border-indigo-200 text-indigo-500 hover:bg-indigo-50 dark:border-indigo-900/30'}`}
                                                                     >
-                                                                        {dev.formato} (x{dev.ub})
+                                                                        {dev.formato} (x{dev.ub || 1})
                                                                     </button>
                                                                 )}
                                                             </div>
