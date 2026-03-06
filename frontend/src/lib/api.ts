@@ -251,9 +251,9 @@ export const wandaApi: Record<string, any> = {
         data.ordenes.forEach((ord: any) => {
             const orderRef = doc(db, "orders", String(ord.id));
             if (ord.estado === 'Entregado') {
-                batch.update(orderRef, { estado: "Entregado", reparto: "" });
+                batch.update(orderRef, { estado: "Entregado" });
             } else if (ord.estado === 'Rechazado') {
-                batch.update(orderRef, { estado: "Rechazado", reparto: "" });
+                batch.update(orderRef, { estado: "Rechazado" });
                 // Sumar al stock
                 (ord.items || []).forEach((item: any) => {
                     const idProd = String(item.id_producto || item.id || item.id_prod);
@@ -262,12 +262,23 @@ export const wandaApi: Record<string, any> = {
             } else if (ord.estado === 'Parcial') {
                 batch.update(orderRef, {
                     estado: "Entregado Parcial",
-                    reparto: "",
                     items: ord.items,
                     total: ord.total
                 });
             }
         });
+
+        // Procesar ajustes de stock explícitos (devoluciones manuales o deltas de parciales)
+        if (data.stockAdjustments && Array.isArray(data.stockAdjustments)) {
+            data.stockAdjustments.forEach((adj: any) => {
+                const id = adj.id || adj.id_prod;
+                if (id) {
+                    batch.update(doc(db, "products", String(id)), {
+                        Stock: increment(adj.Stock || 0)
+                    });
+                }
+            });
+        }
 
         const gastosTotal = (data.gastos || []).reduce((acc: any, g: any) => acc + (parseFloat(g.monto) || 0), 0);
         const efectivo = parseFloat(data.pagos.efectivo) || 0;

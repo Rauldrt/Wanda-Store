@@ -651,18 +651,6 @@ export default function PreventaPage() {
                     }`}
             >
                 <div className="flex gap-4">
-                    <div
-                        onClick={() => p.Imagen_URL && setSelectedImage(getImageUrl(p.Imagen_URL))}
-                        className="w-24 h-24 rounded-[24px] bg-slate-100 dark:bg-slate-800 overflow-hidden flex-shrink-0 cursor-zoom-in hover:scale-105 transition-transform"
-                    >
-                        {p.Imagen_URL ? (
-                            <img src={getImageUrl(p.Imagen_URL) || ""} alt={p.Nombre} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                <ImageIcon size={28} />
-                            </div>
-                        )}
-                    </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">

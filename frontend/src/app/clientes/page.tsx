@@ -29,6 +29,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
+import ClientMapView, { getClientCoordinates } from '@/components/ClientMapView';
 
 // --- UTIL: BÚSQUEDA FLEXIBLE ---
 const normalizeText = (text: string) =>
@@ -73,7 +74,10 @@ export default function ClientesPage() {
             const searchPayload = `${c.Nombre_Negocio} ${c.ID_Cliente} ${c.Direccion} ${c.Zona} ${c.Contacto}`;
             const matchesSearch = smartSearch(searchPayload, deferredSearchTerm);
 
-            if (activeFilter === 'no_gps') return matchesSearch && !c.Coordenadas_GPS;
+            if (activeFilter === 'no_gps') {
+                const hasCoordinates = getClientCoordinates(c) !== null;
+                return matchesSearch && !hasCoordinates;
+            }
             return matchesSearch;
         });
     }, [clients, clientRequests, deferredSearchTerm, activeFilter]);
@@ -81,7 +85,7 @@ export default function ClientesPage() {
     // Estadísticas
     const stats = {
         total: clients.length,
-        withGps: clients.filter((c: any) => c.Coordenadas_GPS).length,
+        withGps: clients.filter((c: any) => getClientCoordinates(c) !== null).length,
         active: new Set(orders.map((o: any) => o.cliente_id)).size
     };
 
@@ -224,12 +228,11 @@ export default function ClientesPage() {
             <div className={`grid gap-6 ${viewMode === 'list' ? 'grid-cols-1' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
                 <AnimatePresence mode="popLayout">
                     {viewMode === 'map' ? (
-                        <div key="map-view" className="col-span-full h-[60vh] bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-slate-500 space-y-4">
-                            <MapPinned size={48} className="text-indigo-500 opacity-50" />
-                            <div className="text-center">
-                                <p className="font-black uppercase tracking-widest text-sm">Vista de Mapa</p>
-                                <p className="text-xs opacity-60">Próximamente: Integración con Google Maps para geolocalización masiva.</p>
-                            </div>
+                        <div key="map-view" className="col-span-full h-[70vh] animate-in fade-in zoom-in-95 duration-500">
+                            <ClientMapView
+                                clients={filteredClients}
+                                onViewClient={(client) => handleOpenDrawer(client, 'view')}
+                            />
                         </div>
                     ) : (
                         <>
@@ -346,6 +349,7 @@ function ClientCard({ client, onView, onEdit, onDelete, isList, isRequest, onApp
                         </h3>
                         <div className="flex items-center gap-2 text-[10px] text-slate-500">
                             <span className="font-mono font-bold uppercase">ID: {client.ID_Cliente || client.id}</span>
+                            {(client.CUIT || client.CUIT_DNI) && <span>• CUIT: {client.CUIT || client.CUIT_DNI}</span>}
                             <span>•</span>
                             <span className="truncate italic">{client.Direccion}</span>
                         </div>
@@ -359,9 +363,9 @@ function ClientCard({ client, onView, onEdit, onDelete, isList, isRequest, onApp
 
                 <div className="flex items-center gap-2 mt-2 sm:mt-0 ml-auto sm:ml-0">
                     {client.origen && <span className="text-[8px] font-black uppercase bg-indigo-500/10 text-indigo-500 px-2 py-1 rounded-lg">{client.origen}</span>}
-                    {client.Coordenadas_GPS && <MapPinned size={16} className="text-emerald-500" />}
+                    {getClientCoordinates(client) !== null && <MapPinned size={16} className="text-emerald-500" />}
 
-                    {onApprove ? (
+                    {isRequest ? (
                         <div className="flex gap-2">
                             <button onClick={onDelete} className="p-3 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded-xl text-rose-500 transition-all active:scale-95">
                                 <Trash2 size={18} />
@@ -406,6 +410,7 @@ function ClientCard({ client, onView, onEdit, onDelete, isList, isRequest, onApp
                         </h3>
                         <div className="flex items-center gap-2">
                             <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-tighter">ID: {client.ID_Cliente || client.id}</p>
+                            {(client.CUIT || client.CUIT_DNI) && <><span className="text-slate-300 dark:text-slate-700">•</span><p className="text-[10px] font-mono font-bold text-slate-400">CUIT: {client.CUIT || client.CUIT_DNI}</p></>}
                             <span className="text-slate-300 dark:text-slate-700">•</span>
                             <p className="text-[10px] font-bold text-slate-500 uppercase">{client.Contacto || 'Sin Titular'}</p>
                         </div>
@@ -425,9 +430,14 @@ function ClientCard({ client, onView, onEdit, onDelete, isList, isRequest, onApp
 
                 <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex gap-2">
-                        {client.Coordenadas_GPS && (
+                        {getClientCoordinates(client) !== null && (
                             <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center" title="GPS Disponible">
                                 <MapPinned size={16} />
+                            </div>
+                        )}
+                        {client.Categoria && (
+                            <div className="px-2 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center text-[8px] font-black uppercase" title="Categoría">
+                                {client.Categoria}
                             </div>
                         )}
                         {client.origen && (
@@ -438,7 +448,7 @@ function ClientCard({ client, onView, onEdit, onDelete, isList, isRequest, onApp
                     </div>
 
                     <div className="flex gap-2">
-                        {onApprove ? (
+                        {isRequest ? (
                             <>
                                 <button
                                     onClick={onDelete}
@@ -504,7 +514,7 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
                             </h3>
                             <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                                    ID: {data.ID_Cliente}
+                                    ID: {data.ID_Cliente || data.id || 'NUEVO'}
                                 </span>
                             </div>
                         </div>
@@ -514,7 +524,6 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scroll pb-32">
-
                     {/* Sección Principal */}
                     <section className="space-y-6">
                         <div className="flex items-center gap-2 text-indigo-500">
@@ -540,6 +549,21 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
                                     label="Zona de Reparto"
                                     value={data.Zona}
                                     onChange={(v: any) => setData({ ...data, Zona: v })}
+                                    readOnly={!isEditing}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <InputField
+                                    label="CUIT / DNI"
+                                    value={data.CUIT_DNI || data.CUIT}
+                                    onChange={(v: any) => setData({ ...data, CUIT_DNI: v })}
+                                    readOnly={!isEditing}
+                                />
+                                <InputField
+                                    label="Categoría"
+                                    value={data.Categoria}
+                                    placeholder="Mayorista, Minorista, etc."
+                                    onChange={(v: any) => setData({ ...data, Categoria: v })}
                                     readOnly={!isEditing}
                                 />
                             </div>
@@ -573,13 +597,33 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
                                     readOnly={!isEditing}
                                 />
                             </div>
-                            <InputField
-                                label="Coordenadas GPS (Lat, Lng)"
-                                value={data.Coordenadas_GPS}
-                                onChange={(v: any) => setData({ ...data, Coordenadas_GPS: v })}
-                                placeholder="-34.6037, -58.3816"
-                                readOnly={!isEditing}
-                            />
+                            <div className="flex gap-2 items-end">
+                                <div className="flex-1">
+                                    <InputField
+                                        label="Coordenadas GPS (Lat, Lng)"
+                                        value={data.Coordenadas_GPS}
+                                        onChange={(v: any) => setData({ ...data, Coordenadas_GPS: v })}
+                                        placeholder="-34.6037, -58.3816"
+                                        readOnly={!isEditing}
+                                    />
+                                </div>
+                                {isEditing && (
+                                    <button
+                                        onClick={() => {
+                                            if (navigator.geolocation) {
+                                                navigator.geolocation.getCurrentPosition((pos) => {
+                                                    setData({ ...data, Coordenadas_GPS: `${pos.coords.latitude}, ${pos.coords.longitude}` });
+                                                }, (err) => alert("Error al obtener ubicación: " + err.message));
+                                            } else {
+                                                alert("Geolocalización no soportada en este navegador.");
+                                            }
+                                        }}
+                                        className="h-12 px-4 bg-slate-100 dark:bg-slate-800 text-slate-600 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-200 transition-all border border-slate-200 dark:border-slate-700 mb-1"
+                                    >
+                                        📍 Mi Posición
+                                    </button>
+                                )}
+                            </div>
                             {data.Coordenadas_GPS && (
                                 <a
                                     href={`https://www.google.com/maps?q=${data.Coordenadas_GPS}`}
@@ -667,7 +711,7 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
                                 Cancelar
                             </button>
                             <button
-                                onClick={onSave}
+                                onClick={() => onSave(data)}
                                 disabled={saving}
                                 className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 disabled:opacity-50 active:scale-95"
                             >

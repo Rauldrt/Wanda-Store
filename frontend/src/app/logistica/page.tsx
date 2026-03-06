@@ -300,7 +300,7 @@ export default function LogisticaPage() {
     const [assignRouteName, setAssignRouteName] = useState("");
 
     const allPendingOrders = useMemo(() => {
-        return orders.filter(o => !o.reparto || o.reparto === '' || o.reparto === 'null');
+        return orders.filter(o => (o.estado === 'Pendiente' || o.estado === 'En Preparación' || !o.estado) && (!o.reparto || o.reparto === '' || o.reparto === 'null'));
     }, [orders]);
 
     const availableSellers = useMemo(() => {
@@ -328,7 +328,10 @@ export default function LogisticaPage() {
     }, [allPendingOrders, searchTerm, filterDate, filterSeller]);
 
     const routeNames = useMemo(() => {
-        const set = new Set(orders.map(o => o.reparto).filter(r => r && r !== 'null' && r !== ''));
+        // Solo mostramos como "rutas activas" aquellas que tienen al menos un pedido pendiente de entrega.
+        // Las rutas 100% liquidadas se consultan en el Historial.
+        const ordersInActiveStatus = orders.filter(o => o.estado === 'Pendiente' || o.estado === 'En Preparación' || !o.estado);
+        const set = new Set(ordersInActiveStatus.map(o => o.reparto).filter(r => r && r !== 'null' && r !== ''));
         const allRoutes = Array.from(set) as string[];
         if (!routeSearchTerm) return allRoutes;
         return allRoutes.filter(rn => smartSearch(rn, routeSearchTerm));
@@ -1222,7 +1225,7 @@ export default function LogisticaPage() {
                                                     </td>
                                                     <td className="p-4">
                                                         <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-200">
-                                                            Pendiente
+                                                            {order.estado || 'Pendiente'}
                                                         </span>
                                                     </td>
                                                     <td className="p-4 text-right font-black text-indigo-600">
@@ -1897,6 +1900,12 @@ function AssignRouteModal({ recentRoutes, onClose, onSubmit, initialValue }: {
                                         setShowOptions(true);
                                     }}
                                     onFocus={() => setShowOptions(true)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && routeName.trim()) {
+                                            e.preventDefault();
+                                            onSubmit(routeName);
+                                        }
+                                    }}
                                     placeholder="Escriba o seleccione..."
                                     className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-[var(--border)] rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                 />
@@ -1933,9 +1942,14 @@ function AssignRouteModal({ recentRoutes, onClose, onSubmit, initialValue }: {
                                                     </button>
                                                 ))
                                             ) : (
-                                                <div className="p-3 text-center text-[10px] font-bold text-slate-400 uppercase">
-                                                    Presione Enter para crear nueva
-                                                </div>
+                                                <button
+                                                    onClick={() => onSubmit(routeName)}
+                                                    className="w-full text-left px-4 py-3 bg-indigo-50/50 hover:bg-indigo-50 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 group"
+                                                >
+                                                    <Plus size={14} className="group-hover:scale-110 transition-transform" />
+                                                    Crear ruta nueva: <span className="font-black">"{routeName}"</span>
+                                                    <span className="ml-auto text-[8px] opacity-50 uppercase tracking-widest hidden sm:block">o presione Enter</span>
+                                                </button>
                                             )}
                                         </div>
                                     </motion.div>
@@ -2887,32 +2901,43 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             // Si es método alternativo, pre-procesamos los estados basados en pagos o marcándolos como entregados
             // y procesamos el stock de las devoluciones manuales.
             let finalOrders = JSON.parse(JSON.stringify(localOrders));
+            const stockAdjustments: any[] = [];
 
             if (settlementMethod === 'alternative') {
                 // En el método alternativo, asumimos que todo se entregó menos lo que ingresamos como devolución manual
-                // El stock de devoluciones manuales lo manejamos aparte.
                 finalOrders = finalOrders.map((o: any) => ({
                     ...o,
-                    estado: 'Entregado', // Por defecto en Alt, se marca entregado
-                    total: o.total_original // Mantiene su total original
+                    estado: 'Entregado',
+                    total: o.total_original
                 }));
 
-                // Actualizar stock de devoluciones manuales
-                if (devoluciones.length > 0) {
-                    await wandaApi.bulkUpdateProducts(devoluciones.map(d => {
-                        const ub = parseFloat(String(d.ub || "1"));
-                        const finalQty = d.formato === 'BULTO' ? d.qty * ub : d.qty;
-                        return {
-                            id: d.id_prod,
-                            Stock: increment(finalQty)
-                        };
-                    }));
-                }
+                // Devoluciones manuales
+                devoluciones.forEach(d => {
+                    const ub = parseFloat(String(d.ub || "1"));
+                    const finalQty = d.formato === 'BULTO' ? d.qty * ub : d.qty;
+                    stockAdjustments.push({ id: d.id_prod, Stock: finalQty });
+                });
+            } else {
+                // En método estándar, calculamos los deltas de pedidos parciales
+                finalOrders.forEach((ord: any) => {
+                    if (ord.estado_rendicion === 'Parcial') {
+                        (ord.items || []).forEach((item: any) => {
+                            const original = (ord.items_originales || []).find((oi: any) => String(oi.id_prod) === String(item.id_prod));
+                            if (original && original.cantidad > item.cantidad) {
+                                stockAdjustments.push({
+                                    id: item.id_prod,
+                                    Stock: original.cantidad - item.cantidad
+                                });
+                            }
+                        });
+                    }
+                });
             }
 
             const payload = {
                 reparto: routeName,
                 chofer,
+                stockAdjustments,
                 ordenes: finalOrders.map((o: any) => ({
                     id: o.id,
                     estado: o.estado_rendicion || 'Entregado',
