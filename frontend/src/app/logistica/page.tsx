@@ -102,8 +102,8 @@ const printSettlement = (data: {
                     .stat-label { font-size: 9px; text-transform: uppercase; color: #64748b; margin-bottom: 3px; font-weight: 900; }
                     .stat-value { font-size: 16px; font-weight: 900; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                    th { text-align: left; font-size: 9px; text-transform: uppercase; color: #64748b; padding: 8px; border-bottom: 1px solid #e2e8f0; }
-                    td { padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 600; }
+                    th { text-align: left; font-size: 9px; text-transform: uppercase; color: #64748b; padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+                    td { padding: 3px 8px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 600; }
                     .section-title { font-size: 13px; font-weight: 900; text-transform: uppercase; margin-bottom: 12px; color: #1e293b; display: flex; align-items: center; gap: 8px; }
                     .total-neto { color: #4338ca; }
                     .gasto-val { color: #ef4444; }
