@@ -2690,10 +2690,14 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
                 // Actualizar stock de devoluciones manuales
                 if (devoluciones.length > 0) {
-                    await wandaApi.bulkUpdateProducts(devoluciones.map(d => ({
-                        id: d.id_prod,
-                        Stock: increment(d.qty)
-                    })));
+                    await wandaApi.bulkUpdateProducts(devoluciones.map(d => {
+                        const ub = parseFloat(String(d.ub || "1"));
+                        const finalQty = d.formato === 'BULTO' ? d.qty * ub : d.qty;
+                        return {
+                            id: d.id_prod,
+                            Stock: increment(finalQty)
+                        };
+                    }));
                 }
             }
 
@@ -2987,17 +2991,31 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                 onClick={() => {
                                                                     const exists = devoluciones.find(d => d.id_prod === p.ID_Producto);
                                                                     const price = parseFloat(String(p.Precio_Unitario || 0).replace(',', '.'));
+                                                                    const rawUb = p.UB || p.Unidades_Bulto || "1";
+                                                                    const ub = parseFloat(String(rawUb).replace(',', '.'));
+
                                                                     if (exists) {
-                                                                        setDevoluciones((prev: any[]) => prev.map((d: any) => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * d.precio } : d));
+                                                                        setDevoluciones((prev: any[]) => prev.map((d: any) => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * d.precio * (d.formato === 'BULTO' ? d.ub : 1) } : d));
                                                                     } else {
-                                                                        setDevoluciones([...devoluciones, { id_prod: p.ID_Producto, nombre: p.Nombre, qty: 1, precio: price, subtotal: price }]);
+                                                                        setDevoluciones([...devoluciones, {
+                                                                            id_prod: p.ID_Producto,
+                                                                            nombre: p.Nombre,
+                                                                            qty: 1,
+                                                                            precio: price,
+                                                                            subtotal: price,
+                                                                            formato: 'UNID',
+                                                                            ub: ub
+                                                                        }]);
                                                                     }
                                                                     setShowReturnDropdown(false);
                                                                     setReturnSearch("");
                                                                 }}
-                                                                className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold"
+                                                                className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0"
                                                             >
-                                                                {p.Nombre}
+                                                                <div className="flex justify-between items-center">
+                                                                    <span>{p.Nombre}</span>
+                                                                    <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-md font-black">${price.toLocaleString()}</span>
+                                                                </div>
                                                             </button>
                                                         ))}
                                                     </div>
@@ -3031,16 +3049,29 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                             <p className="text-[9px] font-mono text-slate-400">{dev.id_prod}</p>
                                                         </td>
                                                         <td className="px-4 py-3">
-                                                            <div className="flex items-center justify-center gap-2">
-                                                                <input
-                                                                    type="number"
-                                                                    value={dev.qty}
-                                                                    onChange={(e) => {
-                                                                        const n = parseFloat(e.target.value) || 0;
-                                                                        setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio } : d));
-                                                                    }}
-                                                                    className="w-12 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black"
-                                                                />
+                                                            <div className="flex flex-col items-center gap-1.5">
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={dev.qty}
+                                                                        onChange={(e) => {
+                                                                            const n = parseFloat(e.target.value) || 0;
+                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? d.ub : 1) } : d));
+                                                                        }}
+                                                                        className="w-12 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
+                                                                    />
+                                                                </div>
+                                                                {dev.ub > 1 && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const nextFmt = dev.formato === 'UNID' ? 'BULTO' : 'UNID';
+                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, formato: nextFmt, subtotal: d.qty * d.precio * (nextFmt === 'BULTO' ? d.ub : 1) } : d));
+                                                                        }}
+                                                                        className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all ${dev.formato === 'BULTO' ? 'bg-amber-500 border-amber-500 text-white' : 'border-indigo-200 text-indigo-500 hover:bg-indigo-50 dark:border-indigo-900/30'}`}
+                                                                    >
+                                                                        {dev.formato} (x{dev.ub})
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </td>
                                                         <td className="px-4 py-3">
@@ -3050,9 +3081,9 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                     value={dev.precio}
                                                                     onChange={(e) => {
                                                                         const p = parseFloat(e.target.value) || 0;
-                                                                        setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p } : d));
+                                                                        setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p * (d.formato === 'BULTO' ? d.ub : 1) } : d));
                                                                     }}
-                                                                    className="w-16 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black"
+                                                                    className="w-16 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
                                                                 />
                                                             </div>
                                                         </td>
