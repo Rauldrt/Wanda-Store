@@ -284,7 +284,8 @@ export const wandaApi: Record<string, any> = {
             GASTOS: gastosTotal,
             TOTAL_NETO: (efectivo + transferencia) - gastosTotal,
             OBS: data.notas || "",
-            ORDENES_JSON: JSON.stringify({ ordenes: data.ordenes || [] }) // Retro-compatibilidad visual
+            ORDENES_JSON: JSON.stringify({ ordenes: data.ordenes || [] }), // Retro-compatibilidad visual
+            DRAFT_JSON: JSON.stringify(data._full_draft || {}) // Para recuperación al revertir
         };
 
         batch.set(doc(db, "liquidations", liqId), liquidacionData);
