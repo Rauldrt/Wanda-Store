@@ -208,6 +208,16 @@ const smartSearch = (text: string, query: string) => {
 
 export default function LogisticaPage() {
     const { data, loading, refreshData, setIsSyncing } = useData();
+    const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial' | 'comisiones'>('pendientes');
+    const [commissionParams, setCommissionParams] = useState({
+        pct_chofer: 1.5,
+        fijo_entrega: 500,
+        pct_preventista: 2.0
+    });
+    const [commsDateRange, setCommsDateRange] = useState({
+        start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0]
+    });
     const products: any[] = data?.products || [];
     const rawOrders: any[] = data?.orders || [];
 
@@ -264,7 +274,6 @@ export default function LogisticaPage() {
     const liquidaciones: any[] = data?.liquidaciones || [];
 
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-    const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial'>('pendientes');
     const [viewMode, setViewMode] = useState<'grid' | 'list' | 'grouped'>('grid');
     const [searchTerm, setSearchTerm] = useState("");
     const [refreshCounter, setRefreshCounter] = useState(0);
@@ -1033,6 +1042,12 @@ export default function LogisticaPage() {
                     >
                         Historial ({liquidaciones.length})
                     </button>
+                    <button
+                        onClick={() => setActiveTab('comisiones')}
+                        className={`px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'comisiones' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
+                    >
+                        <CreditCard size={14} /> Comisiones
+                    </button>
                 </div>
             </div>
 
@@ -1513,6 +1528,200 @@ export default function LogisticaPage() {
                             )}
                         </div>
                     )}
+
+                    {activeTab === 'comisiones' && (() => {
+                        const filteredLiqs = liquidaciones.filter(l => {
+                            const date = l.FECHA_SISTEMA || l.FECHA;
+                            return date >= commsDateRange.start && date <= commsDateRange.end;
+                        });
+
+                        const driverComms: Record<string, { totalDelivered: number, count: number, fixed: number, var: number, final: number }> = {};
+                        const sellerComms: Record<string, { totalDelivered: number, var: number, final: number }> = {};
+
+                        filteredLiqs.forEach(liq => {
+                            const driver = liq.CHOFER || "Sin Chofer";
+                            if (!driverComms[driver]) driverComms[driver] = { totalDelivered: 0, count: 0, fixed: 0, var: 0, final: 0 };
+
+                            let ords: any[] = [];
+                            try {
+                                const wrapper = JSON.parse(liq.ORDENES_JSON || '{}');
+                                ords = wrapper.ordenes || [];
+                            } catch (e) { }
+
+                            ords.forEach((o: any) => {
+                                if (o.estado === 'Entregado' || o.estado === 'Parcial') {
+                                    const total = parseFloat(String(o.total).replace(',', '.')) || 0;
+                                    driverComms[driver].totalDelivered += total;
+                                    driverComms[driver].count += 1;
+
+                                    const seller = o.vendedor || "Sin Vendedor";
+                                    if (!sellerComms[seller]) sellerComms[seller] = { totalDelivered: 0, var: 0, final: 0 };
+                                    sellerComms[seller].totalDelivered += total;
+                                }
+                            });
+                        });
+
+                        // Calculate totals
+                        Object.keys(driverComms).forEach(d => {
+                            const c = driverComms[d];
+                            c.fixed = c.count * commissionParams.fijo_entrega;
+                            c.var = (c.totalDelivered * commissionParams.pct_chofer) / 100;
+                            c.final = c.fixed + c.var;
+                        });
+
+                        Object.keys(sellerComms).forEach(s => {
+                            const c = sellerComms[s];
+                            c.var = (c.totalDelivered * commissionParams.pct_preventista) / 100;
+                            c.final = c.var;
+                        });
+
+                        return (
+                            <div className="space-y-8 pb-10">
+                                {/* Parameters & Filters */}
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-sm">
+                                    <div className="md:col-span-2 grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase">Inicio</label>
+                                            <input
+                                                type="date"
+                                                value={commsDateRange.start}
+                                                onChange={e => setCommsDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                                className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-xs font-bold font-mono"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase">Fin</label>
+                                            <input
+                                                type="date"
+                                                value={commsDateRange.end}
+                                                onChange={e => setCommsDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                                className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-xs font-bold font-mono"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-indigo-500 uppercase flex justify-between">
+                                            % Chofer <span>{commissionParams.pct_chofer}%</span>
+                                        </label>
+                                        <input
+                                            type="range" min="0" max="10" step="0.1"
+                                            value={commissionParams.pct_chofer}
+                                            onChange={e => setCommissionParams(prev => ({ ...prev, pct_chofer: parseFloat(e.target.value) }))}
+                                            className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black text-emerald-500 uppercase flex justify-between">
+                                            % Ventas <span>{commissionParams.pct_preventista}%</span>
+                                        </label>
+                                        <input
+                                            type="range" min="0" max="10" step="0.1"
+                                            value={commissionParams.pct_preventista}
+                                            onChange={e => setCommissionParams(prev => ({ ...prev, pct_preventista: parseFloat(e.target.value) }))}
+                                            className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                        />
+                                    </div>
+                                    <div className="md:col-start-3 space-y-1.5">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase flex justify-between">
+                                            Fijo x Entrega <span>${commissionParams.fijo_entrega}</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={commissionParams.fijo_entrega}
+                                            onChange={e => setCommissionParams(prev => ({ ...prev, fijo_entrega: parseInt(e.target.value) || 0 }))}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-xs font-bold"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Results Tables */}
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                                    {/* DRIVERS */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-sm font-black uppercase tracking-widest text-indigo-500 flex items-center gap-2">
+                                            <Truck size={16} /> Choferes / Reparto
+                                        </h3>
+                                        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-[var(--border)]">
+                                                    <tr className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                                                        <th className="p-4">Chofer</th>
+                                                        <th className="p-4 text-center">Entregas</th>
+                                                        <th className="p-4 text-right">Total Entregado</th>
+                                                        <th className="p-4 text-right">Comisión</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {Object.entries(driverComms).map(([name, data]) => (
+                                                        <tr key={name} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                                                            <td className="p-4">
+                                                                <div className="font-bold text-xs">{name}</div>
+                                                            </td>
+                                                            <td className="p-4 text-center font-black text-[10px] text-slate-400">
+                                                                {data.count}
+                                                            </td>
+                                                            <td className="p-4 text-right font-bold text-xs">
+                                                                ${data.totalDelivered.toLocaleString()}
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <div className="font-black text-indigo-600">${Math.round(data.final).toLocaleString()}</div>
+                                                                <div className="text-[8px] text-slate-400 font-bold uppercase">
+                                                                    Fijo ${data.fixed.toLocaleString()} + Var ${Math.round(data.var).toLocaleString()}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {Object.keys(driverComms).length === 0 && (
+                                                        <tr><td colSpan={4} className="p-8 text-center text-slate-400 font-bold text-xs italic">No hay datos en este rango</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* PREVENTISTAS */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-sm font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2">
+                                            <User size={16} /> Preventistas / Ventas
+                                        </h3>
+                                        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-[var(--border)]">
+                                                    <tr className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                                                        <th className="p-4">Vendedor</th>
+                                                        <th className="p-4 text-right">Monto Entregado</th>
+                                                        <th className="p-4 text-right">Comisión</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {Object.entries(sellerComms).map(([name, data]) => (
+                                                        <tr key={name} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                                                            <td className="p-4">
+                                                                <div className="font-bold text-xs">{name}</div>
+                                                            </td>
+                                                            <td className="p-4 text-right font-bold text-xs">
+                                                                ${data.totalDelivered.toLocaleString()}
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <div className="font-black text-emerald-600">${Math.round(data.final).toLocaleString()}</div>
+                                                                <div className="text-[8px] text-slate-400 font-bold uppercase">
+                                                                    Calculado al {commissionParams.pct_preventista}%
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {Object.keys(sellerComms).length === 0 && (
+                                                        <tr><td colSpan={3} className="p-8 text-center text-slate-400 font-bold text-xs italic">No hay datos en este rango</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 <div className="space-y-6">
