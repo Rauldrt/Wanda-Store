@@ -827,8 +827,8 @@ export default function LogisticaPage() {
                     th { border-bottom: 2px solid #000; font-size: 9px; font-weight: 900; background: #f2f2f2; }
                     .check { width: 14px; height: 14px; border: 1px solid #000; border-radius: 2px; display: inline-block; vertical-align: middle; }
                     .qty { font-size: 13px; font-weight: 900; color: #4338ca; }
-                    .client-list { margin-top: 6px; font-size: 14px; color: #111; font-weight: bold; border-top: 1px dashed #ccc; padding-top: 4px; }
-                    .client-item { display: flex; justify-content: space-between; margin-bottom: 4px; }
+                    .client-list { margin-top: 4px; font-size: 11px; color: #333; border-top: 1px dashed #ccc; padding-top: 4px; }
+                    .client-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
                 </style>
             </head>
             <body>
@@ -891,7 +891,7 @@ export default function LogisticaPage() {
                                                 ${item.clientes.map((c: any) => `
                                                     <div class="client-item">
                                                         <span>\u2022 ${c.nombre}</span>
-                                                        <span style="font-weight: bold;">${c.cantidad.toFixed(2)} KG</span>
+                                                        <span>${c.cantidad.toFixed(2)} KG</span>
                                                     </div>
                                                 `).join('')}
                                             </div>
