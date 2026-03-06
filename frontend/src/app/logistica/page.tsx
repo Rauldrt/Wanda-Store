@@ -50,6 +50,151 @@ import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 import { increment } from "firebase/firestore";
 
+const printSettlement = (data: {
+    reparto: string,
+    chofer: string,
+    fecha: string,
+    id: string,
+    efectivo: number,
+    transf: number,
+    gastosTotal: number,
+    totalNeto: number,
+    billetes: any,
+    gastos: any[],
+    ordenes: any[]
+}) => {
+    const win = window.open('', '_blank');
+    if (!win) return;
+
+    const billRows = Object.entries(data.billetes || {}).map(([den, qty]) => {
+        const amount = Number(den) * (qty as number);
+        if (amount === 0) return '';
+        return `<tr><td>$${den}</td><td>x${qty}</td><td style="text-align:right">$${amount.toLocaleString()}</td></tr>`;
+    }).join('');
+
+    const orderRows = data.ordenes.map((o: any) => `
+        <tr>
+            <td>${o.cliente_nombre || o.id}</td>
+            <td>${o.estado}</td>
+            <td style="text-align:right">$${(o.total || 0).toLocaleString()}</td>
+        </tr>
+    `).join('');
+
+    const gastosRows = (data.gastos || []).map((g: any) => `
+        <tr>
+            <td>${g.desc || 'Gasto'}</td>
+            <td style="text-align:right">$${(g.monto || 0).toLocaleString()}</td>
+        </tr>
+    `).join('');
+
+    win.document.write(`
+        <html>
+            <head>
+                <title>Liquidación - ${data.reparto}</title>
+                <style>
+                    body { font-family: 'Inter', system-ui, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
+                    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+                    h1 { font-size: 24px; font-weight: 900; margin: 0; text-transform: uppercase; color: #4338ca; }
+                    .meta { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; color: #64748b; font-weight: bold; }
+                    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 40px; }
+                    .stat { background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; }
+                    .stat-label { font-size: 9px; text-transform: uppercase; color: #64748b; margin-bottom: 3px; font-weight: 900; }
+                    .stat-value { font-size: 16px; font-weight: 900; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                    th { text-align: left; font-size: 9px; text-transform: uppercase; color: #64748b; padding: 8px; border-bottom: 1px solid #e2e8f0; }
+                    td { padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 600; }
+                    .section-title { font-size: 13px; font-weight: 900; text-transform: uppercase; margin-bottom: 12px; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+                    .total-neto { color: #4338ca; }
+                    .gasto-val { color: #ef4444; }
+                    .cash-val { color: #10b981; }
+                    .proforma-tag { background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 6px; font-size: 10px; font-weight: 900; }
+                    @media print { .no-print { display: none; } body { padding: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h1>Liquidación de Ruta</h1>
+                        ${data.id.startsWith('PROFORMA') ? '<span class="proforma-tag">BORRADOR / PROFORMA</span>' : ''}
+                    </div>
+                    <div class="meta">
+                        <span>REPARTO: ${data.reparto}</span>
+                        <span>CHOFER: ${data.chofer || 'N/A'}</span>
+                        <span>FECHA: ${data.fecha}</span>
+                        <span>ID: ${data.id}</span>
+                    </div>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="stat">
+                        <div class="stat-label">Efectivo</div>
+                        <div class="stat-value cash-val">$${data.efectivo.toLocaleString()}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Transferencias</div>
+                        <div class="stat-value">$${data.transf.toLocaleString()}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Gastos</div>
+                        <div class="stat-value gasto-val">-$${data.gastosTotal.toLocaleString()}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Total Neto</div>
+                        <div class="stat-value total-neto">$${data.totalNeto.toLocaleString()}</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+                    <div>
+                        <div class="section-title">Desglose de Billetes</div>
+                        <table>
+                            <thead>
+                                <tr><th>Denominación</th><th>Cant.</th><th style="text-align:right">Subtotal</th></tr>
+                            </thead>
+                            <tbody>
+                                ${billRows || '<tr><td colspan="3" style="text-align:center">No hay desglose registrado</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <div class="section-title">Gastos Detallados</div>
+                        <table>
+                            <thead>
+                                <tr><th>Descripción</th><th style="text-align:right">Monto</th></tr>
+                            </thead>
+                            <tbody>
+                                ${gastosRows || '<tr><td colspan="2" style="text-align:center">No hay gastos detallados</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="section-title">Detalle de Pedidos (${data.ordenes.length})</div>
+                <table>
+                    <thead>
+                        <tr><th>Cliente / ID</th><th>Estado</th><th style="text-align:right">Rendido</th></tr>
+                    </thead>
+                    <tbody>
+                        ${orderRows}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 50px; display: flex; justify-content: space-between;">
+                    <div style="border-top: 1px solid #1e293b; width: 200px; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 900;">FIRMA CHOFER</div>
+                    <div style="border-top: 1px solid #1e293b; width: 200px; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 900;">FIRMA ADMINISTRACIÓN</div>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        window.print();
+                    }
+                </script>
+            </body>
+        </html>
+    `);
+    win.document.close();
+};
+
 const normalizeText = (text: string) =>
     String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
@@ -2496,6 +2641,35 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
         ? (pagos.efectivo + pagos.transferencia)
         : totalPagosPedidos;
 
+    const handlePrintDraft = () => {
+        const totalGastosLoc = gastos.reduce((acc, g) => acc + (g.monto || 0), 0);
+        const efectivoLoc = settlementMethod === 'alternative'
+            ? localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0), 0)
+            : (pagos.efectivo || 0);
+        const transfLoc = settlementMethod === 'alternative'
+            ? localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0)
+            : (pagos.transferencia || 0);
+
+        printSettlement({
+            reparto: routeName,
+            chofer,
+            fecha: new Date().toLocaleString(),
+            id: `PROFORMA-${new Date().getTime()}`,
+            efectivo: efectivoLoc,
+            transf: transfLoc,
+            gastosTotal: totalGastosLoc,
+            totalNeto: (efectivoLoc + transfLoc) - totalGastosLoc,
+            billetes,
+            gastos,
+            ordenes: localOrders.map((o: any) => ({
+                id: o.id,
+                cliente_nombre: o.cliente_nombre,
+                estado: o.estado_rendicion || 'Entregado',
+                total: o.total_final || o.total_original
+            }))
+        });
+    };
+
     const handleSave = async () => {
         try {
             setIsSyncing(true);
@@ -3164,14 +3338,23 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                 </div>
                             </div>
 
-                            <button
-                                disabled={isSyncing}
-                                onClick={handleSave}
-                                className="w-full py-5 bg-indigo-600 text-white rounded-[32px] text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-500/30 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
-                            >
-                                {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check size={20} />}
-                                {isSyncing ? 'Liquidando...' : 'Finalizar y Cerrar Ruta'}
-                            </button>
+                            <div className="flex flex-col gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handlePrintDraft}
+                                    className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 hover:border-indigo-500"
+                                >
+                                    <Printer size={14} /> Vista Previa e Imprimir
+                                </button>
+                                <button
+                                    disabled={isSyncing}
+                                    onClick={handleSave}
+                                    className="w-full py-5 bg-indigo-600 text-white rounded-[32px] text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-500/30 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+                                >
+                                    {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check size={20} />}
+                                    {isSyncing ? 'Liquidando...' : 'Finalizar y Cerrar Ruta'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -4145,9 +4328,6 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
     }, [liquidacion.ORDENES_JSON]);
 
     const handlePrint = () => {
-        const win = window.open('', '_blank');
-        if (!win) return;
-
         let draft: any = {};
         try {
             draft = JSON.parse(liquidacion.DRAFT_JSON || '{}');
@@ -4158,129 +4338,19 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
             ordenes = JSON.parse(liquidacion.ORDENES_JSON || '{}').ordenes || [];
         } catch (e) { }
 
-        const billRows = Object.entries(draft.billetes || {}).map(([den, qty]) => {
-            const amount = Number(den) * (qty as number);
-            if (amount === 0) return '';
-            return `<tr><td>$${den}</td><td>x${qty}</td><td style="text-align:right">$${amount.toLocaleString()}</td></tr>`;
-        }).join('');
-
-        const orderRows = ordenes.map((o: any) => `
-            <tr>
-                <td>${o.cliente_nombre || o.id}</td>
-                <td>${o.estado}</td>
-                <td style="text-align:right">$${(o.total || 0).toLocaleString()}</td>
-            </tr>
-        `).join('');
-
-        const gastosRows = (draft.gastos || []).map((g: any) => `
-            <tr>
-                <td>${g.desc || 'Gasto'}</td>
-                <td style="text-align:right">$${(g.monto || 0).toLocaleString()}</td>
-            </tr>
-        `).join('');
-
-        win.document.write(`
-            <html>
-                <head>
-                    <title>Liquidación - ${liquidacion.REPARTO}</title>
-                    <style>
-                        body { font-family: 'Inter', system-ui, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
-                        .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-                        h1 { font-size: 24px; font-weight: 900; margin: 0; text-transform: uppercase; color: #4338ca; }
-                        .meta { display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: #64748b; font-weight: bold; }
-                        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px; }
-                        .stat { background: #f8fafc; padding: 15px; rounded-xl: border: 1px solid #e2e8f0; border-radius: 12px; }
-                        .stat-label { font-size: 10px; text-transform: uppercase; color: #64748b; margin-bottom: 5px; font-weight: 900; }
-                        .stat-value { font-size: 18px; font-weight: 900; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                        th { text-align: left; font-size: 10px; text-transform: uppercase; color: #64748b; padding: 10px; border-bottom: 1px solid #e2e8f0; }
-                        td { padding: 10px; border-bottom: 1px solid #f1f5f9; font-size: 12px; font-weight: 600; }
-                        .section-title { font-size: 14px; font-weight: 900; text-transform: uppercase; margin-bottom: 15px; color: #1e293b; display: flex; align-items: center; gap: 10px; }
-                        .total-neto { color: #4338ca; }
-                        .gasto-val { color: #ef4444; }
-                        .cash-val { color: #10b981; }
-                        @media print { .no-print { display: none; } body { padding: 0; } }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>Liquidación de Ruta</h1>
-                        <div class="meta">
-                            <span>REPARTO: ${liquidacion.REPARTO}</span>
-                            <span>CHOFER: ${liquidacion.CHOFER || 'N/A'}</span>
-                            <span>FECHA: ${new Date(liquidacion.FECHA).toLocaleString()}</span>
-                            <span>ID: ${liquidacion.ID_LIQ}</span>
-                        </div>
-                    </div>
-
-                    <div class="summary-grid">
-                        <div class="stat">
-                            <div class="stat-label">Efectivo</div>
-                            <div class="stat-value cash-val">$${(liquidacion.EFECTIVO || 0).toLocaleString()}</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-label">Transferencias</div>
-                            <div class="stat-value">$${(liquidacion.TRANSF || 0).toLocaleString()}</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-label">Gastos</div>
-                            <div class="stat-value gasto-val">-$${(liquidacion.GASTOS || 0).toLocaleString()}</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-label">Total Neto</div>
-                            <div class="stat-value total-neto">$${(liquidacion.TOTAL_NETO || 0).toLocaleString()}</div>
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
-                        <div>
-                            <div class="section-title">Desglose de Billetes</div>
-                            <table>
-                                <thead>
-                                    <tr><th>Denominación</th><th>Cant.</th><th style="text-align:right">Subtotal</th></tr>
-                                </thead>
-                                <tbody>
-                                    ${billRows || '<tr><td colspan="3" style="text-align:center">No hay desglose registrado</td></tr>'}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div>
-                            <div class="section-title">Gastos Detallados</div>
-                            <table>
-                                <thead>
-                                    <tr><th>Descripción</th><th style="text-align:right">Monto</th></tr>
-                                </thead>
-                                <tbody>
-                                    ${gastosRows || '<tr><td colspan="2" style="text-align:center">No hay gastos detallados</td></tr>'}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="section-title">Detalle de Pedidos (${affectedOrdersCount})</div>
-                    <table>
-                        <thead>
-                            <tr><th>Cliente / ID</th><th>Estado</th><th style="text-align:right">Rendido</th></tr>
-                        </thead>
-                        <tbody>
-                            ${orderRows}
-                        </tbody>
-                    </table>
-
-                    <div style="margin-top: 50px; display: flex; justify-content: space-between;">
-                        <div style="border-top: 1px solid #1e293b; width: 200px; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 900;">FIRMA CHOFER</div>
-                        <div style="border-top: 1px solid #1e293b; width: 200px; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 900;">FIRMA ADMINISTRACIÓN</div>
-                    </div>
-
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                        }
-                    </script>
-                </body>
-            </html>
-        `);
-        win.document.close();
+        printSettlement({
+            reparto: liquidacion.REPARTO,
+            chofer: liquidacion.CHOFER,
+            fecha: new Date(liquidacion.FECHA).toLocaleString(),
+            id: liquidacion.ID_LIQ,
+            efectivo: parseFloat(liquidacion.EFECTIVO || 0),
+            transf: parseFloat(liquidacion.TRANSF || 0),
+            gastosTotal: parseFloat(liquidacion.GASTOS || 0),
+            totalNeto: parseFloat(liquidacion.TOTAL_NETO || 0),
+            billetes: draft.billetes,
+            gastos: draft.gastos,
+            ordenes: ordenes
+        });
     };
 
     return (
