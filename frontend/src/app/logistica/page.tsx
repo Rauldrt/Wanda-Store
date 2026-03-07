@@ -3055,7 +3055,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 </div>
 
                 <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-                    <div className="flex-[1.5] overflow-auto p-6 space-y-4 border-r border-[var(--border)]">
+                    <div className="flex-[1.5] overflow-auto p-6 space-y-4 border-r border-[var(--border)] relative">
                         {settlementMethod === 'standard' ? (
                             <>
                                 <div className="flex flex-col gap-3 mb-6 px-2">
@@ -3200,64 +3200,6 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                             <RotateCcw size={14} className="text-rose-500" /> Ingreso de Devoluciones (Stock)
                                         </h4>
-                                        <div className="relative">
-                                            <button
-                                                onClick={() => setShowReturnDropdown(!showReturnDropdown)}
-                                                className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
-                                            >
-                                                <Plus size={14} /> Agregar Devolución
-                                            </button>
-
-                                            {showReturnDropdown && (
-                                                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl shadow-2xl z-[60] overflow-hidden p-2">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Buscar producto..."
-                                                        autoFocus
-                                                        value={returnSearch}
-                                                        onChange={(e) => setReturnSearch(e.target.value)}
-                                                        className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-xl px-3 py-2 text-xs font-bold mb-2 outline-none"
-                                                    />
-                                                    <div className="max-h-48 overflow-auto space-y-1">
-                                                        {products.filter((p: any) => smartSearch(p.Nombre, returnSearch)).slice(0, 10).map((p: any) => {
-                                                            const itemPrice = parseFloat(String(p.Precio_Unitario || 0).replace(',', '.'));
-                                                            return (
-                                                                <button
-                                                                    key={p.ID_Producto}
-                                                                    onClick={() => {
-                                                                        const exists = devoluciones.find(d => d.id_prod === p.ID_Producto);
-                                                                        const rawUb = p.UB || p.Unidades_Bulto || "1";
-                                                                        const ub = parseFloat(String(rawUb).replace(',', '.'));
-
-                                                                        if (exists) {
-                                                                            setDevoluciones((prev) => prev.map((d) => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * (d.precio || 0) * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
-                                                                        } else {
-                                                                            setDevoluciones([...devoluciones, {
-                                                                                id_prod: p.ID_Producto,
-                                                                                nombre: p.Nombre,
-                                                                                qty: 1,
-                                                                                precio: itemPrice,
-                                                                                subtotal: itemPrice,
-                                                                                formato: 'UNID',
-                                                                                ub: ub
-                                                                            }]);
-                                                                        }
-                                                                        setShowReturnDropdown(false);
-                                                                        setReturnSearch("");
-                                                                    }}
-                                                                    className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0"
-                                                                >
-                                                                    <div className="flex justify-between items-center">
-                                                                        <span>{p.Nombre}</span>
-                                                                        <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-md font-black">${itemPrice.toLocaleString()}</span>
-                                                                    </div>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
                                     </div>
 
                                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] max-h-[400px] overflow-y-auto custom-scrollbar">
@@ -3289,6 +3231,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                 <div className="flex items-center gap-2">
                                                                     <input
                                                                         type="number"
+                                                                        id={`dev-qty-${dev.id_prod}`}
                                                                         value={dev.qty}
                                                                         onChange={(e) => {
                                                                             const n = parseFloat(e.target.value) || 0;
@@ -3398,6 +3341,75 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                             </tbody>
                                         </table>
                                     </div>
+                                </div>
+
+                                {/* FAB para Agregar Devolución */}
+                                <div className="absolute bottom-8 right-8 z-[70] flex flex-col items-end">
+                                    {showReturnDropdown && (
+                                        <div className="mb-4 w-72 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden p-2 origin-bottom-right animate-in fade-in slide-in-from-bottom-4">
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar producto..."
+                                                autoFocus
+                                                value={returnSearch}
+                                                onChange={(e) => setReturnSearch(e.target.value)}
+                                                className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-xl px-3 py-2 text-xs font-bold mb-2 outline-none"
+                                            />
+                                            <div className="max-h-48 overflow-auto space-y-1 custom-scrollbar">
+                                                {products.filter((p: any) => smartSearch(p.Nombre, returnSearch)).slice(0, 10).map((p: any) => {
+                                                    const itemPrice = parseFloat(String(p.Precio_Unitario || 0).replace(',', '.'));
+                                                    return (
+                                                        <button
+                                                            key={p.ID_Producto}
+                                                            onClick={() => {
+                                                                const rawUb = p.UB || p.Unidades_Bulto || "1";
+                                                                const ub = parseFloat(String(rawUb).replace(',', '.'));
+
+                                                                setDevoluciones((prev) => {
+                                                                    const exists = prev.find(d => d.id_prod === p.ID_Producto);
+                                                                    if (exists) {
+                                                                        return prev.map((d) => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * (d.precio || 0) * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d);
+                                                                    } else {
+                                                                        return [...prev, {
+                                                                            id_prod: p.ID_Producto,
+                                                                            nombre: p.Nombre,
+                                                                            qty: 1,
+                                                                            precio: itemPrice,
+                                                                            subtotal: itemPrice,
+                                                                            formato: 'UNID',
+                                                                            ub: ub
+                                                                        }];
+                                                                    }
+                                                                });
+                                                                setShowReturnDropdown(false);
+                                                                setReturnSearch("");
+                                                                setTimeout(() => {
+                                                                    const input = document.getElementById(`dev-qty-${p.ID_Producto}`);
+                                                                    if (input) {
+                                                                        input.focus();
+                                                                        (input as HTMLInputElement).select();
+                                                                    }
+                                                                }, 50);
+                                                            }}
+                                                            className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0"
+                                                        >
+                                                            <div className="flex justify-between items-center">
+                                                                <span>{p.Nombre}</span>
+                                                                <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-md font-black">${itemPrice.toLocaleString()}</span>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => setShowReturnDropdown(!showReturnDropdown)}
+                                        className="w-14 h-14 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(244,63,94,0.4)] hover:scale-110 active:scale-95 transition-all group"
+                                        title="Agregar Devolución"
+                                    >
+                                        <Plus size={24} className={`transition-transform duration-300 ${showReturnDropdown ? 'rotate-45' : ''}`} />
+                                    </button>
                                 </div>
                             </div>
                         )}
