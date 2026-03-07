@@ -62,7 +62,10 @@ const printSettlement = (data: {
     totalNeto: number,
     billetes: any,
     gastos: any[],
-    ordenes: any[]
+    ordenes: any[],
+    totalDevoluciones: number,
+    balanceDiferencia: number,
+    netoARendir: number
 }) => {
     const win = window.open('', '_blank');
     if (!win) return;
@@ -73,14 +76,6 @@ const printSettlement = (data: {
         return `<tr><td>$${den}</td><td>x${qty}</td><td style="text-align:right">$${amount.toLocaleString()}</td></tr>`;
     }).join('');
 
-    const orderRows = data.ordenes.map((o: any) => `
-        <tr>
-            <td>${o.cliente_nombre || o.id}</td>
-            <td>${o.estado}</td>
-            <td style="text-align:right">$${(o.total || 0).toLocaleString()}</td>
-        </tr>
-    `).join('');
-
     const gastosRows = (data.gastos || []).map((g: any) => `
         <tr>
             <td>${g.desc || 'Gasto'}</td>
@@ -88,27 +83,55 @@ const printSettlement = (data: {
         </tr>
     `).join('');
 
+    const orderRows = data.ordenes.map((o: any) => {
+        const hasDiff = Math.abs((o.total_original || 0) - (o.total || 0)) > 1;
+        return `
+            <tr>
+                <td>${o.cliente_nombre || o.id}</td>
+                <td>${o.estado}</td>
+                <td style="text-align:right">$${(o.efectivo || 0).toLocaleString()}</td>
+                <td style="text-align:right">$${(o.transf || 0).toLocaleString()}</td>
+                <td style="text-align:right; font-weight: 900; color: #4338ca;">$${(o.total || 0).toLocaleString()}</td>
+                <td style="text-align:center; font-size: 8px; color: #ef4444; font-weight: 900;">${hasDiff ? 'VER DESCUENTO' : ''}</td>
+            </tr>
+        `;
+    }).join('');
+
     win.document.write(`
         <html>
             <head>
                 <title>Liquidación - ${data.reparto}</title>
                 <style>
-                    body { font-family: 'Inter', system-ui, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
-                    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-                    h1 { font-size: 24px; font-weight: 900; margin: 0; text-transform: uppercase; color: #4338ca; }
-                    .meta { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; color: #64748b; font-weight: bold; }
-                    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 40px; }
-                    .stat { background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; }
-                    .stat-label { font-size: 9px; text-transform: uppercase; color: #64748b; margin-bottom: 3px; font-weight: 900; }
-                    .stat-value { font-size: 16px; font-weight: 900; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                    th { text-align: left; font-size: 9px; text-transform: uppercase; color: #64748b; padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
-                    td { padding: 3px 8px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 600; }
-                    .section-title { font-size: 13px; font-weight: 900; text-transform: uppercase; margin-bottom: 12px; color: #1e293b; display: flex; align-items: center; gap: 8px; }
-                    .total-neto { color: #4338ca; }
-                    .gasto-val { color: #ef4444; }
-                    .cash-val { color: #10b981; }
-                    .proforma-tag { background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 6px; font-size: 10px; font-weight: 900; }
+                    body { font-family: 'Inter', system-ui, sans-serif; padding: 20px; color: #1e293b; max-width: 1000px; margin: 0 auto; line-height: 1.4; }
+                    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }
+                    h1 { font-size: 22px; font-weight: 950; margin: 0; text-transform: uppercase; color: #4338ca; letter-spacing: -0.5px; }
+                    .meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: #64748b; font-weight: 900; }
+                    
+                    .main-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 30px; margin-bottom: 30px; }
+                    .column { display: flex; flex-direction: column; gap: 20px; }
+                    
+                    .card { background: #f8fafc; padding: 16px; border: 1px solid #e2e8f0; border-radius: 16px; }
+                    .card-title { font-size: 11px; font-weight: 900; text-transform: uppercase; color: #1e293b; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+                    
+                    .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; font-weight: 800; }
+                    .stat-val { font-family: monospace; }
+                    .stat-total { border-top: 1px solid #cbd5e1; margin-top: 8px; padding-top: 8px; font-size: 15px; font-weight: 900; }
+                    
+                    .audit-card { 
+                        background: #1e293b; color: white; padding: 30px; border-radius: 24px;
+                        border: 3px solid ${Math.abs(data.balanceDiferencia) < 10 ? '#10b981' : (data.balanceDiferencia > 0 ? '#ef4444' : '#10b981')};
+                        box-shadow: 0 15px 35px rgba(30, 41, 59, 0.2);
+                    }
+                    .audit-label-main { font-size: 13px; text-transform: uppercase; font-weight: 950; color: #818cf8; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+                    .audit-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 10px; font-weight: 800; }
+                    .audit-main { font-size: 28px; font-weight: 950; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; border-top: 2px solid rgba(255,255,255,0.1); padding-top: 20px; }
+                    .audit-status { font-size: 12px; font-weight: 950; letter-spacing: 1px; }
+
+                    table { width: 100%; border-collapse: collapse; }
+                    th { text-align: left; font-size: 9px; text-transform: uppercase; color: #64748b; padding: 8px 6px; border-bottom: 2px solid #e2e8f0; }
+                    td { padding: 8px 6px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 800; color: #1e293b; }
+                    
+                    .proforma-tag { background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 6px; font-size: 10px; font-weight: 950; }
                     @media print { .no-print { display: none; } body { padding: 0; } }
                 </style>
             </head>
@@ -126,63 +149,101 @@ const printSettlement = (data: {
                     </div>
                 </div>
 
-                <div class="summary-grid">
-                    <div class="stat">
-                        <div class="stat-label">Efectivo</div>
-                        <div class="stat-value cash-val">$${data.efectivo.toLocaleString()}</div>
+                <div class="main-layout">
+                    <!-- Columna Izquierda: Desgloses -->
+                    <div class="column">
+                        <div class="card">
+                            <div class="card-title">Desglose de Billetes</div>
+                            <table>
+                                <thead>
+                                    <tr><th>Denom.</th><th>Cant.</th><th style="text-align:right">Subtotal</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${billRows || '<tr><td colspan="3" style="text-align:center">Sin efectivo</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">Gastos Detallados</div>
+                            <table>
+                                <thead>
+                                    <tr><th>Descripción</th><th style="text-align:right">Monto</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${gastosRows || '<tr><td colspan="2" style="text-align:center">Sin gastos</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div class="stat">
-                        <div class="stat-label">Transferencias</div>
-                        <div class="stat-value">$${data.transf.toLocaleString()}</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Gastos</div>
-                        <div class="stat-value gasto-val">-$${data.gastosTotal.toLocaleString()}</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Total Neto</div>
-                        <div class="stat-value total-neto">$${data.totalNeto.toLocaleString()}</div>
+
+                    <!-- Columna Derecha: Auditoría Unificada -->
+                    <div class="column">
+                        <div class="audit-card">
+                            <div class="audit-label-main">Auditoría de Liquidación</div>
+                            
+                            <div class="audit-row" style="color: #c7d2fe; font-size: 16px;">
+                                <span>Neto a Rendir (Ventas)</span>
+                                <span>$${(data.netoARendir || 0).toLocaleString()}</span>
+                            </div>
+
+                            <div style="padding-left: 15px; border-left: 3px solid rgba(255,255,255,0.1); margin: 20px 0; display: flex; flex-direction: column; gap: 10px;">
+                                <div class="audit-row" style="opacity: 0.9;">
+                                    <span>(-) Total Devoluciones</span>
+                                    <span>$${(data.totalDevoluciones || 0).toLocaleString()}</span>
+                                </div>
+                                <div class="audit-row" style="opacity: 0.9;">
+                                    <span>(-) Gastos de Ruta</span>
+                                    <span>$${(data.gastosTotal || 0).toLocaleString()}</span>
+                                </div>
+                                <div class="audit-row" style="opacity: 0.9;">
+                                    <span>(-) Efectivo (Desglose)</span>
+                                    <span>$${data.efectivo.toLocaleString()}</span>
+                                </div>
+                                <div class="audit-row" style="opacity: 0.9; margin-bottom: 0;">
+                                    <span>(-) Transferencias</span>
+                                    <span>$${data.transf.toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            <div class="audit-main">
+                                <div class="audit-status" style="color: ${Math.abs(data.balanceDiferencia) < 10 ? '#34d399' : (data.balanceDiferencia > 0 ? '#fb7185' : '#34d399')};">
+                                    ${Math.abs(data.balanceDiferencia) < 10 ? 'BALANCEADO' : (data.balanceDiferencia < 0 ? 'SOBRANTE' : 'FALTANTE')}
+                                </div>
+                                <div style="color: ${Math.abs(data.balanceDiferencia) < 10 ? '#34d399' : (data.balanceDiferencia > 0 ? '#fb7185' : '#34d399')};">
+                                    $${Math.abs(data.balanceDiferencia).toLocaleString()}
+                                </div>
+                            </div>
+                            
+                            <div style="font-size: 10px; color: #94a3b8; margin-top: 20px; text-align: center; font-style: italic; font-weight: 700;">
+                                Fórmula: (Neto a Rendir) - (Devoluciones + Gastos + Efectivo + Transf)
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
-                    <div>
-                        <div class="section-title">Desglose de Billetes</div>
-                        <table>
-                            <thead>
-                                <tr><th>Denominación</th><th>Cant.</th><th style="text-align:right">Subtotal</th></tr>
-                            </thead>
-                            <tbody>
-                                ${billRows || '<tr><td colspan="3" style="text-align:center">No hay desglose registrado</td></tr>'}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div>
-                        <div class="section-title">Gastos Detallados</div>
-                        <table>
-                            <thead>
-                                <tr><th>Descripción</th><th style="text-align:right">Monto</th></tr>
-                            </thead>
-                            <tbody>
-                                ${gastosRows || '<tr><td colspan="2" style="text-align:center">No hay gastos detallados</td></tr>'}
-                            </tbody>
-                        </table>
-                    </div>
+                <div style="font-size: 13px; font-weight: 950; text-transform: uppercase; margin: 40px 0 15px; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+                    Detalle de Pedidos (${data.ordenes.length})
                 </div>
-
-                <div class="section-title">Detalle de Pedidos (${data.ordenes.length})</div>
                 <table>
                     <thead>
-                        <tr><th>Cliente / ID</th><th>Estado</th><th style="text-align:right">Rendido</th></tr>
+                        <tr>
+                            <th>Cliente / ID</th>
+                            <th>Estado</th>
+                            <th style="text-align:right">Efectivo</th>
+                            <th style="text-align:right">Transf.</th>
+                            <th style="text-align:right">Rendido</th>
+                            <th style="text-align:center">Obs.</th>
+                        </tr>
                     </thead>
                     <tbody>
                         ${orderRows}
                     </tbody>
                 </table>
 
-                <div style="margin-top: 50px; display: flex; justify-content: space-between;">
-                    <div style="border-top: 1px solid #1e293b; width: 200px; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 900;">FIRMA CHOFER</div>
-                    <div style="border-top: 1px solid #1e293b; width: 200px; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 900;">FIRMA ADMINISTRACIÓN</div>
+                <div style="margin-top: 70px; display: flex; justify-content: space-between;">
+                    <div style="border-top: 2px solid #1e293b; width: 220px; text-align: center; padding-top: 8px; font-size: 10px; font-weight: 950;">FIRMA CHOFER</div>
+                    <div style="border-top: 2px solid #1e293b; width: 220px; text-align: center; padding-top: 8px; font-size: 10px; font-weight: 950;">FIRMA ADMINISTRACIÓN</div>
                 </div>
 
                 <script>
@@ -528,7 +589,7 @@ export default function LogisticaPage() {
         if (!printWindow) return;
 
         const html = `
-            <html>
+    < html >
             <head>
                 <title>Remitos de Entrega</title>
                 <style>
@@ -737,8 +798,8 @@ export default function LogisticaPage() {
         }).join('')}
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
-            </html>
-        `;
+            </html >
+    `;
 
         printWindow.document.write(html);
         printWindow.document.close();
@@ -798,13 +859,13 @@ export default function LogisticaPage() {
         const formatCompact = (qty: number, ub: number, isKg: boolean, baseUnit: string) => {
             if (isKg) return `${qty.toFixed(2)} KG`;
             const unitLabel = baseUnit.toUpperCase().startsWith('UNID') || baseUnit.toUpperCase() === 'U' ? 'U' : baseUnit;
-            if (ub <= 1) return `${qty} ${unitLabel}`;
+            if (ub <= 1) return `${qty} ${unitLabel} `;
             const bul = Math.floor(qty / ub);
             const uni = Math.round((qty % ub) * 100) / 100;
-            const suffix = `<small style="font-weight: bold; font-size: 10px; color: #333; margin-left: 4px;">(x${ub} ${unitLabel})</small>`;
-            if (bul === 0) return `${uni} ${unitLabel}`;
-            if (uni === 0) return `<b>${bul} BUL</b> ${suffix}`;
-            return `<b>${bul} BUL + ${uni} ${unitLabel}</b> ${suffix}`;
+            const suffix = `< small style = "font-weight: bold; font-size: 10px; color: #333; margin-left: 4px;" > (x${ub} ${unitLabel})</small > `;
+            if (bul === 0) return `${uni} ${unitLabel} `;
+            if (uni === 0) return `< b > ${bul} BUL</b > ${suffix} `;
+            return `< b > ${bul} BUL + ${uni} ${unitLabel}</b > ${suffix} `;
         };
 
         const sorted = Object.values(aggregates).sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -812,7 +873,7 @@ export default function LogisticaPage() {
         const noPesables = sorted.filter(i => !i.isKg);
 
         const html = `
-            <html>
+    < html >
             <head>
                 <title>Picking List - ${routeName || 'Selección'}</title>
                 <style>
@@ -911,8 +972,8 @@ export default function LogisticaPage() {
 
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
-            </html>
-        `;
+            </html >
+    `;
 
         printWindow.document.write(html);
         printWindow.document.close();
@@ -926,7 +987,7 @@ export default function LogisticaPage() {
         const totalValue = orderList.reduce((acc, o) => acc + (parseFloat(String(o.total).replace(',', '.')) || 0), 0);
 
         const html = `
-            <html>
+    < html >
             <head>
                 <title>Hoja de Ruta - ${routeName}</title>
                 <style>
@@ -1009,8 +1070,8 @@ export default function LogisticaPage() {
 
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
-            </html>
-        `;
+            </html >
+    `;
 
         printWindow.document.write(html);
         printWindow.document.close();
@@ -1029,25 +1090,25 @@ export default function LogisticaPage() {
                 <div className="flex bg-[var(--card)] border border-[var(--border)] p-1 rounded-xl">
                     <button
                         onClick={() => setActiveTab('pendientes')}
-                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'pendientes' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
+                        className={`px - 4 py - 2 text - xs font - bold rounded - lg transition - all ${activeTab === 'pendientes' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'} `}
                     >
                         Pendientes ({allPendingOrders.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('rutas')}
-                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'rutas' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
+                        className={`px - 4 py - 2 text - xs font - bold rounded - lg transition - all ${activeTab === 'rutas' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'} `}
                     >
                         Hojas de Ruta ({routeNames.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('historial')}
-                        className={`px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'historial' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
+                        className={`px - 4 py - 2 flex items - center gap - 2 text - xs font - bold rounded - lg transition - all ${activeTab === 'historial' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'} `}
                     >
                         Historial ({liquidaciones.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('comisiones')}
-                        className={`px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'comisiones' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
+                        className={`px - 4 py - 2 flex items - center gap - 2 text - xs font - bold rounded - lg transition - all ${activeTab === 'comisiones' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'} `}
                     >
                         <CreditCard size={14} /> Comisiones
                     </button>
@@ -1106,21 +1167,21 @@ export default function LogisticaPage() {
                                     <div className="flex items-center gap-4 w-full sm:w-auto">
                                         <button
                                             onClick={() => setViewMode('grid')}
-                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                            className={`p - 1.5 rounded - md transition - all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'} `}
                                             title="Vista Grilla"
                                         >
                                             <LayoutGrid size={16} />
                                         </button>
                                         <button
                                             onClick={() => setViewMode('list')}
-                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                            className={`p - 1.5 rounded - md transition - all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'} `}
                                             title="Vista Lista"
                                         >
                                             <List size={16} />
                                         </button>
                                         <button
                                             onClick={() => setViewMode('grouped')}
-                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grouped' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                            className={`p - 1.5 rounded - md transition - all ${viewMode === 'grouped' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'} `}
                                             title="Vista Agrupada"
                                         >
                                             <Layers size={16} />
@@ -1187,7 +1248,7 @@ export default function LogisticaPage() {
                                                 <th className="p-4 text-left w-10">
                                                     <div
                                                         onClick={(e) => { e.stopPropagation(); toggleSelectAll(); }}
-                                                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
+                                                        className={`w - 5 h - 5 rounded border - 2 flex items - center justify - center transition - all cursor - pointer ${selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'} `}
                                                     >
                                                         {selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 && <CheckCircle2 size={12} />}
                                                         {selectedOrders.size > 0 && selectedOrders.size < filteredPendingOrders.length && <div className="w-2 h-0.5 bg-slate-400" />}
@@ -1205,12 +1266,12 @@ export default function LogisticaPage() {
                                             {filteredPendingOrders.map(order => (
                                                 <tr
                                                     key={order.id}
-                                                    className={`hover:bg-indigo-500/5 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-indigo-500/5' : ''}`}
+                                                    className={`hover: bg - indigo - 500 / 5 transition - colors cursor - pointer ${selectedOrders.has(order.id) ? 'bg-indigo-500/5' : ''} `}
                                                     onClick={() => toggleOrderSelection(order.id)}
                                                 >
                                                     <td className="p-4" onClick={(e) => e.stopPropagation()}>
                                                         <div
-                                                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
+                                                            className={`w - 5 h - 5 rounded border - 2 flex items - center justify - center transition - all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'} `}
                                                         >
                                                             {selectedOrders.has(order.id) && <CheckCircle2 size={12} />}
                                                         </div>
@@ -1254,7 +1315,7 @@ export default function LogisticaPage() {
                             ) : (
                                 <div className="space-y-6">
                                     {Object.keys(groupedPendingOrders).sort().map(seller => {
-                                        const sellerKey = `seller_${seller}`;
+                                        const sellerKey = `seller_${seller} `;
                                         const isSellerExpanded = expandedGroups.has(sellerKey);
                                         const datesInSeller = Object.keys(groupedPendingOrders[seller]).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
                                         const totalOrdersInSeller = datesInSeller.reduce((acc, d) => acc + groupedPendingOrders[seller][d].length, 0);
@@ -1295,17 +1356,17 @@ export default function LogisticaPage() {
                                                                     const groupOrders = groupedPendingOrders[seller][date];
                                                                     const totalGroup = groupOrders.reduce((acc, o) => acc + parseFloat(o.total), 0);
                                                                     const allGroupSelected = groupOrders.every(o => selectedOrders.has(o.id));
-                                                                    const dateKey = `date_${seller}_${date}`;
+                                                                    const dateKey = `date_${seller}_${date} `;
                                                                     const isDateExpanded = expandedGroups.has(dateKey);
 
                                                                     return (
-                                                                        <div key={date} className={`tech-card border transition-all overflow-hidden ${isDateExpanded ? 'border-indigo-500/50 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
+                                                                        <div key={date} className={`tech - card border transition - all overflow - hidden ${isDateExpanded ? 'border-indigo-500/50 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'} `}>
                                                                             <div
                                                                                 onClick={() => toggleGroup(dateKey)}
-                                                                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${isDateExpanded ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
+                                                                                className={`p - 4 flex justify - between items - center cursor - pointer transition - colors ${isDateExpanded ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'} `}
                                                                             >
                                                                                 <div className="flex items-center gap-4">
-                                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isDateExpanded ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                                                                    <div className={`w - 10 h - 10 rounded - xl flex items - center justify - center transition - all ${isDateExpanded ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'} `}>
                                                                                         <Calendar size={18} />
                                                                                     </div>
                                                                                     <div>
@@ -1325,7 +1386,7 @@ export default function LogisticaPage() {
                                                                                             }
                                                                                             setSelectedOrders(next);
                                                                                         }}
-                                                                                        className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${allGroupSelected ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}`}
+                                                                                        className={`px - 3 py - 1.5 rounded - xl text - [9px] font - black uppercase transition - all flex items - center gap - 2 ${allGroupSelected ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'} `}
                                                                                     >
                                                                                         <Check size={12} strokeWidth={4} />
                                                                                         {allGroupSelected ? 'Todos' : 'Marcar'}
@@ -1346,21 +1407,21 @@ export default function LogisticaPage() {
                                                                                     >
                                                                                         <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                                                                             {groupOrders.map(order => {
-                                                                                                const orderKey = `order_${order.id}`;
+                                                                                                const orderKey = `order_${order.id} `;
                                                                                                 const isOrderExpanded = expandedGroups.has(orderKey);
                                                                                                 const isSelected = selectedOrders.has(order.id);
 
                                                                                                 return (
                                                                                                     <div key={order.id} className="group">
                                                                                                         <div
-                                                                                                            className={`p-3 flex items-center gap-3 transition-colors hover:bg-indigo-500/5 cursor-pointer ${isSelected ? 'bg-indigo-500/10' : ''}`}
+                                                                                                            className={`p - 3 flex items - center gap - 3 transition - colors hover: bg - indigo - 500 / 5 cursor - pointer ${isSelected ? 'bg-indigo-500/10' : ''} `}
                                                                                                             onClick={(e) => {
                                                                                                                 if ((e.target as HTMLElement).closest('.collapse-btn')) return;
                                                                                                                 toggleOrderSelection(order.id);
                                                                                                             }}
                                                                                                         >
                                                                                                             <div
-                                                                                                                className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 bg-white'}`}
+                                                                                                                className={`w - 4 h - 4 rounded border flex items - center justify - center transition - all ${isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 bg-white'} `}
                                                                                                             >
                                                                                                                 {isSelected && <Check size={10} strokeWidth={4} />}
                                                                                                             </div>
@@ -1512,7 +1573,7 @@ export default function LogisticaPage() {
                                                 // --- RECUPERACIÓN DE DATOS ---
                                                 // Restauramos el borrador en localStorage para que el usuario pueda seguir editando
                                                 if (liq.DRAFT_JSON && liq.REPARTO) {
-                                                    localStorage.setItem(`wanda_settlement_${liq.REPARTO}`, liq.DRAFT_JSON);
+                                                    localStorage.setItem(`wanda_settlement_${liq.REPARTO} `, liq.DRAFT_JSON);
                                                 }
 
                                                 const res = await wandaApi.revertLiquidacion(liq.id);
@@ -1758,7 +1819,7 @@ export default function LogisticaPage() {
             <AnimatePresence>
                 {editingRoute && (
                     <RouteManagerModal
-                        key={`${editingRoute}_${refreshCounter}`}
+                        key={`${editingRoute}_${refreshCounter} `}
                         routeName={editingRoute}
                         orders={orders.filter(o => o.reparto === editingRoute)}
                         clients={clients}
@@ -1911,7 +1972,7 @@ function AssignRouteModal({ recentRoutes, onClose, onSubmit, initialValue }: {
                                 />
                                 <ChevronDown
                                     size={18}
-                                    className={`absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform ${showOptions ? 'rotate-180' : ''}`}
+                                    className={`absolute right - 3 top - 1 / 2 - translate - y - 1 / 2 text - slate - 400 transition - transform ${showOptions ? 'rotate-180' : ''} `}
                                     onClick={() => setShowOptions(!showOptions)}
                                 />
                             </div>
@@ -2260,12 +2321,12 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
     const formatQtyWithBultos = (qty: number, ub: number, isKg: boolean, baseUnit: string) => {
         if (isKg) return `${qty.toFixed(2)} Kg`;
         const unitLabel = baseUnit.toUpperCase().startsWith('UNID') || baseUnit.toUpperCase() === 'U' ? 'U' : baseUnit;
-        if (ub <= 1) return `${qty} ${unitLabel}`;
+        if (ub <= 1) return `${qty} ${unitLabel} `;
         const bul = Math.floor(qty / ub);
         const uni = Math.round((qty % ub) * 100) / 100;
-        if (bul === 0) return `${uni} ${unitLabel}`;
+        if (bul === 0) return `${uni} ${unitLabel} `;
         if (uni === 0) return `${bul} BUL`;
-        return `${bul} BUL + ${uni} ${unitLabel}`;
+        return `${bul} BUL + ${uni} ${unitLabel} `;
     };
 
     const totalRuta = useMemo(() => {
@@ -2277,13 +2338,13 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
     };
 
     const handleShareWhatsApp = () => {
-        let msg = `🚚 *HOJA DE RUTA: ${routeName}*\n🗓️ ${new Date().toLocaleDateString()}\n\n`;
+        let msg = `🚚 * HOJA DE RUTA: ${routeName}*\n🗓️ ${new Date().toLocaleDateString()} \n\n`;
         const uniqueClients = [...new Set(localOrders.map((o: any) => o.cliente_nombre))];
 
         uniqueClients.forEach((cn, i) => {
             const client = clients.find((c: any) => c.Nombre_Negocio === cn) || {};
-            const dir = client.Direccion ? `${client.Direccion}, ${client.Zona || ''}`.trim() : 'Sin dirección';
-            msg += `*${i + 1}. ${cn}*\n🏠 ${dir}\n📞 ${client.Telefono || 'N/A'}\n\n`;
+            const dir = client.Direccion ? `${client.Direccion}, ${client.Zona || ''} `.trim() : 'Sin dirección';
+            msg += `* ${i + 1}. ${cn}*\n🏠 ${dir} \n📞 ${client.Telefono || 'N/A'} \n\n`;
         });
 
         const stops = localOrders.map((o: any) => {
@@ -2292,7 +2353,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
         }).filter(Boolean);
 
         if (stops.length > 0) {
-            msg += `🗺️ *Recorrido Google Maps:*\nhttps://www.google.com/maps/dir//${stops.join('/')}\n`;
+            msg += `🗺️ * Recorrido Google Maps:*\nhttps://www.google.com/maps/dir//${stops.join('/')}\n`;
         }
 
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
@@ -2899,17 +2960,23 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             chofer,
             fecha: new Date().toLocaleString(),
             id: `PROFORMA-${new Date().getTime()}`,
-            efectivo: efectivoLoc,
+            efectivo: totalEfectivoDesglose, // Usamos el desglose real para el reporte
             transf: transfLoc,
             gastosTotal: totalGastosLoc,
-            totalNeto: (efectivoLoc + transfLoc) - totalGastosLoc,
+            totalNeto: (totalEfectivoDesglose + transfLoc) - totalGastosLoc, // No confundir con la auditoría
+            totalDevoluciones: settlementMethod === 'alternative' ? totalDevolucionesVal : 0,
+            balanceDiferencia: balanceDiferencia,
+            netoARendir: netoARendir,
             billetes,
             gastos,
             ordenes: localOrders.map((o: any) => ({
                 id: o.id,
                 cliente_nombre: o.cliente_nombre,
                 estado: o.estado_rendicion || 'Entregado',
-                total: o.total_final || o.total_original
+                total: o.total_final,
+                total_original: o.total_original,
+                efectivo: o.pago_efectivo,
+                transf: o.pago_transferencia
             }))
         });
     };
@@ -4646,21 +4713,57 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
 
         let ordenes: any[] = [];
         try {
-            ordenes = JSON.parse(liquidacion.ORDENES_JSON || '{}').ordenes || [];
+            const wrapper = JSON.parse(liquidacion.ORDENES_JSON || '{}');
+            ordenes = wrapper.ordenes || [];
         } catch (e) { }
+
+        // Recalcular métricas para el nuevo formato de reporte
+        const stMethod = draft.settlementMethod || 'standard';
+        const ordersForCalc = draft.localOrders || ordenes || [];
+
+        const totalRendicion = ordersForCalc.reduce((acc: number, o: any) => {
+            if (o.estado_rendicion === 'Rechazado' || o.estado === 'Rechazado') return acc;
+            return acc + (o.total_final || o.total || 0);
+        }, 0);
+
+        const totalCargaRuta = ordersForCalc.reduce((acc: number, o: any) => acc + (parseFloat(o.total_original || o.total) || 0), 0);
+        const totalDevVal = (draft.devoluciones || []).reduce((acc: number, d: any) => acc + (d.subtotal || 0), 0);
+
+        const netoARendirVal = draft.localOrders ? (stMethod === 'standard' ? totalRendicion : totalCargaRuta) : parseFloat(liquidacion.TOTAL_NETO || 0);
+        const gTotal = parseFloat(liquidacion.GASTOS || 0);
+        const efecTotal = draft.billetes ? Object.entries(draft.billetes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0) : parseFloat(liquidacion.EFECTIVO || 0);
+        const transTotal = parseFloat(liquidacion.TRANSF || 0);
+
+        const balDif = netoARendirVal - (
+            (stMethod === 'alternative' ? totalDevVal : 0) +
+            gTotal +
+            efecTotal +
+            transTotal
+        );
 
         printSettlement({
             reparto: liquidacion.REPARTO,
             chofer: liquidacion.CHOFER,
             fecha: new Date(liquidacion.FECHA).toLocaleString(),
             id: liquidacion.ID_LIQ,
-            efectivo: parseFloat(liquidacion.EFECTIVO || 0),
-            transf: parseFloat(liquidacion.TRANSF || 0),
-            gastosTotal: parseFloat(liquidacion.GASTOS || 0),
-            totalNeto: parseFloat(liquidacion.TOTAL_NETO || 0),
+            efectivo: efecTotal,
+            transf: transTotal,
+            gastosTotal: gTotal,
+            totalNeto: (efecTotal + transTotal) - gTotal,
+            totalDevoluciones: stMethod === 'alternative' ? totalDevVal : 0,
+            balanceDiferencia: balDif,
+            netoARendir: netoARendirVal,
             billetes: draft.billetes,
-            gastos: draft.gastos,
-            ordenes: ordenes
+            gastos: draft.gastos || [],
+            ordenes: ordersForCalc.map((o: any) => ({
+                id: o.id,
+                cliente_nombre: o.cliente_nombre,
+                estado: o.estado_rendicion || o.estado || 'Entregado',
+                total: o.total_final || o.total,
+                total_original: o.total_original || o.total,
+                efectivo: o.pago_efectivo || 0,
+                transf: o.pago_transferencia || 0
+            }))
         });
     };
 
