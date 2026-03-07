@@ -2861,6 +2861,26 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const totalPagosPedidos = localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0) + (o.pago_transferencia || 0), 0);
 
     const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+
+    const totalEfectivoDesglose = useMemo(() => {
+        return Object.entries(billetes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0);
+    }, [billetes]);
+
+    const totalTransfCalculado = useMemo(() => {
+        if (settlementMethod === 'standard') return pagos.transferencia;
+        return localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0);
+    }, [settlementMethod, pagos.transferencia, localOrders]);
+
+    const netoARendir = settlementMethod === 'standard' ? totalRendicion : totalCargaRuta;
+
+    // Diferencia: (neto a rendir) - (total devoluciones + gasto + efectivo segun desglose + transferencias)
+    const balanceDiferencia = netoARendir - (
+        (settlementMethod === 'alternative' ? totalDevolucionesVal : 0) +
+        totalGastos +
+        totalEfectivoDesglose +
+        totalTransfCalculado
+    );
+
     const totalCaja = settlementMethod === 'standard'
         ? (pagos.efectivo + pagos.transferencia)
         : totalPagosPedidos;
@@ -3586,35 +3606,46 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
                             <div className="p-6 bg-slate-900 dark:bg-white rounded-[32px] text-white dark:text-slate-900 shadow-2xl shadow-indigo-500/10">
                                 <div className="flex justify-between items-end mb-1">
-                                    <p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Saldo Neto a Rendir</p>
+                                    <p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Saldo a Rendir (Ventas)</p>
                                     <div className="text-right">
-                                        {settlementMethod === 'standard' ? (
-                                            <p className={`text-[10px] font-black px-2 py-0.5 rounded-full ${Math.abs(totalCaja - (totalRendicion - totalGastos)) < 10 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                                                {Math.abs(totalCaja - (totalRendicion - totalGastos)) < 10
-                                                    ? 'BALANCEADO'
-                                                    : `${totalCaja - (totalRendicion - totalGastos) > 0 ? 'SOBRANTE' : 'FALTANTE'}: $${Math.abs(totalCaja - (totalRendicion - totalGastos)).toLocaleString()}`
-                                                }
-                                            </p>
-                                        ) : (
-                                            <p className={`text-[10px] font-black px-2 py-0.5 rounded-full ${Math.abs(totalCaja - (totalCargaRuta - totalDevolucionesVal - totalGastos)) < 10 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                                                {Math.abs(totalCaja - (totalCargaRuta - totalDevolucionesVal - totalGastos)) < 10
-                                                    ? 'BALANCEADO'
-                                                    : `${totalCaja - (totalCargaRuta - totalDevolucionesVal - totalGastos) > 0 ? 'SOBRANTE' : 'FALTANTE'}: $${Math.abs(totalCaja - (totalCargaRuta - totalDevolucionesVal - totalGastos)).toLocaleString()}`
-                                                }
-                                            </p>
-                                        )}
+                                        <p className={`text-[10px] font-black px-2 py-0.5 rounded-full ${Math.abs(balanceDiferencia) < 10
+                                            ? 'bg-emerald-500/20 text-emerald-400'
+                                            : balanceDiferencia > 0 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                            {Math.abs(balanceDiferencia) < 10
+                                                ? 'BALANCEADO'
+                                                : `${balanceDiferencia < 0 ? 'SOBRANTE' : 'FALTANTE'}: $${Math.abs(balanceDiferencia).toLocaleString()}`
+                                            }
+                                        </p>
                                     </div>
                                 </div>
                                 <h3 className="text-3xl font-black mb-4">
-                                    ${(settlementMethod === 'standard'
-                                        ? (totalRendicion - totalGastos)
-                                        : (totalCargaRuta - totalDevolucionesVal - totalGastos)
-                                    ).toLocaleString()}
+                                    ${netoARendir.toLocaleString()}
                                 </h3>
 
+                                <div className="space-y-1 mb-4 border-y border-white/10 py-3">
+                                    <div className="flex justify-between items-center text-[10px] font-bold opacity-60 uppercase">
+                                        <span>Efectivo (Desglose)</span>
+                                        <span>$ {totalEfectivoDesglose.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[10px] font-bold opacity-60 uppercase">
+                                        <span>Transferencias</span>
+                                        <span>$ {totalTransfCalculado.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-rose-300 uppercase">
+                                        <span>Gastos</span>
+                                        <span>- $ {totalGastos.toLocaleString()}</span>
+                                    </div>
+                                    {settlementMethod === 'alternative' && (
+                                        <div className="flex justify-between items-center text-[10px] font-bold text-rose-300 uppercase">
+                                            <span>Devoluciones</span>
+                                            <span>- $ {totalDevolucionesVal.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="flex justify-between items-center">
-                                    <div className="text-[9px] font-black uppercase opacity-60 tracking-tighter">Entregado por Chofer</div>
-                                    <div className="text-lg font-black">${totalCaja.toLocaleString()}</div>
+                                    <div className="text-[9px] font-black uppercase opacity-60 tracking-tighter text-indigo-200">Total Auditado (Dinero + Gastos + Dev)</div>
+                                    <div className="text-lg font-black">$ {(totalEfectivoDesglose + totalTransfCalculado + totalGastos + (settlementMethod === 'alternative' ? totalDevolucionesVal : 0)).toLocaleString()}</div>
                                 </div>
                             </div>
 
