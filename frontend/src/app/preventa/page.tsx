@@ -734,7 +734,20 @@ export default function PreventaPage() {
                     : 'border-slate-100 dark:border-slate-800'
                     }`}
             >
-                <div className="flex gap-4">
+                <div className="flex gap-3">
+                    {/* Imagen del producto */}
+                    <div
+                        className="w-[72px] h-[72px] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex-shrink-0 cursor-pointer"
+                        onClick={() => p.Imagen_URL && setSelectedImage(p.Imagen_URL)}
+                    >
+                        {p.Imagen_URL ? (
+                            <img src={p.Imagen_URL} alt={p.Nombre} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
+                                <Package size={28} />
+                            </div>
+                        )}
+                    </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
@@ -1469,8 +1482,8 @@ export default function PreventaPage() {
                                                                     className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
                                                                 />
                                                                 <span className={`text-[11px] font-black uppercase tracking-widest ${label === 'Hoy' ? 'text-indigo-500'
-                                                                        : label === 'Ayer' ? 'text-emerald-600'
-                                                                            : 'text-slate-400'
+                                                                    : label === 'Ayer' ? 'text-emerald-600'
+                                                                        : 'text-slate-400'
                                                                     }`}>{label}</span>
                                                                 <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
                                                                     {orders.length} pedido{orders.length > 1 ? 's' : ''}
