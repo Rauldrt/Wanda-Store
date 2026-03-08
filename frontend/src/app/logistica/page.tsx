@@ -118,13 +118,13 @@ const printSettlement = (data: {
                     .stat-total { border-top: 1px solid #cbd5e1; margin-top: 8px; padding-top: 8px; font-size: 15px; font-weight: 900; }
                     
                     .audit-card { 
-                        background: #1e293b; color: white; padding: 30px; border-radius: 24px;
+                        background: #1e293b; color: white; padding: 22px; border-radius: 20px;
                         border: 3px solid ${Math.abs(data.balanceDiferencia) < 10 ? '#10b981' : (data.balanceDiferencia > 0 ? '#ef4444' : '#10b981')};
                         box-shadow: 0 15px 35px rgba(30, 41, 59, 0.2);
                     }
-                    .audit-label-main { font-size: 13px; text-transform: uppercase; font-weight: 950; color: #818cf8; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
-                    .audit-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; font-weight: 800; }
-                    .audit-main { font-size: 28px; font-weight: 950; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; border-top: 2px solid rgba(255,255,255,0.1); padding-top: 20px; }
+                    .audit-label-main { font-size: 11px; text-transform: uppercase; font-weight: 950; color: #818cf8; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; }
+                    .audit-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05); }
+                    .audit-main { font-size: 24px; font-weight: 950; display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 2px solid rgba(255,255,255,0.1); padding-top: 15px; }
                     .audit-status { font-size: 12px; font-weight: 950; letter-spacing: 1px; }
 
                     table { width: 100%; border-collapse: collapse; }
@@ -187,7 +187,7 @@ const printSettlement = (data: {
                                 <span>$${(data.netoARendir || 0).toLocaleString()}</span>
                             </div>
 
-                            <div style="padding-left: 15px; border-left: 3px solid rgba(255,255,255,0.1); margin: 15px 0; display: flex; flex-direction: column; gap: 6px;">
+                            <div style="padding-left: 15px; border-left: 3px solid rgba(255,255,255,0.1); margin: 10px 0; display: flex; flex-direction: column; gap: 0;">
                                 <div class="audit-row" style="opacity: 0.9;">
                                     <span>(-) Total Devoluciones</span>
                                     <span>$${(data.totalDevoluciones || 0).toLocaleString()}</span>
