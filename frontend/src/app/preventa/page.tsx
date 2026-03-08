@@ -649,10 +649,12 @@ export default function PreventaPage() {
     // --- RENDER HELPERS ---
 
     const clientList = filteredClients.length > 0 ? filteredClients.map(c => (
-        <button
-            key={c.ID_Cliente}
+        <div
+            key={c.ID_Cliente || c.Nombre_Negocio}
+            role="option"
+            aria-selected={false}
             onClick={() => { setSelectedClient(c); setClientSearch(c.Nombre_Negocio); setIsClientDropdownOpen(false); }}
-            className="w-full p-4 text-left border-b border-slate-50 dark:border-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex justify-between items-center group"
+            className="w-full p-4 text-left border-b border-slate-50 dark:border-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex justify-between items-center group cursor-pointer"
         >
             <div className="flex flex-col flex-1">
                 <div className="flex items-center gap-2">
@@ -667,7 +669,7 @@ export default function PreventaPage() {
             >
                 <Store size={16} />
             </button>
-        </button>
+        </div>
     )) : (
         <div className="p-8 text-center text-slate-400 flex flex-col items-center gap-2">
             <User size={32} className="opacity-20" />
@@ -1484,9 +1486,9 @@ export default function PreventaPage() {
                                     <p className="text-slate-500 font-medium mb-8 text-sm">Selecciona tu perfil para continuar.</p>
 
                                     <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scroll">
-                                        {(data?.sellers || []).filter((s: any) => s.Activo !== false).map((seller: any) => (
+                                        {(data?.sellers || []).filter((s: any) => s.Activo !== false).map((seller: any, idx: number) => (
                                             <button
-                                                key={seller.id}
+                                                key={seller.id || seller.Nombre || idx}
                                                 onClick={() => setSelectedSellerToVerify(seller)}
                                                 className="w-full p-4 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border-2 border-transparent hover:border-indigo-500/20 rounded-2xl transition-all font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 flex justify-between items-center group text-left"
                                             >
