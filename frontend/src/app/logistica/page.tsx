@@ -123,7 +123,7 @@ const printSettlement = (data: {
                         box-shadow: 0 15px 35px rgba(30, 41, 59, 0.2);
                     }
                     .audit-label-main { font-size: 13px; text-transform: uppercase; font-weight: 950; color: #818cf8; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
-                    .audit-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 10px; font-weight: 800; }
+                    .audit-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; font-weight: 800; }
                     .audit-main { font-size: 28px; font-weight: 950; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; border-top: 2px solid rgba(255,255,255,0.1); padding-top: 20px; }
                     .audit-status { font-size: 12px; font-weight: 950; letter-spacing: 1px; }
 
@@ -187,7 +187,7 @@ const printSettlement = (data: {
                                 <span>$${(data.netoARendir || 0).toLocaleString()}</span>
                             </div>
 
-                            <div style="padding-left: 15px; border-left: 3px solid rgba(255,255,255,0.1); margin: 20px 0; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="padding-left: 15px; border-left: 3px solid rgba(255,255,255,0.1); margin: 15px 0; display: flex; flex-direction: column; gap: 6px;">
                                 <div class="audit-row" style="opacity: 0.9;">
                                     <span>(-) Total Devoluciones</span>
                                     <span>$${(data.totalDevoluciones || 0).toLocaleString()}</span>
