@@ -3714,32 +3714,32 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                 <div className="flex justify-between items-end mb-1">
                                     <p className="text-[10px] font-black uppercase opacity-60 tracking-widest">Saldo a Rendir (Ventas)</p>
                                     <div className="text-right">
-                                        <p className={`text-[10px] font-black px-2 py-0.5 rounded-full ${Math.abs(balanceDiferencia) < 10
+                                        <p className={`text-[10px] font-black px-2 py-0.5 rounded-full ${Math.abs(balanceDiferencia) < 0.01
                                             ? 'bg-emerald-500/20 text-emerald-400'
                                             : balanceDiferencia > 0 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                                            {Math.abs(balanceDiferencia) < 10
+                                            {Math.abs(balanceDiferencia) < 0.01
                                                 ? 'BALANCEADO'
-                                                : `${balanceDiferencia < 0 ? 'SOBRANTE' : 'FALTANTE'}: $${Math.abs(balanceDiferencia).toLocaleString()}`
+                                                : `${balanceDiferencia < 0 ? 'SOBRANTE' : 'FALTANTE'}: $${Math.abs(balanceDiferencia).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                                             }
                                         </p>
                                     </div>
                                 </div>
                                 <h3 className="text-3xl font-black mb-4">
-                                    ${netoARendir.toLocaleString()}
+                                    ${netoARendir.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </h3>
 
                                 <div className="space-y-1 mb-4 border-y border-white/10 py-3">
                                     <div className="flex justify-between items-center text-[10px] font-bold opacity-60 uppercase">
                                         <span>Efectivo (Desglose)</span>
-                                        <span>$ {totalEfectivoDesglose.toLocaleString()}</span>
+                                        <span>$ {totalEfectivoDesglose.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-[10px] font-bold opacity-60 uppercase">
                                         <span>Transferencias</span>
-                                        <span>$ {totalTransfCalculado.toLocaleString()}</span>
+                                        <span>$ {totalTransfCalculado.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-[10px] font-bold text-rose-300 uppercase">
                                         <span>Gastos</span>
-                                        <span>- $ {totalGastos.toLocaleString()}</span>
+                                        <span>- $ {totalGastos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
                                     {settlementMethod === 'alternative' && (
                                         <div className="flex justify-between items-center text-[10px] font-bold text-rose-300 uppercase">
@@ -3751,7 +3751,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
                                 <div className="flex justify-between items-center">
                                     <div className="text-[9px] font-black uppercase opacity-60 tracking-tighter text-indigo-200">Total Auditado (Dinero + Gastos + Dev)</div>
-                                    <div className="text-lg font-black">$ {(totalEfectivoDesglose + totalTransfCalculado + totalGastos + (settlementMethod === 'alternative' ? totalDevolucionesVal : 0)).toLocaleString()}</div>
+                                    <div className="text-lg font-black">$ {(totalEfectivoDesglose + totalTransfCalculado + totalGastos + (settlementMethod === 'alternative' ? totalDevolucionesVal : 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                                 </div>
                             </div>
 
