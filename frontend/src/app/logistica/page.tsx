@@ -1571,14 +1571,17 @@ export default function LogisticaPage() {
                                             if (!confirm(`¿Estás seguro de REVERTIR la liquidación ${liq.id}? Esto restaurará los estados de los pedidos y borrará este registro.`)) return;
                                             try {
                                                 // --- RECUPERACIÓN DE DATOS ---
-                                                // Restauramos el borrador en localStorage para que el usuario pueda seguir editando
+                                                // Restauramos el borrador en LocalStorage y Nube para que el usuario pueda seguir editando
                                                 if (liq.DRAFT_JSON && liq.REPARTO) {
-                                                    localStorage.setItem(`wanda_settlement_${liq.REPARTO} `, liq.DRAFT_JSON);
+                                                    const draftData = JSON.parse(liq.DRAFT_JSON);
+                                                    draftData.updatedAt = new Date().toISOString();
+                                                    localStorage.setItem(`wanda_settlement_${liq.REPARTO}`, JSON.stringify(draftData));
+                                                    await wandaApi.saveSettlementDraft(liq.REPARTO, draftData);
                                                 }
 
                                                 const res = await wandaApi.revertLiquidacion(liq.id);
                                                 if (res.result === 'OK') {
-                                                    alert("Liquidación revertida con éxito. Los datos han sido restaurados en 'Rendir Ruta'.");
+                                                    alert("Liquidación revertida con éxito. Los datos han sido restaurados y sincronizados en 'Rendir Ruta'.");
                                                     refreshData(true);
                                                 } else {
                                                     alert("Error al revertir: " + JSON.stringify(res));
@@ -2862,10 +2865,24 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
     // --- PERSISTENCIA: Cargar borrador ---
     useEffect(() => {
-        const saved = localStorage.getItem(`wanda_settlement_${routeName}`);
-        if (saved) {
+        const loadDraft = async () => {
+            let data: any = null;
+            // 1. Intentar LocalStorage (más rápido)
+            const savedLocal = localStorage.getItem(`wanda_settlement_${routeName}`);
+            if (savedLocal) {
+                try { data = JSON.parse(savedLocal); } catch (e) { }
+            }
+
+            // 2. Consultar Nube (Firestore)
             try {
-                const data = JSON.parse(saved);
+                const savedCloud = await wandaApi.getSettlementDraft(routeName);
+                // Si el de la nube es más nuevo o el local no existe, usamos el de la nube
+                if (savedCloud && (!data || new Date(savedCloud.updatedAt) > new Date(data.updatedAt || 0))) {
+                    data = savedCloud;
+                }
+            } catch (e) { }
+
+            if (data) {
                 if (data.localOrders) setLocalOrders(data.localOrders);
                 if (data.pagos) setPagos(data.pagos);
                 if (data.gastos) setGastos(data.gastos);
@@ -2874,25 +2891,47 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 if (data.devoluciones) setDevoluciones(data.devoluciones);
                 if (data.billetes) setBilletes(data.billetes);
                 setDraftStatus('saved');
-            } catch (e) {
-                console.error("Error al cargar borrador", e);
             }
-        }
+        };
+        loadDraft();
     }, [routeName]);
 
     // --- PERSISTENCIA: Guardar borrador autom. ---
     useEffect(() => {
         setDraftStatus('saving');
-        const timeout = setTimeout(() => {
-            const data = { localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes };
-            localStorage.setItem(`wanda_settlement_${routeName}`, JSON.stringify(data));
-            setDraftStatus('saved');
-        }, 800);
+        const timeout = setTimeout(async () => {
+            const dataToSave = {
+                localOrders,
+                pagos,
+                gastos,
+                chofer,
+                settlementMethod,
+                devoluciones,
+                billetes,
+                updatedAt: new Date().toISOString()
+            };
+
+            // Guardar en LocalStorage
+            localStorage.setItem(`wanda_settlement_${routeName}`, JSON.stringify(dataToSave));
+
+            // Sincronizar con Firestore (Nube) para otros dispositivos
+            try {
+                await wandaApi.saveSettlementDraft(routeName, dataToSave);
+                setDraftStatus('saved');
+            } catch (e) {
+                // Si falla la nube, al menos guardamos en local
+                setDraftStatus('saved');
+            }
+        }, 1200);
+
         return () => clearTimeout(timeout);
     }, [localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes, routeName]);
 
-    const clearDraft = () => {
+    const clearDraft = async () => {
         localStorage.removeItem(`wanda_settlement_${routeName}`);
+        try {
+            await wandaApi.deleteSettlementDraft(routeName);
+        } catch (e) { }
     };
 
     const filteredOrders = useMemo(() => {
@@ -3047,7 +3086,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             const res = await wandaApi.liquidarRuta(payload);
             if (res.result === 'OK' || !res.error) {
                 alert("Ruta liquidada con éxito");
-                clearDraft(); // Limpiar el borrador al terminar con éxito
+                await clearDraft(); // Limpiar borrador local y nube
                 await onRefresh();
                 onClose();
             } else {
@@ -3129,7 +3168,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                     {draftStatus !== 'none' && (
                                         <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-tighter transition-all ${draftStatus === 'saving' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
                                             <div className={`w-1 h-1 rounded-full ${draftStatus === 'saving' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></div>
-                                            {draftStatus === 'saving' ? 'Auto-guardando...' : 'Borrador Guardado'}
+                                            {draftStatus === 'saving' ? 'Sincronizando nube...' : 'Sincronizado en la nube'}
                                         </div>
                                     )}
                                 </div>

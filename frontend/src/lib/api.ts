@@ -243,6 +243,29 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
+    deleteSettlementDraft: async (routeName: string) => {
+        const id = `DRAFT-${routeName}`.replace(/\//g, "-").trim();
+        await deleteDoc(doc(db, "settlement_drafts", id));
+        return { result: "OK" };
+    },
+
+    saveSettlementDraft: async (routeName: string, draftData: any) => {
+        const id = `DRAFT-${routeName}`.replace(/\//g, "-").trim();
+        await setDoc(doc(db, "settlement_drafts", id), {
+            id,
+            routeName,
+            data: draftData,
+            updatedAt: new Date().toISOString()
+        });
+        return { result: "OK" };
+    },
+
+    getSettlementDraft: async (routeName: string) => {
+        const id = `DRAFT-${routeName}`.replace(/\//g, "-").trim();
+        const snap = await getDoc(doc(db, "settlement_drafts", id));
+        return snap.exists() ? snap.data().data : null;
+    },
+
     liquidarRuta: async (data: any) => {
         const batch = writeBatch(db);
         const liqId = `LIQ-${new Date().getTime()}`;
