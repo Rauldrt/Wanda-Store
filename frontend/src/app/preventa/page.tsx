@@ -103,6 +103,7 @@ export default function PreventaPage() {
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
     const [seenBannerIds, setSeenBannerIds] = useState<Set<string>>(new Set());
+    const [openHistoryDates, setOpenHistoryDates] = useState<Set<string>>(new Set());
     const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
     const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
     const clientInputRef = useRef<HTMLInputElement>(null);
@@ -1406,32 +1407,128 @@ export default function PreventaPage() {
                                 <input type="date" value={historyDate} onChange={(e) => setHistoryDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 p-2.5 rounded-2xl text-xs font-bold outline-none border border-transparent focus:border-indigo-500/30 text-[#191C1B] dark:text-[#E1E3DF]" />
                             </div>
 
-                            <div className="flex-1 overflow-y-auto space-y-3">
-                                {filteredHistory.length > 0 ? filteredHistory.map((h: any, idx: number) => (
-                                    <div
-                                        key={h.id || String(h.id_interno || idx)}
-                                        onClick={() => setViewingOrder(h)}
-                                        className="bg-slate-50 dark:bg-slate-800 p-4 rounded-[28px] border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-indigo-500/30 active:scale-[0.98] transition-all"
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <p className="font-black text-sm">{h.cliente?.Nombre_Negocio || "Cliente Desconocido"}</p>
-                                                <p className="text-[9px] font-bold text-slate-400 uppercase">{h.fechaLocal}</p>
-                                            </div>
-                                            <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Enviado</span>
+                            <div className="flex-1 overflow-y-auto">
+                                {filteredHistory.length > 0 ? (() => {
+                                    // Agrupar por fecha
+                                    const groups: { [date: string]: any[] } = {};
+                                    filteredHistory.forEach((h: any) => {
+                                        const dateKey = h.fechaLocal
+                                            ? h.fechaLocal.split(' ')[0]   // ej. "08/03/2026"
+                                            : h.fecha
+                                                ? new Date(h.fecha).toLocaleDateString('es-AR')
+                                                : 'Sin fecha';
+                                        if (!groups[dateKey]) groups[dateKey] = [];
+                                        groups[dateKey].push(h);
+                                    });
+
+                                    const sortedDates = Object.keys(groups).sort((a, b) => {
+                                        // Parsear dd/mm/yyyy
+                                        const parse = (d: string) => {
+                                            const [day, mon, yr] = d.split('/');
+                                            return new Date(`${yr}-${mon}-${day}`).getTime();
+                                        };
+                                        return parse(b) - parse(a); // desc
+                                    });
+
+                                    // Abrir el grupo más reciente por defecto
+                                    if (openHistoryDates.size === 0 && sortedDates.length > 0) {
+                                        setTimeout(() => setOpenHistoryDates(new Set([sortedDates[0]])), 0);
+                                    }
+
+                                    const toggleDate = (date: string) => {
+                                        setOpenHistoryDates(prev => {
+                                            const next = new Set(prev);
+                                            next.has(date) ? next.delete(date) : next.add(date);
+                                            return next;
+                                        });
+                                    };
+
+                                    return (
+                                        <div className="space-y-2 pb-4">
+                                            {sortedDates.map(date => {
+                                                const orders = groups[date];
+                                                const isOpen = openHistoryDates.has(date);
+                                                const dayTotal = orders.reduce((s: number, o: any) => s + (parseFloat(o.total) || 0), 0);
+                                                // Etiqueta amigable
+                                                const today = new Date().toLocaleDateString('es-AR');
+                                                const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('es-AR');
+                                                const label = date === today ? 'Hoy'
+                                                    : date === yesterday ? 'Ayer'
+                                                        : date;
+
+                                                return (
+                                                    <div key={date}>
+                                                        {/* Cabecera del acordeon */}
+                                                        <button
+                                                            onClick={() => toggleDate(date)}
+                                                            className="w-full flex items-center justify-between px-2 py-2.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <ChevronDown
+                                                                    size={14}
+                                                                    className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                                                                />
+                                                                <span className={`text-[11px] font-black uppercase tracking-widest ${label === 'Hoy' ? 'text-indigo-500'
+                                                                        : label === 'Ayer' ? 'text-emerald-600'
+                                                                            : 'text-slate-400'
+                                                                    }`}>{label}</span>
+                                                                <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
+                                                                    {orders.length} pedido{orders.length > 1 ? 's' : ''}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-[11px] font-black text-slate-500">
+                                                                ${dayTotal.toLocaleString()}
+                                                            </span>
+                                                        </button>
+
+                                                        {/* Contenido del acordeon */}
+                                                        <AnimatePresence>
+                                                            {isOpen && (
+                                                                <motion.div
+                                                                    initial={{ height: 0, opacity: 0 }}
+                                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                                    exit={{ height: 0, opacity: 0 }}
+                                                                    transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                                                                    className="overflow-hidden"
+                                                                >
+                                                                    <div className="space-y-2 pl-2 pt-1 pb-2">
+                                                                        {orders.map((h: any, idx: number) => (
+                                                                            <div
+                                                                                key={h.id || String(h.id_interno || idx)}
+                                                                                onClick={() => setViewingOrder(h)}
+                                                                                className="bg-slate-50 dark:bg-slate-800 p-4 rounded-[24px] border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-indigo-500/30 active:scale-[0.98] transition-all"
+                                                                            >
+                                                                                <div className="flex justify-between items-start mb-2">
+                                                                                    <div>
+                                                                                        <p className="font-black text-sm">{h.cliente?.Nombre_Negocio || 'Cliente Desconocido'}</p>
+                                                                                        <p className="text-[9px] font-bold text-slate-400 uppercase">
+                                                                                            {h.fechaLocal?.split(' ').slice(1).join(' ') || ''}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                    <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Enviado</span>
+                                                                                </div>
+                                                                                <div className="text-[10px] text-slate-500 line-clamp-1 mb-3 italic">
+                                                                                    Haz clic para ver {h.items.length} producto{h.items.length > 1 ? 's' : ''}
+                                                                                </div>
+                                                                                <div className="flex items-center justify-between pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
+                                                                                    <span className="text-lg font-black text-indigo-600">${h.total.toLocaleString()}</span>
+                                                                                    <div className="flex gap-2">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); shareToWhatsApp(h); }} className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20"><MessageCircle size={16} /></button>
+                                                                                        <button onClick={(e) => { e.stopPropagation(); repeatOrder(h); }} className="px-4 py-2.5 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-indigo-500/20 flex items-center gap-2 pr-5">Repetir <Clock size={12} /></button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                        <div className="text-[10px] text-slate-500 line-clamp-1 mb-3 italic">
-                                            Haz clic para ver {h.items.length} producto{h.items.length > 1 ? 's' : ''}
-                                        </div>
-                                        <div className="flex items-center justify-between pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
-                                            <span className="text-lg font-black text-indigo-600">${h.total.toLocaleString()}</span>
-                                            <div className="flex gap-2">
-                                                <button onClick={(e) => { e.stopPropagation(); shareToWhatsApp(h); }} className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20"><MessageCircle size={16} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); repeatOrder(h); }} className="px-4 py-2.5 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-indigo-500/20 flex items-center gap-2 pr-5">Repetir <Clock size={12} /></button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )) : (
+                                    );
+                                })() : (
                                     <div className="h-full flex flex-col items-center justify-center opacity-30 gap-4">
                                         <Clock size={64} />
                                         <p className="text-sm font-black uppercase tracking-widest">Sin resultados</p>
