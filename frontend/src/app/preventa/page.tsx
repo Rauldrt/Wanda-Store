@@ -1097,9 +1097,12 @@ export default function PreventaPage() {
                                 <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
                                     {carouselBanners.length}
                                 </span>
-                                {/* Glow pulse — solo activo cuando el panel está cerrado */}
+                                {/* Glow pulse — key fuerza unmount/remount al abrir/cerrar */}
                                 {!isNotifOpen && (
-                                    <span className="absolute inset-0 rounded-[12px] bg-amber-400/30 animate-ping" />
+                                    <span
+                                        key={`ping-${isNotifOpen}`}
+                                        className="absolute inset-0 rounded-[12px] bg-amber-400/30 animate-ping"
+                                    />
                                 )}
                             </button>
                         )}
