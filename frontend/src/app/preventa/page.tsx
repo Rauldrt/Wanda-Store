@@ -208,10 +208,28 @@ export default function PreventaPage() {
             const myOrders = data.orders
                 .filter((o: any) => o.vendedor === vendedorName || !vendedorName)
                 .sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-                .slice(0, 50);
+                .slice(0, 50)
+                .map((o: any) => {
+                    // Si ya tiene el objeto cliente anidado, usarlo directamente
+                    if (o.cliente?.Nombre_Negocio) return o;
+                    // Si no, construirlo desde campos planos (estructura de Firebase)
+                    const clienteEncontrado = data.clients?.find(
+                        (c: any) => c.ID_Cliente === o.cliente_id || c.id === o.cliente_id
+                    );
+                    return {
+                        ...o,
+                        cliente: clienteEncontrado || {
+                            Nombre_Negocio: o.cliente_nombre || o.cliente_id || "Cliente Desconocido",
+                            ID_Cliente: o.cliente_id || "",
+                            Direccion: "",
+                            Telefono: ""
+                        },
+                        fechaLocal: o.fechaLocal || (o.fecha ? new Date(o.fecha).toLocaleString('es-AR') : "")
+                    };
+                });
             setHistory(myOrders);
         }
-    }, [data?.orders, vendedorName]);
+    }, [data?.orders, data?.clients, vendedorName]);
 
     const myPendingOrders = useMemo(() => {
         return pendingOrders.filter(o => o.vendedor === vendedorName || !o.vendedor);
