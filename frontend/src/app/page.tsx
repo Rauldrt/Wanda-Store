@@ -142,7 +142,7 @@ export default function Home() {
               ) : (
                 filteredOrders.map((p: any, i: number) => (
                   <motion.div
-                    key={p.id}
+                    key={p.id || `order-${i}`}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
@@ -227,8 +227,8 @@ export default function Home() {
               <button className="text-[10px] font-black text-indigo-500 underline uppercase">Reponer</button>
             </div>
             <div className="space-y-3">
-              {data?.products?.slice(0, 3).map((prod: any) => (
-                <div key={prod.ID_Producto} className="flex justify-between items-center text-xs">
+              {data?.products?.slice(0, 3).map((prod: any, pidx: number) => (
+                <div key={prod.ID_Producto || prod.id || `stock-${pidx}`} className="flex justify-between items-center text-xs">
                   <span className="text-slate-500 truncate max-w-[120px]">{prod.Nombre}</span>
                   <span className={`font-bold ${parseFloat(prod.Stock_Actual) <= 5 ? 'text-rose-500' : 'text-[var(--foreground)]'}`}>
                     {parseFloat(prod.Stock_Actual).toFixed(0)} <span className="text-[8px] opacity-40">un</span>

@@ -859,7 +859,7 @@ export default function PreventaPage() {
             )
         });
 
-    const cartItemList = Object.entries(carrito).map(([id, qty]) => {
+    const cartItemList = Object.entries(carrito).map(([id, qty], cartIdx) => {
         const p = products.find(prod => String(prod.ID_Producto) === String(id));
         if (!p) return null;
         const isB = !!modoBulto[id];
@@ -875,7 +875,7 @@ export default function PreventaPage() {
         const label = isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unidad');
 
         return (
-            <div key={id} className="flex flex-col bg-slate-50 dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 gap-3">
+            <div key={id || `cart-${cartIdx}`} className="flex flex-col bg-slate-50 dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 gap-3">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center text-indigo-500 shrink-0"><Package size={20} /></div>
                     <div className="flex-1 min-w-0">
@@ -1090,9 +1090,9 @@ export default function PreventaPage() {
                 <div className="pt-4 px-4 max-w-full overflow-hidden">
                     <div className="px-1">
                         <div className="flex overflow-x-auto gap-3 pb-3 no-scrollbar snap-x snap-mandatory">
-                            {carouselBanners.map((banner) => (
+                            {carouselBanners.map((banner, bannerIdx) => (
                                 <motion.div
-                                    key={banner.id}
+                                    key={banner.id || `banner-${bannerIdx}`}
                                     layout
                                     onClick={() => setExpandedBanner(expandedBanner === banner.id ? null : banner.id)}
                                     initial={false}
