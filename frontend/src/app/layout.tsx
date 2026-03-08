@@ -26,6 +26,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from "framer-motion";
 import { DataProvider, useData } from "@/context/DataContext";
+import { migrateLocalStorageToFirebase } from "@/lib/migration";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -58,6 +59,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { loading, isSyncing, error } = useData();
+
+  // --- MIGRACIÓN DE DATOS LOCALES ---
+  useEffect(() => {
+    migrateLocalStorageToFirebase();
+  }, []);
 
   // --- LÓGICA DE PROTECCIÓN DE RUTAS ---
   useEffect(() => {
@@ -99,6 +105,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/logistica", icon: <Truck size={18} />, label: "Logística" },
     { href: "/recorrido", icon: <Map size={18} />, label: "Recorrido" },
     { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
+    { href: "/vendedores", icon: <Users size={18} />, label: "Vendedores" },
     { href: "/informes", icon: <BarChart3 size={18} />, label: "Informes" },
     { href: "/landing", icon: <Layout size={18} />, label: "Presentación" },
     { href: "/migracion", icon: <DatabaseBackup size={18} />, label: "Migración" },
@@ -192,6 +199,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                   localStorage.removeItem("user_name");
                   localStorage.removeItem("user_email");
                   localStorage.removeItem("user_photo");
+                  localStorage.removeItem("vendedor_name");
+                  localStorage.removeItem("vendedor_id");
                   window.location.href = '/login';
                 }}
                 className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"

@@ -10,7 +10,7 @@ const MapView = dynamic(() => import("./MapView"), { ssr: false, loading: () => 
 
 export default function RecorridoPage() {
     const { data } = useData();
-    const pedidos = data?.pedidos || [];
+    const pedidos = data?.orders || [];
 
     const [selectedDate, setSelectedDate] = useState("");
     const [selectedVendedor, setSelectedVendedor] = useState<string>("Todos");

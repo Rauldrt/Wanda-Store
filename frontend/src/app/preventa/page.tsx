@@ -20,7 +20,14 @@ import {
     Trash2,
     MessageCircle,
     LayoutList,
-    FolderTree
+    FolderTree,
+    ArrowRight,
+    Lock,
+    Key,
+    UserCheck,
+    AlertCircle,
+    LogOut,
+    ArrowLeft
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
@@ -48,7 +55,7 @@ type Client = {
 };
 
 export default function PreventaPage() {
-    const { data } = useData();
+    const { data, refreshData } = useData();
     const products: Product[] = useMemo(() => {
         let prods = data?.products || [];
         const config = data?.config || {};
@@ -77,7 +84,15 @@ export default function PreventaPage() {
     const [pendingOrders, setPendingOrders] = useState<any[]>([]);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [vendedorName, setVendedorName] = useState("");
+    const [vendedorName, setVendedorName] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem("vendedor_name") || "";
+        }
+        return "";
+    });
+    const [selectedSellerToVerify, setSelectedSellerToVerify] = useState<any>(null);
+    const [tempPassword, setTempPassword] = useState("");
+    const [loginError, setLoginError] = useState("");
     const [modoBulto, setModoBulto] = useState<{ [key: string]: boolean }>({});
     const [isListening, setIsListening] = useState<'client' | null | 'product'>(null);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -163,21 +178,46 @@ export default function PreventaPage() {
     });
     const [isLocating, setIsLocating] = useState(false);
 
-    const allClients = useMemo(() => [...localClients, ...clients], [localClients, clients]);
+    const allClients = useMemo(() => {
+        const baseClients = clients || [];
+        const requestClients = (data?.client_requests || [])
+            .filter((cr: any) => cr.vendedor === vendedorName || cr.origen === vendedorName)
+            .map((cr: any) => ({
+                ...cr,
+                ID_Cliente: cr.id,
+                Nombre_Negocio: cr.Nombre_Negocio,
+                EsLocal: true, // Marcamos como local/pendiente para UI
+            }));
+        return [...requestClients, ...baseClients];
+    }, [data?.client_requests, clients, vendedorName]);
 
     useEffect(() => {
-        const savedName = localStorage.getItem("vendedor_name");
-        if (savedName) setVendedorName(savedName);
-
-        const savedLocalClients = localStorage.getItem("local_clients");
-        if (savedLocalClients) setLocalClients(JSON.parse(savedLocalClients));
-
-        const savedHistory = localStorage.getItem("order_history");
-        if (savedHistory) setHistory(JSON.parse(savedHistory));
-
+        // Cargar pedidos pendientes desde localStorage al montar
         const savedPending = localStorage.getItem("pending_orders");
-        if (savedPending) setPendingOrders(JSON.parse(savedPending));
+        if (savedPending) {
+            try {
+                setPendingOrders(JSON.parse(savedPending));
+            } catch (e) {
+                console.error("Error loading pending orders", e);
+            }
+        }
     }, []);
+
+    useEffect(() => {
+        if (data?.orders) {
+            const myOrders = data.orders
+                .filter((o: any) => o.vendedor === vendedorName || !vendedorName)
+                .sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+                .slice(0, 50);
+            setHistory(myOrders);
+        }
+    }, [data?.orders, vendedorName]);
+
+    const myPendingOrders = useMemo(() => {
+        return pendingOrders.filter(o => o.vendedor === vendedorName || !o.vendedor);
+    }, [pendingOrders, vendedorName]);
+
+
 
     const normalizeText = (text: any) =>
         String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -353,25 +393,39 @@ export default function PreventaPage() {
     };
 
     const syncPendingOrders = async () => {
-        if (pendingOrders.length === 0 || isSyncing) return;
+        if (myPendingOrders.length === 0 || isSyncing) return;
         setIsSyncing(true);
-        const stillPending = [];
+
+        const othersPending = pendingOrders.filter(o => o.vendedor !== vendedorName && !!o.vendedor);
+        const newlyPending = [];
         let successCount = 0;
 
-        for (const order of pendingOrders) {
+        for (const order of myPendingOrders) {
             try {
                 await wandaApi.createOrder(order);
                 successCount++;
             } catch (e) {
-                stillPending.push(order);
+                newlyPending.push(order);
             }
         }
 
-        setPendingOrders(stillPending);
-        localStorage.setItem("pending_orders", JSON.stringify(stillPending));
+        const finalPending = [...othersPending, ...newlyPending];
+        setPendingOrders(finalPending);
+        localStorage.setItem("pending_orders", JSON.stringify(finalPending));
         setIsSyncing(false);
-        if (successCount > 0) alert(`✅ Se sincronizaron ${successCount} pedidos.`);
+        if (successCount > 0) {
+            alert(`✅ Se sincronizaron ${successCount} pedidos.`);
+            refreshData(true);
+        }
     };
+
+    // Auto-sincronización: cuando el vendedor inicia sesión y hay pedidos pendientes, los sincroniza
+    useEffect(() => {
+        if (vendedorName && myPendingOrders.length > 0 && !isSyncing) {
+            syncPendingOrders();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vendedorName, myPendingOrders.length]);
 
     const getGPSLocation = () => {
         if (!navigator.geolocation) {
@@ -396,20 +450,38 @@ export default function PreventaPage() {
         );
     };
 
-    const handleCreateClient = (e: React.FormEvent) => {
+    const handleCreateClient = async (e: React.FormEvent) => {
         e.preventDefault();
+        const tempId = `NEW-${Date.now()}`;
         const newClient: Client = {
             ...newClientData,
-            ID_Cliente: `LOCAL-${Date.now()}`,
+            ID_Cliente: tempId,
             EsLocal: true
         };
-        const updatedLocal = [newClient, ...localClients];
-        setLocalClients(updatedLocal);
-        localStorage.setItem("local_clients", JSON.stringify(updatedLocal));
-        setSelectedClient(newClient);
-        setClientSearch(newClient.Nombre_Negocio);
-        setIsNewClientModalOpen(false);
-        setNewClientData({ Nombre_Negocio: "", Dueño: "", Telefono: "", Direccion: "", Latitud: "", Longitud: "" });
+
+        try {
+            // Guardar directamente en Firebase como solicitud
+            await wandaApi.saveClientRequest({
+                ...newClient,
+                id: tempId,
+                origen: vendedorName || "Preventa",
+                Nombre_Negocio: newClient.Nombre_Negocio,
+                timestamp: new Date().toISOString()
+            });
+
+            // Actualizar UI localmente para feedback inmediato
+            setSelectedClient(newClient);
+            setClientSearch(newClient.Nombre_Negocio);
+            setIsNewClientModalOpen(false);
+            setNewClientData({ Nombre_Negocio: "", Dueño: "", Telefono: "", Direccion: "", Latitud: "", Longitud: "" });
+
+            // Recargar datos globales para que aparezca en la lista sincronizada
+            refreshData(true);
+        } catch (error) {
+            console.error("Error creating client request:", error);
+            alert("Error al guardar cliente. Se guardará localmente.");
+            // Fallback a local storage si falla la red (opcional, pero mejor evitarlo por inestabilidad)
+        }
     };
 
     const handleConfirmOrder = async () => {
@@ -493,10 +565,8 @@ export default function PreventaPage() {
         try {
             await wandaApi.createOrder(orderData);
 
-            // Guardar en historial
-            const updatedHistory = [orderData, ...history].slice(0, 50);
-            setHistory(updatedHistory);
-            localStorage.setItem("order_history", JSON.stringify(updatedHistory));
+            // Ya no guardamos en historial local, se sincroniza solo
+            refreshData(true);
 
             const share = confirm("✅ Pedido enviado. ¿Deseas compartir el comprobante por WhatsApp?");
             if (share) {
@@ -835,7 +905,7 @@ export default function PreventaPage() {
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
             <AnimatePresence>
-                {pendingOrders.length > 0 && (
+                {myPendingOrders.length > 0 && (
                     <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
@@ -844,7 +914,7 @@ export default function PreventaPage() {
                     >
                         <div className="flex items-center gap-2">
                             <Clock size={12} className={isSyncing ? "animate-spin" : ""} />
-                            {isSyncing ? "Sincronizando..." : `Tienes ${pendingOrders.length} pedidos pendientes de envío`}
+                            {isSyncing ? "Sincronizando..." : `Tienes ${myPendingOrders.length} pedidos pendientes de envío`}
                         </div>
                         <span className="bg-white/20 px-2 py-1 rounded">Reintentar</span>
                     </motion.div>
@@ -876,6 +946,28 @@ export default function PreventaPage() {
                         </button>
                         <button onClick={() => setIsHistoryOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Clock size={20} /></button>
                         <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
+                        <button
+                            onClick={() => {
+                                if (confirm("¿Estás seguro de que deseas cerrar sesión? Al salir deberás ingresar las credenciales de perfil y vendedor nuevamente.")) {
+                                    // Limpiar barrera 2 (Vendedor)
+                                    setVendedorName("");
+                                    localStorage.removeItem("vendedor_name");
+                                    setSelectedSellerToVerify(null);
+                                    setTempPassword("");
+
+                                    // Limpiar barrera 1 (Perfil Preventista)
+                                    localStorage.removeItem("user_role");
+                                    localStorage.removeItem("is_logged_in");
+                                    localStorage.removeItem("user_name");
+
+                                    // Redirigir al inicio total
+                                    window.location.href = '/login';
+                                }
+                            }}
+                            className="p-2 rounded-full hover:bg-rose-50 text-rose-400 ml-2"
+                        >
+                            <LogOut size={20} />
+                        </button>
                     </div>
                 </div>
             </header>
@@ -1341,6 +1433,8 @@ export default function PreventaPage() {
                                     localStorage.removeItem("user_role");
                                     localStorage.removeItem("is_logged_in");
                                     localStorage.removeItem("user_name");
+                                    localStorage.removeItem("vendedor_name");
+                                    localStorage.removeItem("vendedor_id");
                                     window.location.href = '/login';
                                 }} className="w-full bg-rose-50 text-rose-500 py-4 rounded-2xl font-black uppercase text-xs tracking-widest mb-2">Cerrar Sesión</button>
                                 <button onClick={() => setIsConfigOpen(false)} className="w-full bg-indigo-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest">Aceptar</button>
@@ -1370,6 +1464,116 @@ export default function PreventaPage() {
                             <X size={24} />
                         </button>
                     </motion.div>
+                )}
+            </AnimatePresence>
+            {/* Selector de Vendedor con Contraseña */}
+            <AnimatePresence>
+                {!vendedorName && (
+                    <div className="fixed inset-0 z-[300] bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-6 backdrop-blur-md bg-opacity-80">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-white dark:bg-slate-900 rounded-[40px] p-8 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800"
+                        >
+                            {!selectedSellerToVerify ? (
+                                <>
+                                    <div className="w-20 h-20 bg-indigo-500 rounded-3xl flex items-center justify-center text-white mx-auto mb-6 shadow-xl shadow-indigo-500/20">
+                                        <User size={40} />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Panel Preventa</h2>
+                                    <p className="text-slate-500 font-medium mb-8 text-sm">Selecciona tu perfil para continuar.</p>
+
+                                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scroll">
+                                        {(data?.sellers || []).filter((s: any) => s.Activo !== false).map((seller: any) => (
+                                            <button
+                                                key={seller.id}
+                                                onClick={() => setSelectedSellerToVerify(seller)}
+                                                className="w-full p-4 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border-2 border-transparent hover:border-indigo-500/20 rounded-2xl transition-all font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 flex justify-between items-center group text-left"
+                                            >
+                                                {seller.Nombre}
+                                                <ArrowRight size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="space-y-6"
+                                >
+                                    <button
+                                        onClick={() => {
+                                            setSelectedSellerToVerify(null);
+                                            setTempPassword("");
+                                            setLoginError("");
+                                        }}
+                                        className="text-indigo-500 text-xs font-black uppercase flex items-center gap-1 hover:underline"
+                                    >
+                                        <ArrowLeft size={14} /> Volver a la lista
+                                    </button>
+
+                                    <div className="text-center">
+                                        <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                            <Lock size={32} />
+                                        </div>
+                                        <h3 className="text-xl font-black text-slate-800 dark:text-white">{selectedSellerToVerify.Nombre}</h3>
+                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Ingresa tu contraseña</p>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="relative">
+                                            <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <input
+                                                type="password"
+                                                autoFocus
+                                                placeholder="Contraseña"
+                                                value={tempPassword}
+                                                onChange={(e) => setTempPassword(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        const pass = selectedSellerToVerify.Password || "";
+                                                        if (tempPassword === pass) {
+                                                            setVendedorName(selectedSellerToVerify.Nombre);
+                                                            localStorage.setItem("vendedor_name", selectedSellerToVerify.Nombre);
+                                                            // Forzar sincronización con Firebase al entrar
+                                                            refreshData(true);
+                                                        } else {
+                                                            setLoginError("Contraseña incorrecta");
+                                                        }
+                                                    }
+                                                }}
+                                                className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-bold outline-none transition-all"
+                                            />
+                                        </div>
+
+                                        {loginError && (
+                                            <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 justify-center">
+                                                <AlertCircle size={12} /> {loginError}
+                                            </p>
+                                        )}
+
+                                        <button
+                                            onClick={() => {
+                                                const pass = selectedSellerToVerify.Password || "";
+                                                if (tempPassword === pass) {
+                                                    setVendedorName(selectedSellerToVerify.Nombre);
+                                                    localStorage.setItem("vendedor_name", selectedSellerToVerify.Nombre);
+                                                    // Forzar sincronización con Firebase al entrar
+                                                    refreshData(true);
+                                                } else {
+                                                    setLoginError("Contraseña incorrecta");
+                                                }
+                                            }}
+                                            className="w-full bg-indigo-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-500/20 hover:bg-indigo-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <UserCheck size={18} /> Validar Acceso
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div >

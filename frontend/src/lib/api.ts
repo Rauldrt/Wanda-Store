@@ -20,13 +20,14 @@ export const wandaApi: Record<string, any> = {
         return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     },
     getAll: async () => {
-        const [prodSnap, cliSnap, ordSnap, liqSnap, cfgSnap, reqSnap] = await Promise.all([
+        const [prodSnap, cliSnap, ordSnap, liqSnap, cfgSnap, reqSnap, sellSnap] = await Promise.all([
             getDocs(collection(db, "products")),
             getDocs(collection(db, "clients")),
             getDocs(collection(db, "orders")),
             getDocs(collection(db, "liquidations")),
             getDoc(doc(db, "settings", "global")),
-            getDocs(collection(db, "client_requests"))
+            getDocs(collection(db, "client_requests")),
+            getDocs(collection(db, "sellers"))
         ]);
 
         return {
@@ -35,12 +36,17 @@ export const wandaApi: Record<string, any> = {
             orders: ordSnap.docs.map(d => ({ id: d.id, ...d.data() })),
             liquidaciones: liqSnap.docs.map(d => ({ id: d.id, ...d.data() })),
             config: cfgSnap.exists() ? cfgSnap.data() : {},
-            client_requests: reqSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+            client_requests: reqSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+            sellers: sellSnap.docs.map(d => ({ id: d.id, ...d.data() }))
         };
     },
     getConfig: async () => {
         const cfgRef = await getDoc(doc(db, "settings", "global"));
         return cfgRef.exists() ? cfgRef.data() : {};
+    },
+    getSellers: async () => {
+        const snap = await getDocs(collection(db, "sellers"));
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     },
 
     // ---------------- ESCRITURAS SIMPLES ----------------
@@ -57,6 +63,13 @@ export const wandaApi: Record<string, any> = {
         client.id = id;
         client.ID_Cliente = id;
         await setDoc(doc(db, "clients", id), client, { merge: true });
+        return { result: "OK", id: id };
+    },
+    saveSeller: async (seller: any) => {
+        const id = String(seller.id || seller.ID_Preventista || `PREV-${new Date().getTime().toString().slice(-4)}`).replace(/\//g, "-").trim();
+        seller.id = id;
+        seller.ID_Preventista = id;
+        await setDoc(doc(db, "sellers", id), seller, { merge: true });
         return { result: "OK", id: id };
     },
     saveClientRequest: async (client: any) => {
@@ -85,9 +98,23 @@ export const wandaApi: Record<string, any> = {
         await deleteDoc(doc(db, "clients", String(id)));
         return { result: "OK" };
     },
+    deleteSeller: async (id: string) => {
+        await deleteDoc(doc(db, "sellers", String(id)));
+        return { result: "OK" };
+    },
     saveConfig: async (config: any) => {
         await setDoc(doc(db, "settings", "global"), config, { merge: true });
         return { result: "OK" };
+    },
+    saveClientProfile: async (email: string, profile: any) => {
+        if (!email) return;
+        await setDoc(doc(db, "profiles", email), profile, { merge: true });
+        return { result: "OK" };
+    },
+    getClientProfile: async (email: string) => {
+        if (!email) return null;
+        const snap = await getDoc(doc(db, "profiles", email));
+        return snap.exists() ? snap.data() : null;
     },
     bulkUpdateProducts: async (changes: any[]) => {
         const batch = writeBatch(db);
@@ -371,10 +398,10 @@ export const wandaApi: Record<string, any> = {
 
         if (role === 'admin') {
             key = "AUTH_ADMIN_PASSWORD";
-            defaultPass = "admin123";
+            defaultPass = "admin3376";
         } else if (role === 'preventista') {
             key = "AUTH_PREVENTA_PASSWORD";
-            defaultPass = "wanda2024";
+            defaultPass = "wanda333";
         } else {
             return { success: false, error: "Rol no válido" };
         }

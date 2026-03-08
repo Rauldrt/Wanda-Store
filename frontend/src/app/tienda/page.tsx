@@ -102,21 +102,42 @@ export default function TiendaOnlinePage() {
             return;
         }
 
-        setUserInfo({
-            name: localStorage.getItem("user_name") || "Cliente Online",
-            email: localStorage.getItem("user_email") || "",
-            photo: localStorage.getItem("user_photo") || ""
-        });
+        const email = localStorage.getItem("user_email") || "";
+        const name = localStorage.getItem("user_name") || "Cliente Online";
+        const photo = localStorage.getItem("user_photo") || "";
 
-        setCheckoutData({
-            telefono: localStorage.getItem("user_phone") || "",
-            direccion: localStorage.getItem("user_address") || "",
-            ubicacion: localStorage.getItem("user_location") || ""
-        });
+        setUserInfo({ name, email, photo });
 
-        const savedHistory = localStorage.getItem("order_history_online");
-        if (savedHistory) setHistory(JSON.parse(savedHistory));
+        // Cargar perfil desde Firestore (Sincronización total)
+        const loadProfile = async () => {
+            if (email) {
+                const profile = await wandaApi.getClientProfile(email);
+                if (profile) {
+                    setCheckoutData({
+                        telefono: profile.telefono || "",
+                        direccion: profile.direccion || "",
+                        ubicacion: profile.ubicacion || ""
+                    });
+                } else {
+                    // Fallback a localStorage si es la primera vez o no hay internet
+                    setCheckoutData({
+                        telefono: localStorage.getItem("user_phone") || "",
+                        direccion: localStorage.getItem("user_address") || "",
+                        ubicacion: localStorage.getItem("user_location") || ""
+                    });
+                }
+            }
+        };
+        loadProfile();
     }, []);
+
+    // Sincronizar Historial desde Firestore
+    const historyFromFirebase = useMemo(() => {
+        if (!data?.orders || !userInfo.email) return [];
+        return data.orders
+            .filter((o: any) => o.cliente_id === userInfo.email)
+            .sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+    }, [data?.orders, userInfo.email]);
 
     const carouselBanners = useMemo(() => {
         const banners: any[] = [];
@@ -257,7 +278,16 @@ export default function TiendaOnlinePage() {
 
         setIsSubmitting(true);
 
-        // Guardar para futuros pedidos
+        // Guardar en Firestore para sincronización entre dispositivos
+        if (userInfo.email) {
+            await wandaApi.saveClientProfile(userInfo.email, {
+                telefono: checkoutData.telefono,
+                direccion: checkoutData.direccion,
+                ubicacion: checkoutData.ubicacion
+            });
+        }
+
+        // Mantener en localStorage para uso inmediato/offline
         localStorage.setItem("user_phone", checkoutData.telefono);
         localStorage.setItem("user_address", checkoutData.direccion);
         localStorage.setItem("user_location", checkoutData.ubicacion);
@@ -314,17 +344,32 @@ export default function TiendaOnlinePage() {
             const res = await wandaApi.submitOrder(orderData);
             if (res.error) throw new Error(res.error);
 
-            // Guardar en historial local
-            const newHistory = [{ ...orderData, fechaLocal: new Date().toLocaleString() }, ...history];
-            setHistory(newHistory);
-            localStorage.setItem("order_history_online", JSON.stringify(newHistory.slice(0, 50)));
-
             setCarrito({});
             setIsCartOpen(false);
             alert("¡Pedido enviado con éxito!");
+
+            // Forzar actualización de datos para ver el pedido en el historial
+            if (typeof window !== 'undefined') window.location.reload();
         } catch (err) {
             console.error(err);
             alert("Error al enviar el pedido. Por favor intenta de nuevo.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const saveProfileChanges = async () => {
+        if (!userInfo.email) return;
+        setIsSubmitting(true);
+        try {
+            await wandaApi.saveClientProfile(userInfo.email, {
+                telefono: checkoutData.telefono,
+                direccion: checkoutData.direccion,
+                ubicacion: checkoutData.ubicacion
+            });
+            alert("✅ Perfil actualizado correctamente.");
+        } catch (e) {
+            alert("❌ Error al guardar perfil.");
         } finally {
             setIsSubmitting(false);
         }
@@ -714,8 +759,15 @@ export default function TiendaOnlinePage() {
                                         </div>
                                     </div>
                                     <p className="text-[10px] text-slate-400 text-center font-bold mt-4 leading-relaxed">
-                                        Estos datos se guardan en tu dispositivo y se usarán para autocompletar tus próximos pedidos.
+                                        Estos datos se guardan en la nube y se usarán para autocompletar tus próximos pedidos.
                                     </p>
+                                    <button
+                                        onClick={saveProfileChanges}
+                                        disabled={isSubmitting}
+                                        className="w-full mt-4 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                                    >
+                                        {isSubmitting ? "Guardando..." : "Guardar Cambios"}
+                                    </button>
                                 </div>
                             </div>
                         </motion.div>
@@ -739,10 +791,18 @@ export default function TiendaOnlinePage() {
                                 <button onClick={() => setIsHistoryOpen(false)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500"><X size={20} /></button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                {history.map((h, i) => (
-                                    <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm">
+                                {historyFromFirebase.length === 0 && (
+                                    <div className="text-center py-20 opacity-30">
+                                        <ShoppingBag size={48} className="mx-auto mb-4" />
+                                        <p className="text-sm font-bold">No tienes pedidos aún</p>
+                                    </div>
+                                )}
+                                {historyFromFirebase.map((h: any, i: number) => (
+                                    <div key={h.id || i} className="bg-white dark:bg-slate-900 p-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm">
                                         <div className="flex justify-between items-start mb-4">
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{h.fechaLocal}</span>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                {new Date(h.fecha).toLocaleString()}
+                                            </span>
                                             <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Enviado</span>
                                         </div>
                                         <div className="space-y-1 mb-4">

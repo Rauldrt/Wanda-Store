@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Shield, User, Lock, ArrowRight, Store, ChevronRight, Globe, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,12 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+
+    // Limpiar restos de sesiones previas al entrar al login
+    useEffect(() => {
+        localStorage.removeItem("vendedor_name");
+        localStorage.removeItem("vendedor_id");
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
