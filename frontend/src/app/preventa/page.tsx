@@ -883,7 +883,6 @@ export default function PreventaPage() {
         return (
             <div key={id || `cart-${cartIdx}`} className="flex flex-col bg-slate-50 dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 gap-3">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center text-indigo-500 shrink-0"><Package size={20} /></div>
                     <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-sm truncate">{p.Nombre}</h4>
                         <div className="flex flex-col">
