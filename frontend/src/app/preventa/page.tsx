@@ -84,6 +84,7 @@ export default function PreventaPage() {
     const [isConfigOpen, setIsConfigOpen] = useState(false);
     const [pendingOrders, setPendingOrders] = useState<any[]>([]);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [vendedorName, setVendedorName] = useState<string>(() => {
@@ -1097,8 +1098,10 @@ export default function PreventaPage() {
                                 <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
                                     {carouselBanners.length}
                                 </span>
-                                {/* Glow pulse animado */}
-                                <span className="absolute inset-0 rounded-[12px] bg-amber-400/30 animate-ping" />
+                                {/* Glow pulse — solo activo cuando el panel está cerrado */}
+                                {!isNotifOpen && (
+                                    <span className="absolute inset-0 rounded-[12px] bg-amber-400/30 animate-ping" />
+                                )}
                             </button>
                         )}
                         {/* Selector vista */}
@@ -1119,7 +1122,7 @@ export default function PreventaPage() {
                     </div>
                 </div>
 
-                {/* Acordeón de notificaciones */}
+                {/* Acordeón con carousel horizontal MD3 */}
                 <AnimatePresence>
                     {isNotifOpen && carouselBanners.length > 0 && (
                         <motion.div
@@ -1127,35 +1130,59 @@ export default function PreventaPage() {
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className="overflow-hidden mb-4 px-2"
+                            className="overflow-hidden mb-3"
                         >
-                            <div className="space-y-2 pt-2 pb-1">
-                                {carouselBanners.map((banner, bannerIdx) => (
-                                    <motion.div
-                                        key={banner.id || `banner-${bannerIdx}`}
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: bannerIdx * 0.05 }}
-                                        className={`flex items-center gap-3 p-4 rounded-[24px] ${banner.color} text-white shadow-lg`}
-                                    >
-                                        <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">
-                                            {banner.icon}
-                                        </div>
-                                        <div className="flex flex-col flex-1 min-w-0">
-                                            <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{banner.title}</span>
-                                            <span className="text-sm font-black leading-tight">{banner.subtitle}</span>
-                                            {banner.details && (
-                                                <span className="text-[10px] font-bold opacity-70 mt-0.5">{banner.details}</span>
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={() => setIsNotifOpen(false)}
-                                            className="p-1.5 rounded-full bg-white/20 shrink-0"
+                            {/* Rail horizontal con snap */}
+                            <div className="flex items-stretch gap-3 overflow-x-auto no-scrollbar px-2 py-3 snap-x snap-mandatory">
+                                {carouselBanners.map((banner, bannerIdx) => {
+                                    const isExp = expandedBanner === (banner.id || `banner-${bannerIdx}`);
+                                    const bid = banner.id || `banner-${bannerIdx}`;
+                                    return (
+                                        <motion.div
+                                            key={bid}
+                                            layout
+                                            onClick={() => setExpandedBanner(isExp ? null : bid)}
+                                            animate={{ width: isExp ? 280 : 112 }}
+                                            transition={{ type: 'spring', damping: 22, stiffness: 280 }}
+                                            className={`snap-start flex-shrink-0 flex items-center gap-3 p-3 rounded-[24px] ${banner.color} text-white cursor-pointer shadow-lg overflow-hidden relative`}
+                                            style={{ minHeight: 72 }}
                                         >
-                                            <X size={12} />
-                                        </button>
-                                    </motion.div>
-                                ))}
+                                            {/* Ícono siempre visible */}
+                                            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">
+                                                {banner.icon}
+                                            </div>
+
+                                            {/* Contenido — visible solo cuando expandido */}
+                                            <AnimatePresence>
+                                                {isExp && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, x: 10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: 10 }}
+                                                        transition={{ duration: 0.18 }}
+                                                        className="flex flex-col flex-1 min-w-0"
+                                                    >
+                                                        <span className="text-[9px] font-black uppercase tracking-widest opacity-70 leading-none">{banner.title}</span>
+                                                        <span className="text-[13px] font-black leading-tight mt-0.5">{banner.subtitle}</span>
+                                                        {banner.details && (
+                                                            <span className="text-[9px] font-bold opacity-60 mt-1 leading-tight line-clamp-2">{banner.details}</span>
+                                                        )}
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+
+                                            {/* X solo cuando expandido */}
+                                            {isExp && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setExpandedBanner(null); }}
+                                                    className="absolute top-2 right-2 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                                                >
+                                                    <X size={11} />
+                                                </button>
+                                            )}
+                                        </motion.div>
+                                    );
+                                })}
                             </div>
                         </motion.div>
                     )}
