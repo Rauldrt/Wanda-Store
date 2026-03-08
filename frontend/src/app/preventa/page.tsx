@@ -27,7 +27,8 @@ import {
     UserCheck,
     AlertCircle,
     LogOut,
-    ArrowLeft
+    ArrowLeft,
+    Bell
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
@@ -82,6 +83,7 @@ export default function PreventaPage() {
     const [historyDate, setHistoryDate] = useState("");
     const [isConfigOpen, setIsConfigOpen] = useState(false);
     const [pendingOrders, setPendingOrders] = useState<any[]>([]);
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [vendedorName, setVendedorName] = useState<string>(() => {
@@ -1075,73 +1077,89 @@ export default function PreventaPage() {
                 </div>
             </div>
 
-            {carouselBanners.length > 0 && (
-                <div className="pt-4 px-4 max-w-full overflow-hidden">
-                    <div className="px-1">
-                        <div className="flex overflow-x-auto gap-3 pb-3 no-scrollbar snap-x snap-mandatory">
-                            {carouselBanners.map((banner, bannerIdx) => (
-                                <motion.div
-                                    key={banner.id || `banner-${bannerIdx}`}
-                                    layout
-                                    onClick={() => setExpandedBanner(expandedBanner === banner.id ? null : banner.id)}
-                                    initial={false}
-                                    animate={{
-                                        width: expandedBanner === banner.id ? '300px' : '140px',
-                                        height: expandedBanner === banner.id ? 'auto' : '64px'
-                                    }}
-                                    transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                                    className={`snap-start flex-shrink-0 flex items-center gap-3 p-3 rounded-[28px] ${banner.color} text-white cursor-pointer shadow-lg shadow-black/5 relative overflow-hidden`}
-                                >
-                                    <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">
-                                        {banner.icon}
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-[11px] font-black uppercase tracking-tighter leading-none opacity-90">{banner.title}</span>
-                                        <span className={`text-[13px] font-black leading-tight ${expandedBanner === banner.id ? '' : 'truncate'}`}>{banner.subtitle}</span>
 
-                                        {expandedBanner === banner.id && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="mt-2 text-[10px] font-bold opacity-80"
-                                            >
-                                                {banner.details}
-                                            </motion.div>
-                                        )}
-                                    </div>
-                                    {expandedBanner === banner.id && (
-                                        <div className="absolute top-2 right-2">
-                                            <X size={12} className="opacity-50" />
-                                        </div>
-                                    )}
-                                </motion.div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <main className="flex-1 p-4 pb-32">
-                <div className="flex justify-between items-center mb-4 px-2">
+                <div className="flex justify-between items-center mb-2 px-2">
                     <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         {filteredProducts.length} Productos
                     </h2>
-                    <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-[16px] flex gap-1 shadow-inner">
-                        <button
-                            onClick={() => setViewMode('list')}
-                            className={`p-2 rounded-[12px] transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600' : 'text-slate-400'}`}
-                        >
-                            <LayoutList size={16} />
-                        </button>
-                        <button
-                            onClick={() => setViewMode('grouped')}
-                            className={`p-2 rounded-[12px] transition-all ${viewMode === 'grouped' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600' : 'text-slate-400'}`}
-                        >
-                            <FolderTree size={16} />
-                        </button>
+                    <div className="flex items-center gap-2">
+                        {/* Botón de notificaciones */}
+                        {carouselBanners.length > 0 && (
+                            <button
+                                onClick={() => setIsNotifOpen(v => !v)}
+                                className="relative p-2 rounded-[12px] transition-all text-amber-500"
+                                title="Ver avisos"
+                            >
+                                <Bell size={16} />
+                                {/* Badge con cantidad */}
+                                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
+                                    {carouselBanners.length}
+                                </span>
+                                {/* Glow pulse animado */}
+                                <span className="absolute inset-0 rounded-[12px] bg-amber-400/30 animate-ping" />
+                            </button>
+                        )}
+                        {/* Selector vista */}
+                        <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-[16px] flex gap-1 shadow-inner">
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={`p-2 rounded-[12px] transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600' : 'text-slate-400'}`}
+                            >
+                                <LayoutList size={16} />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('grouped')}
+                                className={`p-2 rounded-[12px] transition-all ${viewMode === 'grouped' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600' : 'text-slate-400'}`}
+                            >
+                                <FolderTree size={16} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
+                {/* Acordeón de notificaciones */}
+                <AnimatePresence>
+                    {isNotifOpen && carouselBanners.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="overflow-hidden mb-4 px-2"
+                        >
+                            <div className="space-y-2 pt-2 pb-1">
+                                {carouselBanners.map((banner, bannerIdx) => (
+                                    <motion.div
+                                        key={banner.id || `banner-${bannerIdx}`}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: bannerIdx * 0.05 }}
+                                        className={`flex items-center gap-3 p-4 rounded-[24px] ${banner.color} text-white shadow-lg`}
+                                    >
+                                        <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">
+                                            {banner.icon}
+                                        </div>
+                                        <div className="flex flex-col flex-1 min-w-0">
+                                            <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{banner.title}</span>
+                                            <span className="text-sm font-black leading-tight">{banner.subtitle}</span>
+                                            {banner.details && (
+                                                <span className="text-[10px] font-bold opacity-70 mt-0.5">{banner.details}</span>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => setIsNotifOpen(false)}
+                                            className="p-1.5 rounded-full bg-white/20 shrink-0"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
                 <div className={viewMode === 'list' ? "grid grid-cols-1 gap-4" : ""}>
                     {contentToRender.length > 0 ? contentToRender : (
                         <div className="p-10 text-center text-slate-400 flex flex-col items-center gap-2">
