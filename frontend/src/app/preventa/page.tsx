@@ -102,6 +102,7 @@ export default function PreventaPage() {
     const [activeSearch, setActiveSearch] = useState<'client' | 'product' | null>(null);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
+    const [seenBannerIds, setSeenBannerIds] = useState<Set<string>>(new Set());
     const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
     const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
     const clientInputRef = useRef<HTMLInputElement>(null);
@@ -1086,26 +1087,33 @@ export default function PreventaPage() {
                     </h2>
                     <div className="flex items-center gap-2">
                         {/* Botón de notificaciones */}
-                        {carouselBanners.length > 0 && (
-                            <button
-                                onClick={() => setIsNotifOpen(v => !v)}
-                                className="relative p-2 rounded-[12px] transition-all text-amber-500"
-                                title="Ver avisos"
-                            >
-                                <Bell size={16} />
-                                {/* Badge con cantidad */}
-                                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
-                                    {carouselBanners.length}
-                                </span>
-                                {/* Glow pulse — key fuerza unmount/remount al abrir/cerrar */}
-                                {!isNotifOpen && (
-                                    <span
-                                        key={`ping-${isNotifOpen}`}
-                                        className="absolute inset-0 rounded-[12px] bg-amber-400/30 animate-ping"
-                                    />
-                                )}
-                            </button>
-                        )}
+                        {carouselBanners.length > 0 && (() => {
+                            const hasUnseen = carouselBanners.some(
+                                (b, i) => !seenBannerIds.has(b.id || `banner-${i}`)
+                            );
+                            return (
+                                <button
+                                    onClick={() => {
+                                        setIsNotifOpen(v => !v);
+                                        // Marcar todos los banners actuales como vistos
+                                        setSeenBannerIds(new Set(
+                                            carouselBanners.map((b, i) => b.id || `banner-${i}`)
+                                        ));
+                                    }}
+                                    className="relative p-2 rounded-[12px] transition-all text-amber-500"
+                                    title="Ver avisos"
+                                >
+                                    <Bell size={16} />
+                                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
+                                        {carouselBanners.length}
+                                    </span>
+                                    {/* Pulse solo si hay avisos no vistos */}
+                                    {hasUnseen && (
+                                        <span className="absolute inset-0 rounded-[12px] bg-amber-400/30 animate-ping" />
+                                    )}
+                                </button>
+                            );
+                        })()}
                         {/* Selector vista */}
                         <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-[16px] flex gap-1 shadow-inner">
                             <button
