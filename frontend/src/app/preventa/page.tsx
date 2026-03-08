@@ -83,8 +83,6 @@ export default function PreventaPage() {
     const [historyDate, setHistoryDate] = useState("");
     const [isConfigOpen, setIsConfigOpen] = useState(false);
     const [pendingOrders, setPendingOrders] = useState<any[]>([]);
-    const [isNotifOpen, setIsNotifOpen] = useState(false);
-    const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [vendedorName, setVendedorName] = useState<string>(() => {
@@ -102,6 +100,7 @@ export default function PreventaPage() {
     const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
     const [viewingOrder, setViewingOrder] = useState<any>(null);
     const [activeSearch, setActiveSearch] = useState<'client' | 'product' | null>(null);
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
     const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
