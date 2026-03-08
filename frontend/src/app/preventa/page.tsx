@@ -667,9 +667,9 @@ export default function PreventaPage() {
 
     // --- RENDER HELPERS ---
 
-    const clientList = filteredClients.length > 0 ? filteredClients.map(c => (
+    const clientList = filteredClients.length > 0 ? filteredClients.map((c, cidx) => (
         <div
-            key={c.ID_Cliente || c.Nombre_Negocio}
+            key={c.ID_Cliente || c.id || c.Nombre_Negocio || `cli-${cidx}`}
             role="option"
             aria-selected={false}
             onClick={() => { setSelectedClient(c); setClientSearch(c.Nombre_Negocio); setIsClientDropdownOpen(false); }}
@@ -713,8 +713,8 @@ export default function PreventaPage() {
         setExpandedCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
     };
 
-    const renderProductCard = (p: any) => {
-        const pid = String(p.ID_Producto);
+    const renderProductCard = (p: any, idx: number) => {
+        const pid = String(p.ID_Producto || p.id || `prod-${idx}`);
         const qty = carrito[pid] || 0;
         const isBulto = !!modoBulto[pid];
         const isKg = (p.Unidad || "").toLowerCase() === 'kg';
