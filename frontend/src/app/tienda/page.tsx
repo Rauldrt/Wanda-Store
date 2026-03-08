@@ -148,17 +148,19 @@ export default function TiendaOnlinePage() {
             try {
                 const parsedNotifs = JSON.parse(systemNotifsRaw);
                 if (Array.isArray(parsedNotifs)) {
-                    parsedNotifs.filter((n: any) => n.active).forEach((n: any) => {
-                        banners.push({
-                            id: `sys-${n.id}`,
-                            type: 'info',
-                            title: n.title || 'Aviso Sistema',
-                            subtitle: n.text,
-                            icon: '📢',
-                            color: 'bg-amber-600',
-                            details: 'Comunicado oficial para clientes.'
+                    parsedNotifs
+                        .filter((n: any) => n.active && (n.audiencia === 'tienda' || n.audiencia === 'todos'))
+                        .forEach((n: any) => {
+                            banners.push({
+                                id: `sys-${n.id}`,
+                                type: 'info',
+                                title: n.title || 'Aviso Sistema',
+                                subtitle: n.text,
+                                icon: '📢',
+                                color: 'bg-amber-600',
+                                details: 'Comunicado oficial para clientes.'
+                            });
                         });
-                    });
                 }
             } catch (e) { console.error(e); }
         }

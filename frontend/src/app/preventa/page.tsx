@@ -127,7 +127,7 @@ export default function PreventaPage() {
     const carouselBanners = useMemo(() => {
         const banners: any[] = [];
 
-        // 1. Notificaciones del Sistema (Prioridad 1)
+        // 1. Notificaciones del Sistema — solo las dirigidas a Preventistas
         const config = data?.config || {};
         const systemNotifsRaw = config.SYSTEM_NOTIFICATIONS;
 
@@ -135,35 +135,24 @@ export default function PreventaPage() {
             try {
                 const parsedNotifs = JSON.parse(systemNotifsRaw);
                 if (Array.isArray(parsedNotifs)) {
-                    parsedNotifs.filter((n: any) => n.active).forEach((n: any) => {
-                        banners.push({
-                            id: `sys-${n.id}`,
-                            type: 'info',
-                            title: n.title || 'Aviso Sistema',
-                            subtitle: n.text,
-                            icon: '📢',
-                            color: 'bg-amber-600',
-                            details: 'Comunicado oficial para preventistas.'
+                    parsedNotifs
+                        .filter((n: any) => n.active && (n.audiencia === 'preventista' || n.audiencia === 'todos' || !n.audiencia))
+                        .forEach((n: any) => {
+                            banners.push({
+                                id: `sys-${n.id}`,
+                                type: 'info',
+                                title: n.title || 'Aviso Sistema',
+                                subtitle: n.text,
+                                icon: '📢',
+                                color: 'bg-amber-600',
+                                details: 'Comunicado oficial para preventistas.'
+                            });
                         });
-                    });
                 }
             } catch (e) {
                 console.error("Error parsing system notifications", e);
             }
         }
-
-        // 2. Productos en Oferta (Prioridad 2)
-        products.filter((p: any) => p.Es_Oferta === true || p.es_oferta === true || String(p.Es_Oferta).toLowerCase() === 'true').forEach((p: any) => {
-            banners.push({
-                id: `offer-${p.ID_Producto}`,
-                type: 'offer',
-                title: 'Oferta Especial',
-                subtitle: p.Nombre,
-                icon: '🔥',
-                color: 'bg-rose-500',
-                details: p.Nota_Oferta || p.nota_oferta || 'Aprovecha este precio especial hoy.'
-            });
-        });
 
         return banners;
     }, [data, products]);
