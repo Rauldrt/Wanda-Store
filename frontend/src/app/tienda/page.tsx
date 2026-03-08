@@ -12,6 +12,7 @@ import {
     Mic,
     X,
     ChevronUp,
+    ChevronDown,
     CheckCircle2,
     Package,
     Store,
@@ -55,6 +56,7 @@ export default function TiendaOnlinePage() {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
+    const [isDeliveryFormOpen, setIsDeliveryFormOpen] = useState(false);
     const productInputRef = useRef<HTMLInputElement>(null);
 
     const [userInfo, setUserInfo] = useState({
@@ -661,29 +663,61 @@ export default function TiendaOnlinePage() {
                             </div>
 
                             <div className="pt-8 border-t border-slate-100 dark:border-slate-800 space-y-6">
-                                {/* Datos de envío */}
-                                <div className="space-y-4 bg-slate-50 dark:bg-slate-800 p-5 rounded-[28px]">
-                                    <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest flex items-center gap-2 mb-4"><MapPin size={16} /> Datos de Entrega</h3>
-
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Teléfono / WhatsApp</label>
-                                            <input type="tel" value={checkoutData.telefono} onChange={e => setCheckoutData({ ...checkoutData, telefono: e.target.value })} placeholder="Ej. 3764 123456" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Dirección de Entrega</label>
-                                            <input type="text" value={checkoutData.direccion} onChange={e => setCheckoutData({ ...checkoutData, direccion: e.target.value })} placeholder="Calle y Número, Barrio" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ubicación Geográfica (GPS)</label>
-                                            <div className="flex gap-2">
-                                                <input type="text" value={checkoutData.ubicacion} readOnly placeholder="Ubicación no establecida" className="flex-1 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl px-4 py-3 text-sm font-bold text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap outline-none cursor-default" />
-                                                <button onClick={handleGetLocation} disabled={isLocating} className="bg-indigo-500 text-white p-3 rounded-xl flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 min-w-[3rem] transition-colors">
-                                                    {isLocating ? <Loader2 className="animate-spin" size={20} /> : <LocateFixed size={20} />}
-                                                </button>
+                                {/* Acordeón Datos de Envío */}
+                                <div className="bg-slate-50 dark:bg-slate-800 rounded-[28px] overflow-hidden">
+                                    <button
+                                        onClick={() => setIsDeliveryFormOpen(!isDeliveryFormOpen)}
+                                        className="w-full p-5 flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                                                <MapPin size={18} />
+                                            </div>
+                                            <div className="text-left">
+                                                <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">Datos de Entrega</h3>
+                                                <p className="text-[9px] font-bold text-slate-400 mt-0.5">
+                                                    {(checkoutData.telefono && checkoutData.direccion) ? '✅ Información completa' : '⚠️ Pendiente de completar'}
+                                                </p>
                                             </div>
                                         </div>
-                                    </div>
+                                        <ChevronDown
+                                            size={20}
+                                            className={`text-slate-400 transition-transform duration-300 ${isDeliveryFormOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {isDeliveryFormOpen && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                            >
+                                                <div className="px-5 pb-5 pt-2 space-y-4 border-t border-slate-100 dark:border-slate-700/50">
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Teléfono / WhatsApp</label>
+                                                            <input type="tel" value={checkoutData.telefono} onChange={e => setCheckoutData({ ...checkoutData, telefono: e.target.value })} placeholder="Ej. 3764 123456" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Dirección de Entrega</label>
+                                                            <input type="text" value={checkoutData.direccion} onChange={e => setCheckoutData({ ...checkoutData, direccion: e.target.value })} placeholder="Calle y Número, Barrio" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ubicación Geográfica (GPS)</label>
+                                                            <div className="flex gap-2">
+                                                                <input type="text" value={checkoutData.ubicacion} readOnly placeholder="Ubicación no establecida" className="flex-1 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl px-4 py-3 text-sm font-bold text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap outline-none cursor-default" />
+                                                                <button onClick={handleGetLocation} disabled={isLocating} className="bg-indigo-500 text-white p-3 rounded-xl flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 min-w-[3rem] transition-colors">
+                                                                    {isLocating ? <Loader2 className="animate-spin" size={20} /> : <LocateFixed size={20} />}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
 
                                 <div className="flex justify-between items-center px-2">
