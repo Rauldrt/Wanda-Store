@@ -532,6 +532,7 @@ export default function PreventaPage() {
 
         const orderData = {
             id_interno: Date.now(),
+            id: `PREV-${Date.now()}`,
             cliente: selectedClient,
             vendedor: vendedorName,
             items: Object.entries(carrito).map(([id, qty]) => {
@@ -657,7 +658,7 @@ export default function PreventaPage() {
 
     const filteredHistory = useMemo(() => {
         return history.filter(h => {
-            const payload = [h.cliente?.Nombre_Negocio || "", h.id_interno, h.total].join(" ");
+            const payload = [h.cliente?.Nombre_Negocio || "", h.id || h.id_interno, h.total].join(" ");
             const matchesText = smartSearch(payload, historySearch);
             const matchesDate = historyDate ? h.fecha.startsWith(historyDate) : true;
             return matchesText && matchesDate;
@@ -1362,9 +1363,9 @@ export default function PreventaPage() {
                             </div>
 
                             <div className="flex-1 overflow-y-auto space-y-3">
-                                {filteredHistory.length > 0 ? filteredHistory.map((h: any) => (
+                                {filteredHistory.length > 0 ? filteredHistory.map((h: any, idx: number) => (
                                     <div
-                                        key={h.id_interno}
+                                        key={h.id || String(h.id_interno || idx)}
                                         onClick={() => setViewingOrder(h)}
                                         className="bg-slate-50 dark:bg-slate-800 p-4 rounded-[28px] border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-indigo-500/30 active:scale-[0.98] transition-all"
                                     >
