@@ -119,7 +119,7 @@ const printSettlement = (data: {
                     
                     .audit-card { 
                         background: #1e293b; color: white; padding: 18px; border-radius: 18px;
-                        border: 3px solid ${Math.abs(data.balanceDiferencia) < 10 ? '#10b981' : (data.balanceDiferencia > 0 ? '#ef4444' : '#10b981')};
+                        border: 3px solid ${Math.abs(data.balanceDiferencia) < 0.01 ? '#10b981' : (data.balanceDiferencia > 0 ? '#ef4444' : '#10b981')};
                         box-shadow: 0 15px 35px rgba(30, 41, 59, 0.2);
                     }
                     .audit-label-main { font-size: 11px; text-transform: uppercase; font-weight: 950; color: #818cf8; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; }
@@ -184,34 +184,34 @@ const printSettlement = (data: {
                             
                             <div class="audit-row" style="color: #c7d2fe; font-size: 16px;">
                                 <span>Neto a Rendir (Ventas)</span>
-                                <span>$${(data.netoARendir || 0).toLocaleString()}</span>
+                                <span>$${(data.netoARendir || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
 
                             <div style="padding-left: 15px; border-left: 3px solid rgba(255,255,255,0.1); margin: 6px 0; display: flex; flex-direction: column; gap: 0;">
                                 <div class="audit-row" style="opacity: 0.9;">
                                     <span>(-) Total Devoluciones</span>
-                                    <span>$${(data.totalDevoluciones || 0).toLocaleString()}</span>
+                                    <span>$${(data.totalDevoluciones || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div class="audit-row" style="opacity: 0.9;">
                                     <span>(-) Gastos de Ruta</span>
-                                    <span>$${(data.gastosTotal || 0).toLocaleString()}</span>
+                                    <span>$${(data.gastosTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div class="audit-row" style="opacity: 0.9;">
                                     <span>(-) Efectivo (Desglose)</span>
-                                    <span>$${data.efectivo.toLocaleString()}</span>
+                                    <span>$${data.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div class="audit-row" style="opacity: 0.9; margin-bottom: 0;">
                                     <span>(-) Transferencias</span>
-                                    <span>$${data.transf.toLocaleString()}</span>
+                                    <span>$${data.transf.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
 
                             <div class="audit-main">
-                                <div class="audit-status" style="color: ${Math.abs(data.balanceDiferencia) < 10 ? '#34d399' : (data.balanceDiferencia > 0 ? '#fb7185' : '#34d399')};">
-                                    ${Math.abs(data.balanceDiferencia) < 10 ? 'BALANCEADO' : (data.balanceDiferencia < 0 ? 'SOBRANTE' : 'FALTANTE')}
+                                <div class="audit-status" style="color: ${Math.abs(data.balanceDiferencia) < 0.01 ? '#34d399' : (data.balanceDiferencia > 0 ? '#fb7185' : '#34d399')};">
+                                    ${Math.abs(data.balanceDiferencia) < 0.01 ? 'BALANCEADO' : (data.balanceDiferencia < 0 ? 'SOBRANTE' : 'FALTANTE')}
                                 </div>
-                                <div style="color: ${Math.abs(data.balanceDiferencia) < 10 ? '#34d399' : (data.balanceDiferencia > 0 ? '#fb7185' : '#34d399')};">
-                                    $${Math.abs(data.balanceDiferencia).toLocaleString()}
+                                <div style="color: ${Math.abs(data.balanceDiferencia) < 0.01 ? '#34d399' : (data.balanceDiferencia > 0 ? '#fb7185' : '#34d399')};">
+                                    $${Math.abs(data.balanceDiferencia).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </div>
                             </div>
                             
