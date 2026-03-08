@@ -3,7 +3,11 @@
     "providers": {
       "googleSignIn": {
         "oAuthBrandDisplayName": "Wanda Pro",
-        "supportEmail": "rauldrt5@gmail.com"
+        "supportEmail": "rauldrt5@gmail.com",
+        "authorizedRedirectUris": [
+          "http://localhost:3000",
+          "http://localhost"
+        ]
       }
     }
   }
