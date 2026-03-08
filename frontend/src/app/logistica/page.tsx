@@ -1087,28 +1087,28 @@ export default function LogisticaPage() {
                     <p className="text-slate-500 text-sm">Organiza entregas y optimiza tus rutas.</p>
                 </div>
 
-                <div className="flex bg-[var(--card)] border border-[var(--border)] p-1 rounded-xl">
+                <div className="flex gap-1 bg-[var(--card)] border border-[var(--border)] p-1 rounded-xl">
                     <button
                         onClick={() => setActiveTab('pendientes')}
-                        className={`px - 4 py - 2 text - xs font - bold rounded - lg transition - all ${activeTab === 'pendientes' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'} `}
+                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'pendientes' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
                     >
                         Pendientes ({allPendingOrders.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('rutas')}
-                        className={`px - 4 py - 2 text - xs font - bold rounded - lg transition - all ${activeTab === 'rutas' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'} `}
+                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'rutas' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
                     >
                         Hojas de Ruta ({routeNames.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('historial')}
-                        className={`px - 4 py - 2 flex items - center gap - 2 text - xs font - bold rounded - lg transition - all ${activeTab === 'historial' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'} `}
+                        className={`px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'historial' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
                     >
                         Historial ({liquidaciones.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('comisiones')}
-                        className={`px - 4 py - 2 flex items - center gap - 2 text - xs font - bold rounded - lg transition - all ${activeTab === 'comisiones' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'} `}
+                        className={`px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'comisiones' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
                     >
                         <CreditCard size={14} /> Comisiones
                     </button>
@@ -1248,7 +1248,7 @@ export default function LogisticaPage() {
                                                 <th className="p-4 text-left w-10">
                                                     <div
                                                         onClick={(e) => { e.stopPropagation(); toggleSelectAll(); }}
-                                                        className={`w - 5 h - 5 rounded border - 2 flex items - center justify - center transition - all cursor - pointer ${selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'} `}
+                                                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
                                                     >
                                                         {selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 && <CheckCircle2 size={12} />}
                                                         {selectedOrders.size > 0 && selectedOrders.size < filteredPendingOrders.length && <div className="w-2 h-0.5 bg-slate-400" />}
@@ -1266,12 +1266,12 @@ export default function LogisticaPage() {
                                             {filteredPendingOrders.map(order => (
                                                 <tr
                                                     key={order.id}
-                                                    className={`hover: bg - indigo - 500 / 5 transition - colors cursor - pointer ${selectedOrders.has(order.id) ? 'bg-indigo-500/5' : ''} `}
+                                                    className={`hover:bg-indigo-500/5 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-indigo-500/5' : ''}`}
                                                     onClick={() => toggleOrderSelection(order.id)}
                                                 >
                                                     <td className="p-4" onClick={(e) => e.stopPropagation()}>
                                                         <div
-                                                            className={`w - 5 h - 5 rounded border - 2 flex items - center justify - center transition - all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'} `}
+                                                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
                                                         >
                                                             {selectedOrders.has(order.id) && <CheckCircle2 size={12} />}
                                                         </div>
@@ -1360,13 +1360,13 @@ export default function LogisticaPage() {
                                                                     const isDateExpanded = expandedGroups.has(dateKey);
 
                                                                     return (
-                                                                        <div key={date} className={`tech - card border transition - all overflow - hidden ${isDateExpanded ? 'border-indigo-500/50 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'} `}>
+                                                                        <div key={date} className={`tech-card border transition-all overflow-hidden ${isDateExpanded ? 'border-indigo-500/50 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
                                                                             <div
                                                                                 onClick={() => toggleGroup(dateKey)}
-                                                                                className={`p - 4 flex justify - between items - center cursor - pointer transition - colors ${isDateExpanded ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'} `}
+                                                                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${isDateExpanded ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
                                                                             >
                                                                                 <div className="flex items-center gap-4">
-                                                                                    <div className={`w - 10 h - 10 rounded - xl flex items - center justify - center transition - all ${isDateExpanded ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'} `}>
+                                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isDateExpanded ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
                                                                                         <Calendar size={18} />
                                                                                     </div>
                                                                                     <div>
@@ -1386,7 +1386,7 @@ export default function LogisticaPage() {
                                                                                             }
                                                                                             setSelectedOrders(next);
                                                                                         }}
-                                                                                        className={`px - 3 py - 1.5 rounded - xl text - [9px] font - black uppercase transition - all flex items - center gap - 2 ${allGroupSelected ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'} `}
+                                                                                        className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${allGroupSelected ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}`}
                                                                                     >
                                                                                         <Check size={12} strokeWidth={4} />
                                                                                         {allGroupSelected ? 'Todos' : 'Marcar'}
