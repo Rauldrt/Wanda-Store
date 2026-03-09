@@ -706,11 +706,12 @@ export default function PreventaPage() {
                 doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, 'FD');
 
                 // Image logic
-                if (p.Imagen_URL) {
-                    const b64 = await getBase64(getImageUrl(p.Imagen_URL));
+                const finalUrl = p.Imagen_URL ? getImageUrl(p.Imagen_URL) : null;
+                if (finalUrl) {
+                    const b64 = await getBase64(finalUrl);
                     if (b64) {
                         try {
-                            if (b64) doc.addImage(b64, 'JPEG', x + 2, y + 2, cardWidth - 4, 30, undefined, 'FAST');
+                            doc.addImage(b64, 'JPEG', x + 2, y + 2, cardWidth - 4, 30, undefined, 'FAST');
                         } catch (e) {
                             console.log("Error adding image to PDF", e);
                         }
