@@ -55,6 +55,18 @@ const smartSearch = (text: string, query: string) => {
     return terms.every(t => normText.includes(t));
 };
 
+// --- UTIL: DRIVE IMAGE CONVERTER ---
+const getImageUrl = (url?: string) => {
+    if (!url) return "";
+    if (url.includes('drive.google.com')) {
+        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+            return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+        }
+    }
+    return url;
+};
+
 export default function ProductosPage() {
     const { data, refreshData, setIsSyncing, isSyncing } = useData();
     const products = useMemo(() => data?.products || [], [data?.products]);
@@ -832,7 +844,7 @@ function ProductCard({ product, idx, onEdit }: any) {
             <div className="p-5 flex gap-4">
                 <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-[var(--border)] flex-shrink-0">
                     {product.Imagen_URL ? (
-                        <img src={product.Imagen_URL} alt={product.Nombre} className="w-full h-full object-cover" />
+                        <img src={getImageUrl(product.Imagen_URL)} alt={product.Nombre} className="w-full h-full object-cover" />
                     ) : (
                         <button
                             onClick={(e) => {
@@ -929,7 +941,7 @@ function ProductRow({ product, onEdit }: any) {
                 <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-[var(--border)] overflow-hidden flex-shrink-0">
                         {product.Imagen_URL ? (
-                            <img src={product.Imagen_URL} className="w-full h-full object-cover" />
+                            <img src={getImageUrl(product.Imagen_URL)} className="w-full h-full object-cover" />
                         ) : (
                             <button
                                 onClick={(e) => {
@@ -1268,7 +1280,7 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                                     <div className="mt-4 relative group w-max">
                                         <div className="w-40 h-40 rounded-[2rem] overflow-hidden border-4 border-white dark:border-slate-800 shadow-xl bg-slate-100 dark:bg-slate-900">
                                             <img
-                                                src={formData.Imagen_URL}
+                                                src={getImageUrl(formData.Imagen_URL)}
                                                 className="w-full h-full object-contain p-2"
                                                 onError={(e: any) => { (e.target as any).src = 'https://placehold.co/400?text=Error+en+URL'; }}
                                             />
