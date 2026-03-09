@@ -730,7 +730,7 @@ export default function PreventaPage() {
             <div
                 key={pid}
                 className={`p-4 rounded-[28px] bg-white dark:bg-slate-900 border transition-all duration-300 ${qty > 0
-                    ? 'border-indigo-200 bg-indigo-50/10 dark:border-indigo-500/30'
+                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 dark:border-indigo-500 ring-2 ring-indigo-500/10 shadow-lg shadow-indigo-500/5'
                     : 'border-slate-100 dark:border-slate-800'
                     }`}
             >
@@ -751,6 +751,7 @@ export default function PreventaPage() {
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 uppercase tracking-wider">ID: {p.ID_Producto}</span>
                                 <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase tracking-wider">{p.Categoria || 'S/C'}</span>
                                 {isKg && <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 uppercase">Pesable</span>}
                                 {parseFloat(p.Stock_Actual || "0") < 1 ? (
