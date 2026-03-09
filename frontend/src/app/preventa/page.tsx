@@ -635,65 +635,153 @@ export default function PreventaPage() {
         window.open(url, '_blank');
     };
 
-    const generatePDFCatalog = () => {
+    const generatePDFCatalog = async () => {
         if (products.length === 0) {
             alert("No hay productos para generar el catálogo.");
             return;
         }
         setIsGeneratingPDF(true);
 
+        // Helper para convertir imagen a base64
+        const getBase64 = (url: string): Promise<string | null> => {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.setAttribute('crossOrigin', 'anonymous');
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx?.drawImage(img, 0, 0);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    } catch (e) {
+                        resolve(null);
+                    }
+                };
+                img.onerror = () => resolve(null);
+                img.src = url;
+                // Si la imagen tarda mucho, resolve null
+                setTimeout(() => resolve(null), 5000);
+            });
+        };
+
         try {
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
 
-            // Background Header
+            // Configuración del grid
+            const margin = 12;
+            const columns = 4;
+            const gap = 4;
+            const availableWidth = pageWidth - (margin * 2);
+            const cardWidth = (availableWidth - (gap * (columns - 1))) / columns;
+            const cardHeight = 65;
+
+            // Header
             doc.setFillColor(79, 70, 229); // Indigo-600
             doc.rect(0, 0, pageWidth, 40, 'F');
-
-            // Header Text
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(22);
             doc.setFont("helvetica", "bold");
-            doc.text("CATÁLOGO DE PRODUCTOS", 14, 20);
+            doc.text("CATÁLOGO DE VENTAS", margin, 20);
 
-            doc.setFontSize(10);
+            doc.setFontSize(9);
             doc.setFont("helvetica", "normal");
-            doc.text(`WANDA CLOUD - SISTEMA DE PREVENTA`, 14, 28);
-            doc.text(`Fecha: ${new Date().toLocaleDateString()}`, pageWidth - 14, 20, { align: "right" });
-            doc.text(`Preventista: ${vendedorName || 'N/A'}`, pageWidth - 14, 28, { align: "right" });
+            doc.text(`CATÁLOGO DIGITAL - WANDA CLOUD`, margin, 28);
+            doc.text(`${new Date().toLocaleDateString()}`, pageWidth - margin, 20, { align: "right" });
+            doc.text(`Vendedor: ${vendedorName || 'N/A'}`, pageWidth - margin, 28, { align: "right" });
 
-            // Sort products by category
-            const sortedProducts = [...products].sort((a, b) => a.Categoria.localeCompare(b.Categoria));
+            let x = margin;
+            let y = 50;
+            const sortedProducts = [...products].sort((a, b) => (a.Categoria || '').localeCompare(b.Categoria || ''));
 
-            const tableData = sortedProducts.map(p => [
-                p.ID_Producto,
-                p.Nombre,
-                p.Categoria || "S/C",
-                `$${parseFloat(p.Precio_Unitario).toLocaleString()}`,
-                p.Unidad || "Unid"
-            ]);
+            for (let i = 0; i < sortedProducts.length; i++) {
+                const p = sortedProducts[i];
 
-            autoTable(doc, {
-                startY: 50,
-                head: [['ID', 'Producto', 'Categoría', 'Precio', 'Unidad']],
-                body: tableData,
-                theme: 'striped',
-                headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
-                alternateRowStyles: { fillColor: [249, 250, 251] },
-                styles: { fontSize: 9, cellPadding: 3 },
-                columnStyles: {
-                    0: { cellWidth: 20 },
-                    3: { halign: 'right', fontStyle: 'bold' },
-                    4: { halign: 'center' }
-                },
-                didDrawPage: (data) => {
-                    // Footer
-                    const str = "Página " + (doc as any).internal.getNumberOfPages();
+                // Draw Card Container
+                doc.setDrawColor(240, 240, 240);
+                doc.setFillColor(255, 255, 255);
+                doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, 'FD');
+
+                // Image logic
+                if (p.Imagen_URL) {
+                    const b64 = await getBase64(getImageUrl(p.Imagen_URL));
+                    if (b64) {
+                        try {
+                            if (b64) doc.addImage(b64, 'JPEG', x + 2, y + 2, cardWidth - 4, 30, undefined, 'FAST');
+                        } catch (e) {
+                            console.log("Error adding image to PDF", e);
+                        }
+                    } else {
+                        // Placeholder icon if image fails
+                        doc.setFillColor(245, 247, 250);
+                        doc.rect(x + 2, y + 2, cardWidth - 4, 30, 'F');
+                        doc.setTextColor(200, 200, 200);
+                        doc.setFontSize(8);
+                        doc.text("Sin imagen", x + cardWidth / 2, y + 17, { align: 'center' });
+                    }
+                } else {
+                    doc.setFillColor(245, 247, 250);
+                    doc.rect(x + 2, y + 2, cardWidth - 4, 30, 'F');
+                    doc.setTextColor(200, 200, 200);
+                    doc.setFontSize(8);
+                    doc.text("Sin imagen", x + cardWidth / 2, y + 17, { align: 'center' });
+                }
+
+                // Info: ID y Categoría
+                doc.setTextColor(150, 150, 150);
+                doc.setFontSize(6);
+                doc.setFont("helvetica", "bold");
+                doc.text(`COD: ${p.ID_Producto}`, x + 3, y + 36);
+                doc.setFont("helvetica", "normal");
+                const cat = (p.Categoria || 'Sin Cat').toUpperCase();
+                doc.text(cat.length > 20 ? cat.substring(0, 18) + '...' : cat, x + 3, y + 39);
+
+                // Name
+                doc.setTextColor(30, 41, 59);
+                doc.setFontSize(7);
+                doc.setFont("helvetica", "bold");
+                const nameLines = doc.splitTextToSize(p.Nombre, cardWidth - 6);
+                doc.text(nameLines.slice(0, 2), x + 3, y + 44);
+
+                // Price
+                doc.setTextColor(79, 70, 229);
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "black");
+                doc.text(`$${parseFloat(p.Precio_Unitario).toLocaleString()}`, x + 3, y + 58);
+
+                doc.setTextColor(150, 150, 150);
+                doc.setFontSize(6);
+                doc.setFont("helvetica", "normal");
+                doc.text(`x ${p.Unidad || 'Unid'}`, x + 3, y + 61);
+
+                // Grid Logic
+                if ((i + 1) % columns === 0) {
+                    x = margin;
+                    y += cardHeight + gap;
+                } else {
+                    x += cardWidth + gap;
+                }
+
+                // Page Break Logic
+                if (y + cardHeight > pageHeight - 20 && i < sortedProducts.length - 1) {
+                    // Footer before page break
                     doc.setFontSize(8);
                     doc.setTextColor(150);
-                    doc.text(str, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+                    doc.text(`Página ${(doc as any).internal.getNumberOfPages()}`, pageWidth / 2, pageHeight - 10, { align: "center" });
+
+                    doc.addPage();
+                    y = 15;
+                    x = margin;
                 }
-            });
+            }
+
+            // Final Footer
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Página ${(doc as any).internal.getNumberOfPages()}`, pageWidth / 2, pageHeight - 10, { align: "center" });
 
             const fileName = `Catalogo_${vendedorName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
             doc.save(fileName);
