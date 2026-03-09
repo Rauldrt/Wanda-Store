@@ -28,10 +28,13 @@ import {
     AlertCircle,
     LogOut,
     ArrowLeft,
-    Bell
+    Bell,
+    FileText
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type Product = {
     ID_Producto: string;
@@ -97,6 +100,7 @@ export default function PreventaPage() {
     const [modoBulto, setModoBulto] = useState<{ [key: string]: boolean }>({});
     const [isListening, setIsListening] = useState<'client' | null | 'product'>(null);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
     const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
     const [viewingOrder, setViewingOrder] = useState<any>(null);
     const [activeSearch, setActiveSearch] = useState<'client' | 'product' | null>(null);
@@ -631,6 +635,76 @@ export default function PreventaPage() {
         window.open(url, '_blank');
     };
 
+    const generatePDFCatalog = () => {
+        if (products.length === 0) {
+            alert("No hay productos para generar el catálogo.");
+            return;
+        }
+        setIsGeneratingPDF(true);
+
+        try {
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // Background Header
+            doc.setFillColor(79, 70, 229); // Indigo-600
+            doc.rect(0, 0, pageWidth, 40, 'F');
+
+            // Header Text
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.setFont("helvetica", "bold");
+            doc.text("CATÁLOGO DE PRODUCTOS", 14, 20);
+
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(`WANDA CLOUD - SISTEMA DE PREVENTA`, 14, 28);
+            doc.text(`Fecha: ${new Date().toLocaleDateString()}`, pageWidth - 14, 20, { align: "right" });
+            doc.text(`Preventista: ${vendedorName || 'N/A'}`, pageWidth - 14, 28, { align: "right" });
+
+            // Sort products by category
+            const sortedProducts = [...products].sort((a, b) => a.Categoria.localeCompare(b.Categoria));
+
+            const tableData = sortedProducts.map(p => [
+                p.ID_Producto,
+                p.Nombre,
+                p.Categoria || "S/C",
+                `$${parseFloat(p.Precio_Unitario).toLocaleString()}`,
+                p.Unidad || "Unid"
+            ]);
+
+            autoTable(doc, {
+                startY: 50,
+                head: [['ID', 'Producto', 'Categoría', 'Precio', 'Unidad']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [249, 250, 251] },
+                styles: { fontSize: 9, cellPadding: 3 },
+                columnStyles: {
+                    0: { cellWidth: 20 },
+                    3: { halign: 'right', fontStyle: 'bold' },
+                    4: { halign: 'center' }
+                },
+                didDrawPage: (data) => {
+                    // Footer
+                    const str = "Página " + (doc as any).internal.getNumberOfPages();
+                    doc.setFontSize(8);
+                    doc.setTextColor(150);
+                    doc.text(str, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+                }
+            });
+
+            const fileName = `Catalogo_${vendedorName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+            doc.save(fileName);
+        } catch (error) {
+            console.error("Error generating PDF", error);
+            alert("Ocurrió un error al generar el PDF.");
+        } finally {
+            setIsGeneratingPDF(false);
+        }
+    };
+
     const repeatOrder = (order: any) => {
         if (!confirm(`¿Cargar el pedido de ${order.cliente.Nombre_Negocio} al carrito actual?`)) return;
 
@@ -970,6 +1044,14 @@ export default function PreventaPage() {
                                     {totalItems}
                                 </span>
                             )}
+                        </button>
+                        <button
+                            onClick={generatePDFCatalog}
+                            disabled={isGeneratingPDF}
+                            className={`p-2 rounded-full hover:bg-black/5 ${isGeneratingPDF ? 'animate-pulse text-indigo-400' : 'text-indigo-500'}`}
+                            title="Descargar Catálogo PDF"
+                        >
+                            {isGeneratingPDF ? <FileText className="animate-bounce" size={20} /> : <FileText size={20} />}
                         </button>
                         <button onClick={() => setIsHistoryOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Clock size={20} /></button>
                         <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
