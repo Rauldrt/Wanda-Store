@@ -66,7 +66,8 @@ const printSettlement = (data: {
     ordenes: any[],
     totalDevoluciones: number,
     balanceDiferencia: number,
-    netoARendir: number
+    netoARendir: number,
+    devoluciones?: any[]
 }, mode: 'full' | 'audit' = 'full') => {
     const win = window.open('', '_blank');
     if (!win) return;
@@ -97,6 +98,15 @@ const printSettlement = (data: {
             </tr>
         `;
     }).join('');
+
+    const returnRows = (data.devoluciones || []).map((d: any) => `
+        <tr>
+            <td>${d.nombre || d.id_prod}</td>
+            <td>${d.qty} ${d.formato || 'UNID'}</td>
+            <td style="text-align:right">$${(d.precio || 0).toLocaleString()}</td>
+            <td style="text-align:right">$${(d.subtotal || 0).toLocaleString()}</td>
+        </tr>
+    `).join('');
 
     win.document.write(`
         <html>
@@ -240,6 +250,25 @@ const printSettlement = (data: {
                     </thead>
                     <tbody>
                         ${orderRows}
+                    </tbody>
+                </table>
+                ` : ''}
+
+                ${(mode === 'audit' || mode === 'full') && (data.devoluciones && data.devoluciones.length > 0) ? `
+                <div style="font-size: 13px; font-weight: 950; text-transform: uppercase; margin: 30px 0 15px; color: #b91c1c; border-bottom: 2px solid #fee2e2; padding-bottom: 8px;">
+                    Detalle de Mercadería Devuelta / Rechazos (${data.devoluciones.length})
+                </div>
+                <table style="background: #fff5f5;">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th style="text-align:right">Precio</th>
+                            <th style="text-align:right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${returnRows}
                     </tbody>
                 </table>
                 ` : ''}
@@ -3019,7 +3048,8 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 total_original: o.total_original,
                 efectivo: o.pago_efectivo,
                 transf: o.pago_transferencia
-            }))
+            })),
+            devoluciones: devoluciones
         }, mode);
     };
 
