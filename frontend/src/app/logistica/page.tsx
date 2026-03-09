@@ -862,13 +862,13 @@ export default function LogisticaPage() {
         const formatCompact = (qty: number, ub: number, isKg: boolean, baseUnit: string) => {
             if (isKg) return `${qty.toFixed(2)} KG`;
             const unitLabel = baseUnit.toUpperCase().startsWith('UNID') || baseUnit.toUpperCase() === 'U' ? 'U' : baseUnit;
-            if (ub <= 1) return `${qty} ${unitLabel} `;
+            if (ub <= 1) return `${qty} ${unitLabel}`;
             const bul = Math.floor(qty / ub);
             const uni = Math.round((qty % ub) * 100) / 100;
-            const suffix = `< small style = "font-weight: bold; font-size: 10px; color: #333; margin-left: 4px;" > (x${ub} ${unitLabel})</small > `;
-            if (bul === 0) return `${uni} ${unitLabel} `;
-            if (uni === 0) return `< b > ${bul} BUL</b > ${suffix} `;
-            return `< b > ${bul} BUL + ${uni} ${unitLabel}</b > ${suffix} `;
+            const suffix = `<small style="font-weight: bold; font-size: 10px; color: #333; margin-left: 4px;">(x${ub} ${unitLabel})</small>`;
+            if (bul === 0) return `${uni} ${unitLabel}`;
+            if (uni === 0) return `<b>${bul} BUL</b> ${suffix}`;
+            return `<b>${bul} BUL + ${uni} ${unitLabel}</b> ${suffix}`;
         };
 
         const sorted = Object.values(aggregates).sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -876,7 +876,7 @@ export default function LogisticaPage() {
         const noPesables = sorted.filter(i => !i.isKg);
 
         const html = `
-    < html >
+    <html>
             <head>
                 <title>Picking List - ${routeName || 'Selección'}</title>
                 <style>
@@ -975,7 +975,7 @@ export default function LogisticaPage() {
 
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
-            </html >
+            </html>
     `;
 
         printWindow.document.write(html);
@@ -990,7 +990,7 @@ export default function LogisticaPage() {
         const totalValue = orderList.reduce((acc, o) => acc + (parseFloat(String(o.total).replace(',', '.')) || 0), 0);
 
         const html = `
-    < html >
+    <html>
             <head>
                 <title>Hoja de Ruta - ${routeName}</title>
                 <style>
