@@ -390,8 +390,18 @@ export const wandaApi: Record<string, any> = {
     },
 
     verifyLogin: async (role: string, password: string) => {
-        const cfgRef = await getDoc(doc(db, "settings", "global"));
-        const config = cfgRef.exists() ? cfgRef.data() : {};
+        let config: any = {};
+        try {
+            const cfgRef = await getDoc(doc(db, "settings", "global"));
+            config = cfgRef.exists() ? cfgRef.data() : {};
+        } catch (e) {
+            console.log("Offline mode: Using cached config for login verification");
+            const cachedData = localStorage.getItem("wanda_cloud_data_cache");
+            if (cachedData) {
+                const parsed = JSON.parse(cachedData);
+                config = parsed.config || {};
+            }
+        }
 
         let key = "";
         let defaultPass = "";

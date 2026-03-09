@@ -100,7 +100,7 @@ export default function TiendaOnlinePage() {
 
     useEffect(() => {
         const role = localStorage.getItem("user_role");
-        if (role !== "cliente") {
+        if (role !== "cliente" && role !== "admin") {
             router.push("/login");
             return;
         }
@@ -114,14 +114,18 @@ export default function TiendaOnlinePage() {
         // Cargar perfil desde Firestore (Sincronización total)
         const loadProfile = async () => {
             if (email) {
-                const profile = await wandaApi.getClientProfile(email);
-                if (profile) {
-                    setCheckoutData({
-                        telefono: profile.telefono || "",
-                        direccion: profile.direccion || "",
-                        ubicacion: profile.ubicacion || ""
-                    });
-                } else {
+                try {
+                    const profile = await wandaApi.getClientProfile(email);
+                    if (profile) {
+                        setCheckoutData({
+                            telefono: profile.telefono || "",
+                            direccion: profile.direccion || "",
+                            ubicacion: profile.ubicacion || ""
+                        });
+                    } else {
+                        throw new Error("No profile");
+                    }
+                } catch (e) {
                     // Fallback a localStorage si es la primera vez o no hay internet
                     setCheckoutData({
                         telefono: localStorage.getItem("user_phone") || "",

@@ -30,7 +30,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const fetchData = useCallback(async (isSilent = false) => {
         try {
-            if (!isSilent && !data) setLoading(true); // Solo mostrar loader si no hay nada en cache
+            if (!isSilent && !localStorage.getItem(CACHE_KEY)) setLoading(true);
             const res = await wandaApi.getAll();
             if (res.error) throw new Error(res.error);
 
@@ -41,18 +41,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             setError(null);
         } catch (err: any) {
             console.error("Fetch data error:", err);
-            // Si hay error pero tenemos cache, no mostramos error crítico, solo un aviso opcional
-            if (!data) {
+            // Solo mostramos error si no hay NADIE con cache (esto se puede ver con data externa o simplemente intentando)
+            // Para simplificar, si falla y no hay nada en el estado local 'data', mostramos error
+            if (!localStorage.getItem(CACHE_KEY)) {
                 setError(err.message || "Error al sincronizar. Verifica tu conexión.");
             }
         } finally {
             setLoading(false);
             setIsSyncing(false);
         }
-    }, [data]);
+    }, []); // Sin dependencias para que sea estable
 
     useEffect(() => {
-        fetchData(!!data); // Si ya tenemos data del cache, hacemos el fetch silencioso
+        fetchData(!!data); // Se ejecuta al montar
         const interval = setInterval(() => fetchData(true), 5 * 60 * 1000);
         return () => clearInterval(interval);
     }, [fetchData]);

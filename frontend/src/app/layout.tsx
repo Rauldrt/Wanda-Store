@@ -62,7 +62,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   // --- MIGRACIÓN DE DATOS LOCALES ---
   useEffect(() => {
-    migrateLocalStorageToFirebase();
+    try {
+      migrateLocalStorageToFirebase();
+    } catch (e) {
+      console.error("Migration failed:", e);
+    }
   }, []);
 
   // --- LÓGICA DE PROTECCIÓN DE RUTAS ---
@@ -74,6 +78,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       router.push('/login');
     } else if (isLoggedIn && pathname === '/login') {
       if (role === 'admin') router.push('/productos');
+      else if (role === 'cliente') router.push('/tienda');
       else router.push('/preventa');
     }
 
