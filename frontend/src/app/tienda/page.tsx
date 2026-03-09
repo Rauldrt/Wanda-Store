@@ -134,12 +134,22 @@ export default function TiendaOnlinePage() {
         loadProfile();
     }, []);
 
-    // Sincronizar Historial desde Firestore
-    const historyFromFirebase = useMemo(() => {
-        if (!data?.orders || !userInfo.email) return [];
-        return data.orders
-            .filter((o: any) => o.cliente_id === userInfo.email)
-            .sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+    // Sincronizar Historial desde Firestore + Local (Offline)
+    const combinedHistory = useMemo(() => {
+        const fromFirebase = data?.orders
+            ? data.orders.filter((o: any) => o.cliente_id === userInfo.email)
+            : [];
+
+        let fromLocal = [];
+        try {
+            const saved = localStorage.getItem("order_history_online");
+            fromLocal = saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error("Error cargando historial local", e);
+        }
+
+        const combined = [...fromFirebase, ...fromLocal];
+        return combined.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
     }, [data?.orders, userInfo.email]);
 
     const carouselBanners = useMemo(() => {
@@ -275,20 +285,6 @@ export default function TiendaOnlinePage() {
 
         setIsSubmitting(true);
 
-        // Guardar en Firestore para sincronización entre dispositivos
-        if (userInfo.email) {
-            await wandaApi.saveClientProfile(userInfo.email, {
-                telefono: checkoutData.telefono,
-                direccion: checkoutData.direccion,
-                ubicacion: checkoutData.ubicacion
-            });
-        }
-
-        // Mantener en localStorage para uso inmediato/offline
-        localStorage.setItem("user_phone", checkoutData.telefono);
-        localStorage.setItem("user_address", checkoutData.direccion);
-        localStorage.setItem("user_location", checkoutData.ubicacion);
-
         const orderData = {
             cliente: {
                 ID_Cliente: "ONLINE",
@@ -338,18 +334,53 @@ export default function TiendaOnlinePage() {
         };
 
         try {
+            // Intentar guardar en Firestore para sincronización entre dispositivos
+            if (userInfo.email) {
+                try {
+                    await wandaApi.saveClientProfile(userInfo.email, {
+                        telefono: checkoutData.telefono,
+                        direccion: checkoutData.direccion,
+                        ubicacion: checkoutData.ubicacion
+                    });
+                } catch (e) {
+                    console.log("No se pudo sincronizar el perfil (offline)");
+                }
+            }
+
             const res = await wandaApi.submitOrder(orderData);
             if (res.error) throw new Error(res.error);
 
+            alert("✅ ¡Pedido enviado con éxito!");
             setCarrito({});
             setIsCartOpen(false);
-            alert("¡Pedido enviado con éxito!");
 
-            // Forzar actualización de datos para ver el pedido en el historial
+            // Forzar actualización de datos para ver el pedido en el historial si hay red
             if (typeof window !== 'undefined') window.location.reload();
         } catch (err) {
-            console.error(err);
-            alert("Error al enviar el pedido. Por favor intenta de nuevo.");
+            console.error("Error al enviar pedido:", err);
+
+            // LÓGICA OFFLINE: Guardar en pedidos pendientes
+            try {
+                const savedPending = localStorage.getItem("order_history_online");
+                const pendingOrders = savedPending ? JSON.parse(savedPending) : [];
+
+                // Agregamos marca de tiempo local para el historial offline
+                const offlineOrder = {
+                    ...orderData,
+                    fecha: new Date().toISOString(),
+                    isOffline: true
+                };
+
+                pendingOrders.push(offlineOrder);
+                localStorage.setItem("order_history_online", JSON.stringify(pendingOrders));
+
+                alert("📡 Sin conexión. Tu pedido se guardó en el dispositivo y se enviará automáticamente cuando recuperes internet.");
+
+                setCarrito({});
+                setIsCartOpen(false);
+            } catch (localErr) {
+                alert("❌ Error al guardar el pedido. Verifica tu conexión.");
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -820,19 +851,28 @@ export default function TiendaOnlinePage() {
                                 <button onClick={() => setIsHistoryOpen(false)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500"><X size={20} /></button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                {historyFromFirebase.length === 0 && (
+                                {combinedHistory.length === 0 && (
                                     <div className="text-center py-20 opacity-30">
                                         <ShoppingBag size={48} className="mx-auto mb-4" />
                                         <p className="text-sm font-bold">No tienes pedidos aún</p>
                                     </div>
                                 )}
-                                {historyFromFirebase.map((h: any, i: number) => (
+                                {combinedHistory.map((h: any, i: number) => (
                                     <div key={h.id || i} className="bg-white dark:bg-slate-900 p-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm">
                                         <div className="flex justify-between items-start mb-4">
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                                 {new Date(h.fecha).toLocaleString()}
                                             </span>
-                                            <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Enviado</span>
+                                            <div className="flex items-center gap-2">
+                                                {h.isOffline && (
+                                                    <span className="bg-amber-100 text-amber-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase flex items-center gap-1">
+                                                        <Clock size={8} /> Pendiente Sincro
+                                                    </span>
+                                                )}
+                                                <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">
+                                                    {h.isOffline ? 'Guardado Local' : 'Recibido'}
+                                                </span>
+                                            </div>
                                         </div>
                                         <div className="space-y-1 mb-4">
                                             {h.items.map((it: any, j: number) => (
