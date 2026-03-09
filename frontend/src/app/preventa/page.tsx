@@ -35,6 +35,7 @@ import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getImageUrl, normalizeText, smartSearch } from "@/lib/utils";
 
 type Product = {
     ID_Producto: string;
@@ -234,15 +235,6 @@ export default function PreventaPage() {
 
 
 
-    const normalizeText = (text: any) =>
-        String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-
-    const smartSearch = (text: string, query: string) => {
-        if (!query) return true;
-        const normText = normalizeText(text);
-        const terms = normalizeText(query).split(/\s+/).filter(t => t.length > 0);
-        return terms.every(t => normText.includes(t));
-    };
 
     const startVoiceSearch = (target: 'client' | 'product') => {
         const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -396,16 +388,6 @@ export default function PreventaPage() {
         }, 0);
     };
 
-    const getImageUrl = (url?: string) => {
-        if (!url) return null;
-        if (url.includes('drive.google.com')) {
-            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
-            if (match && match[1]) {
-                return `https://drive.google.com/uc?export=view&id=${match[1]}`;
-            }
-        }
-        return url;
-    };
 
     const syncPendingOrders = async () => {
         if (myPendingOrders.length === 0 || isSyncing) return;
@@ -600,7 +582,7 @@ export default function PreventaPage() {
             setPendingOrders(updatedPending);
             localStorage.setItem("pending_orders", JSON.stringify(updatedPending));
 
-            alert("📡 Sin conexión. El pedido se guardó localmente y se enviará cuando recuperes internet.");
+            alert("⚠️ Sin conexión. El pedido se guardó localmente y se sincronizará cuando vuelvas a tener señal.");
 
             setCarrito({});
             setSelectedClient(null);

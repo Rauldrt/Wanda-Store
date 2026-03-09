@@ -28,6 +28,7 @@ import {
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { getImageUrl, normalizeText, smartSearch } from "@/lib/utils";
 
 export default function TiendaOnlinePage() {
     const { data } = useData();
@@ -182,14 +183,6 @@ export default function TiendaOnlinePage() {
         return banners;
     }, [data, products]);
 
-    const normalizeText = (text: string) => String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-
-    const smartSearch = (text: string, query: string) => {
-        if (!query) return true;
-        const normText = normalizeText(text);
-        const terms = normalizeText(query).split(/\s+/).filter(t => t.length > 0);
-        return terms.every(t => normText.includes(t));
-    };
 
     const filteredProducts = useMemo(() => {
         if (!deferredSearchTerm) return products;
@@ -490,7 +483,7 @@ export default function TiendaOnlinePage() {
                                     onClick={() => p.Imagen_URL && setSelectedImage(p.Imagen_URL)}
                                 >
                                     {p.Imagen_URL ? (
-                                        <img src={p.Imagen_URL} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={p.Nombre} />
+                                        <img src={getImageUrl(p.Imagen_URL) || ""} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={p.Nombre} />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon size={32} /></div>
                                     )}
@@ -617,7 +610,7 @@ export default function TiendaOnlinePage() {
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-14 h-14 bg-white dark:bg-slate-700 rounded-2xl overflow-hidden flex-shrink-0">
-                                                        {p.Imagen_URL && <img src={p.Imagen_URL} className="w-full h-full object-cover" />}
+                                                        {p.Imagen_URL && <img src={getImageUrl(p.Imagen_URL) || ""} className="w-full h-full object-cover" />}
                                                     </div>
                                                     <div>
                                                         <h3 className="text-sm font-black leading-tight text-slate-800 dark:text-white">{p.Nombre}</h3>
@@ -868,7 +861,7 @@ export default function TiendaOnlinePage() {
             <AnimatePresence>
                 {selectedImage && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedImage(null)} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-                        <motion.img initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8 }} src={selectedImage} className="max-w-full max-h-full rounded-3xl" />
+                        <motion.img initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8 }} src={getImageUrl(selectedImage) || ""} className="max-w-full max-h-full rounded-3xl" />
                     </motion.div>
                 )}
             </AnimatePresence>
