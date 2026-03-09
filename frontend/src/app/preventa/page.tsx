@@ -738,10 +738,10 @@ export default function PreventaPage() {
                     {/* Imagen del producto */}
                     <div
                         className="w-[72px] h-[72px] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex-shrink-0 cursor-pointer"
-                        onClick={() => p.Imagen_URL && setSelectedImage(p.Imagen_URL)}
+                        onClick={() => p.Imagen_URL && setSelectedImage(getImageUrl(p.Imagen_URL))}
                     >
                         {p.Imagen_URL ? (
-                            <img src={p.Imagen_URL} alt={p.Nombre} className="w-full h-full object-cover" />
+                            <img src={getImageUrl(p.Imagen_URL) || ""} alt={p.Nombre} className="w-full h-full object-cover" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
                                 <Package size={28} />
