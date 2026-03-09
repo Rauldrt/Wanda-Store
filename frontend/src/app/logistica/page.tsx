@@ -45,7 +45,8 @@ import {
     ShoppingCart,
     Tag,
     Scale,
-    Box
+    Box,
+    Shield
 } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
@@ -66,7 +67,7 @@ const printSettlement = (data: {
     totalDevoluciones: number,
     balanceDiferencia: number,
     netoARendir: number
-}) => {
+}, mode: 'full' | 'audit' = 'full') => {
     const win = window.open('', '_blank');
     if (!win) return;
 
@@ -138,7 +139,7 @@ const printSettlement = (data: {
             <body>
                 <div class="header">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h1>Liquidación de Ruta</h1>
+                        <h1>Liquidación de Ruta ${mode === 'audit' ? '(Solo Auditoría)' : ''}</h1>
                         ${data.id.startsWith('PROFORMA') ? '<span class="proforma-tag">BORRADOR / PROFORMA</span>' : ''}
                     </div>
                     <div class="meta">
@@ -222,6 +223,7 @@ const printSettlement = (data: {
                     </div>
                 </div>
 
+                ${mode === 'full' ? `
                 <div style="font-size: 13px; font-weight: 950; text-transform: uppercase; margin: 40px 0 15px; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
                     Detalle de Pedidos (${data.ordenes.length})
                 </div>
@@ -240,6 +242,7 @@ const printSettlement = (data: {
                         ${orderRows}
                     </tbody>
                 </table>
+                ` : ''}
 
                 <div style="margin-top: 70px; display: flex; justify-content: space-between;">
                     <div style="border-top: 2px solid #1e293b; width: 220px; text-align: center; padding-top: 8px; font-size: 10px; font-weight: 950;">FIRMA CHOFER</div>
@@ -2985,7 +2988,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
         ? (pagos.efectivo + pagos.transferencia)
         : totalPagosPedidos;
 
-    const handlePrintDraft = () => {
+    const handlePrintDraft = (mode: 'full' | 'audit' = 'full') => {
         const totalGastosLoc = gastos.reduce((acc, g) => acc + (g.monto || 0), 0);
         const efectivoLoc = settlementMethod === 'alternative'
             ? localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0), 0)
@@ -3017,7 +3020,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 efectivo: o.pago_efectivo,
                 transf: o.pago_transferencia
             }))
-        });
+        }, mode);
     };
 
     const handleSave = async () => {
@@ -3756,13 +3759,22 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <button
-                                    type="button"
-                                    onClick={handlePrintDraft}
-                                    className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 hover:border-indigo-500"
-                                >
-                                    <Printer size={14} /> Vista Previa e Imprimir
-                                </button>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePrintDraft('full')}
+                                        className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex flex-col items-center justify-center gap-1 border border-slate-200 dark:border-slate-700"
+                                    >
+                                        <Printer size={14} /> <span>Reporte Full</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePrintDraft('audit')}
+                                        className="w-full py-3 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all flex flex-col items-center justify-center gap-1 border border-indigo-100 dark:border-indigo-900/30"
+                                    >
+                                        <Shield size={14} /> <span>Solo Auditoría</span>
+                                    </button>
+                                </div>
                                 <button
                                     disabled={isSyncing}
                                     onClick={handleSave}
@@ -4744,7 +4756,7 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
         } catch (e) { return 0; }
     }, [liquidacion.ORDENES_JSON]);
 
-    const handlePrint = () => {
+    const handlePrint = (mode: 'full' | 'audit' = 'full') => {
         let draft: any = {};
         try {
             draft = JSON.parse(liquidacion.DRAFT_JSON || '{}');
@@ -4803,7 +4815,7 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
                 efectivo: o.pago_efectivo || 0,
                 transf: o.pago_transferencia || 0
             }))
-        });
+        }, mode);
     };
 
     return (
@@ -4838,10 +4850,16 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
                 </div>
                 <div className="flex gap-2">
                     <button
-                        onClick={handlePrint}
-                        className="mt-2 px-4 py-2 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-indigo-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                        onClick={() => handlePrint('full')}
+                        className="mt-2 px-4 py-2 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
                     >
-                        <Printer size={14} /> Imprimir
+                        <Printer size={14} /> Full
+                    </button>
+                    <button
+                        onClick={() => handlePrint('audit')}
+                        className="mt-2 px-4 py-2 bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                    >
+                        <Shield size={14} /> Auditoría
                     </button>
                     <button
                         onClick={onRevert}
