@@ -677,7 +677,7 @@ export default function PreventaPage() {
             const gap = 4;
             const availableWidth = pageWidth - (margin * 2);
             const cardWidth = (availableWidth - (gap * (columns - 1))) / columns;
-            const cardHeight = 65;
+            const cardHeight = 55;
 
             // Header
             doc.setFillColor(79, 70, 229); // Indigo-600
@@ -700,63 +700,70 @@ export default function PreventaPage() {
             for (let i = 0; i < sortedProducts.length; i++) {
                 const p = sortedProducts[i];
 
+                // Draw Elevation Shadow (Simulated)
+                doc.setDrawColor(245, 245, 245);
+                doc.setFillColor(245, 245, 245);
+                doc.roundedRect(x + 0.5, y + 0.5, cardWidth, cardHeight, 3, 3, 'F');
+
                 // Draw Card Container
-                doc.setDrawColor(240, 240, 240);
+                doc.setDrawColor(230, 231, 235);
                 doc.setFillColor(255, 255, 255);
                 doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, 'FD');
 
                 // Image logic
                 const finalUrl = p.Imagen_URL ? getImageUrl(p.Imagen_URL) : null;
+                const photoY = y + 1.5;
+                const photoH = 26;
                 if (finalUrl) {
                     const b64 = await getBase64(finalUrl);
                     if (b64) {
                         try {
-                            doc.addImage(b64, 'JPEG', x + 2, y + 2, cardWidth - 4, 30, undefined, 'FAST');
+                            doc.addImage(b64, 'JPEG', x + 1.5, photoY, cardWidth - 3, photoH, undefined, 'FAST');
                         } catch (e) {
                             console.log("Error adding image to PDF", e);
                         }
                     } else {
                         // Placeholder icon if image fails
-                        doc.setFillColor(245, 247, 250);
-                        doc.rect(x + 2, y + 2, cardWidth - 4, 30, 'F');
-                        doc.setTextColor(200, 200, 200);
-                        doc.setFontSize(8);
-                        doc.text("Sin imagen", x + cardWidth / 2, y + 17, { align: 'center' });
+                        doc.setFillColor(248, 250, 252);
+                        doc.rect(x + 1.5, photoY, cardWidth - 3, photoH, 'F');
+                        doc.setTextColor(203, 213, 225);
+                        doc.setFontSize(7);
+                        doc.text("Sin imagen", x + cardWidth / 2, photoY + photoH / 2, { align: 'center' });
                     }
                 } else {
-                    doc.setFillColor(245, 247, 250);
-                    doc.rect(x + 2, y + 2, cardWidth - 4, 30, 'F');
-                    doc.setTextColor(200, 200, 200);
-                    doc.setFontSize(8);
-                    doc.text("Sin imagen", x + cardWidth / 2, y + 17, { align: 'center' });
+                    doc.setFillColor(248, 250, 252);
+                    doc.rect(x + 1.5, photoY, cardWidth - 3, photoH, 'F');
+                    doc.setTextColor(203, 213, 225);
+                    doc.setFontSize(7);
+                    doc.text("Sin imagen", x + cardWidth / 2, photoY + photoH / 2, { align: 'center' });
                 }
 
                 // Info: ID y Categoría
-                doc.setTextColor(150, 150, 150);
-                doc.setFontSize(6);
+                doc.setTextColor(148, 163, 184);
+                doc.setFontSize(5.5);
                 doc.setFont("helvetica", "bold");
-                doc.text(`COD: ${p.ID_Producto}`, x + 3, y + 36);
+                doc.text(`COD: ${p.ID_Producto}`, x + 3, y + 32);
                 doc.setFont("helvetica", "normal");
                 const cat = (p.Categoria || 'Sin Cat').toUpperCase();
-                doc.text(cat.length > 20 ? cat.substring(0, 18) + '...' : cat, x + 3, y + 39);
+                doc.text(cat.length > 20 ? cat.substring(0, 18) + '...' : cat, x + 3, y + 35);
 
                 // Name
-                doc.setTextColor(30, 41, 59);
+                doc.setTextColor(15, 23, 42);
                 doc.setFontSize(7);
                 doc.setFont("helvetica", "bold");
                 const nameLines = doc.splitTextToSize(p.Nombre, cardWidth - 6);
-                doc.text(nameLines.slice(0, 2), x + 3, y + 44);
+                doc.text(nameLines.slice(0, 2), x + 3, y + 40);
 
                 // Price
                 doc.setTextColor(79, 70, 229);
-                doc.setFontSize(10);
-                doc.setFont("helvetica", "black");
-                doc.text(`$${parseFloat(p.Precio_Unitario).toLocaleString()}`, x + 3, y + 58);
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "bold");
+                doc.text(`$${parseFloat(p.Precio_Unitario).toLocaleString()}`, x + 3, y + 50);
 
-                doc.setTextColor(150, 150, 150);
-                doc.setFontSize(6);
+                doc.setTextColor(148, 163, 184);
+                doc.setFontSize(5.5);
                 doc.setFont("helvetica", "normal");
-                doc.text(`x ${p.Unidad || 'Unid'}`, x + 3, y + 61);
+                doc.text(`x ${p.Unidad || 'Unid'}`, x + 3, y + 53);
 
                 // Grid Logic
                 if ((i + 1) % columns === 0) {
