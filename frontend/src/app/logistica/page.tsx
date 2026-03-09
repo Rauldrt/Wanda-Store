@@ -3515,7 +3515,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                 className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-xl px-3 py-2 text-xs font-bold mb-2 outline-none"
                                             />
                                             <div className="max-h-48 overflow-auto space-y-1 custom-scrollbar">
-                                                {products.filter((p: any) => smartSearch(p.Nombre, returnSearch)).slice(0, 10).map((p: any) => {
+                                                {products.filter((p: any) => smartSearch(`${p.Nombre} ${p.ID_Producto}`, returnSearch)).slice(0, 30).map((p: any) => {
                                                     const itemPrice = parseFloat(String(p.Precio_Unitario || 0).replace(',', '.'));
                                                     return (
                                                         <button
@@ -4398,44 +4398,46 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                             />
                                         </div>
                                         <div className="overflow-auto flex-1 p-1">
-                                            {products.filter((p: any) => smartSearch(p.Nombre, productSearch)).length === 0 ? (
-                                                <div className="p-4 text-center text-xs text-slate-400 font-bold">No se encontraron productos</div>
-                                            ) : products.filter((p: any) => smartSearch(p.Nombre, productSearch)).map((p: any) => (
-                                                <div
-                                                    key={p.ID_Producto}
-                                                    className="px-3 py-3 md:py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 cursor-pointer rounded-lg mb-1 flex flex-col md:flex-row justify-between md:items-center transition-colors"
-                                                    onClick={() => {
-                                                        const exists = localOrder.items.find((item: any) => String(item.id_prod) === String(p.ID_Producto));
-                                                        if (!exists) {
-                                                            const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
-                                                            const weightAvg = parseFloat(String(p.Peso || p.Peso_Promedio || "1").replace(',', '.'));
-                                                            const unitPrice = parseFloat(String(p.Precio_Unitario || "0").replace(',', '.'));
-                                                            const finalPrice = unitPrice * (isKg ? weightAvg : 1);
+                                            {(() => {
+                                                const filtered = products.filter((p: any) => smartSearch(`${p.Nombre} ${p.ID_Producto}`, productSearch));
+                                                if (filtered.length === 0) return <div className="p-4 text-center text-xs text-slate-400 font-bold">No se encontraron productos</div>;
+                                                return filtered.slice(0, 30).map((p: any) => (
+                                                    <div
+                                                        key={p.ID_Producto}
+                                                        className="px-3 py-3 md:py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 cursor-pointer rounded-lg mb-1 flex flex-col md:flex-row justify-between md:items-center transition-colors"
+                                                        onClick={() => {
+                                                            const exists = localOrder.items.find((item: any) => String(item.id_prod) === String(p.ID_Producto));
+                                                            if (!exists) {
+                                                                const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
+                                                                const weightAvg = parseFloat(String(p.Peso || p.Peso_Promedio || "1").replace(',', '.'));
+                                                                const unitPrice = parseFloat(String(p.Precio_Unitario || "0").replace(',', '.'));
+                                                                const finalPrice = unitPrice * (isKg ? weightAvg : 1);
 
-                                                            const newItem = {
-                                                                id: p.ID_Producto,
-                                                                id_prod: p.ID_Producto,
-                                                                nombre: p.Nombre,
-                                                                cantidad: 1,
-                                                                _formato: isKg ? 'KG' : 'UNID',
-                                                                precio: finalPrice,
-                                                                descuento: 0,
-                                                                subtotal: finalPrice,
-                                                                _pesableTratado: isKg
-                                                            };
-                                                            const next = { ...localOrder, items: [...localOrder.items, newItem] };
-                                                            setLocalOrder(recalculatedOrder(next));
-                                                        } else {
-                                                            alert("Ese producto ya está en el pedido. Por favor, edita la cantidad existente.");
-                                                        }
-                                                        setProductDropdownOpen(false);
-                                                        setProductSearch("");
-                                                    }}
-                                                >
-                                                    <span className="truncate pr-2 mb-1 md:mb-0">{p.Nombre}</span>
-                                                    <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 px-2 py-0.5 rounded-full shrink-0 self-start md:self-auto">${parseFloat(String(p.Precio_Unitario || "0").replace(',', '.')).toLocaleString()}</span>
-                                                </div>
-                                            ))}
+                                                                const newItem = {
+                                                                    id: p.ID_Producto,
+                                                                    id_prod: p.ID_Producto,
+                                                                    nombre: p.Nombre,
+                                                                    cantidad: 1,
+                                                                    _formato: isKg ? 'KG' : 'UNID',
+                                                                    precio: finalPrice,
+                                                                    descuento: 0,
+                                                                    subtotal: finalPrice,
+                                                                    _pesableTratado: isKg
+                                                                };
+                                                                const next = { ...localOrder, items: [...localOrder.items, newItem] };
+                                                                setLocalOrder(recalculatedOrder(next));
+                                                            } else {
+                                                                alert("Ese producto ya está en el pedido. Por favor, edita la cantidad existente.");
+                                                            }
+                                                            setProductDropdownOpen(false);
+                                                            setProductSearch("");
+                                                        }}
+                                                    >
+                                                        <span className="truncate pr-2 mb-1 md:mb-0">{p.Nombre}</span>
+                                                        <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 px-2 py-0.5 rounded-full shrink-0 self-start md:self-auto">${parseFloat(String(p.Precio_Unitario || "0").replace(',', '.')).toLocaleString()}</span>
+                                                    </div>
+                                                ));
+                                            })()}
                                         </div>
                                     </div>
                                 )}
