@@ -592,7 +592,7 @@ export default function LogisticaPage() {
         if (!printWindow) return;
 
         const html = `
-    < html >
+    <html>
             <head>
                 <title>Remitos de Entrega</title>
                 <style>
@@ -801,7 +801,7 @@ export default function LogisticaPage() {
         }).join('')}
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
-            </html >
+            </html>
     `;
 
         printWindow.document.write(html);
@@ -1073,7 +1073,7 @@ export default function LogisticaPage() {
 
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
-            </html >
+            </html>
     `;
 
         printWindow.document.write(html);
