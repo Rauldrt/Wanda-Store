@@ -137,7 +137,8 @@ export default function ProductosPage() {
             let matchesSearch = true;
             if (searchTerm) {
                 if (searchOnlyByCode) {
-                    matchesSearch = normalizeText(p.ID_Producto).includes(normalizeText(searchTerm));
+                    const query = normalizeText(searchTerm).trim();
+                    matchesSearch = normalizeText(p.ID_Producto) === query;
                 } else {
                     const searchPayload = `${p.Nombre} ${p.ID_Producto} ${p.Categoria}`;
                     matchesSearch = smartSearch(searchPayload, searchTerm);

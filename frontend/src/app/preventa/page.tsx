@@ -273,8 +273,8 @@ export default function PreventaPage() {
     const filteredProducts = useMemo(() => {
         if (!deferredSearchTerm) return products;
         if (searchOnlyByCode) {
-            const query = normalizeText(deferredSearchTerm);
-            return products.filter(p => normalizeText(p.ID_Producto).includes(query));
+            const query = normalizeText(deferredSearchTerm).trim();
+            return products.filter(p => normalizeText(p.ID_Producto) === query);
         }
         const terms = normalizeText(deferredSearchTerm).split(/\s+/).filter(t => t.length > 0);
         return searchableProducts
