@@ -145,6 +145,8 @@ export default function PreventaPage() {
     const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
     const [isClientDetailOpen, setIsClientDetailOpen] = useState(false);
     const [orderNotes, setOrderNotes] = useState("");
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [lastOrderData, setLastOrderData] = useState<any>(null);
 
     const carouselBanners = useMemo(() => {
         const banners: any[] = [];
@@ -579,10 +581,8 @@ export default function PreventaPage() {
             // Ya no guardamos en historial local, se sincroniza solo
             refreshData(true);
 
-            const share = confirm("✅ Pedido enviado. ¿Deseas compartir el comprobante por WhatsApp?");
-            if (share) {
-                shareToWhatsApp(orderData);
-            }
+            setLastOrderData(orderData);
+            setIsSuccessModalOpen(true); // Set success modal open
 
             setCarrito({});
             setSelectedClient(null);
@@ -1832,8 +1832,7 @@ export default function PreventaPage() {
                                 <button onClick={() => {
                                     localStorage.removeItem("user_role");
                                     localStorage.removeItem("is_logged_in");
-                                    localStorage.removeItem("user_name");
-                                    localStorage.removeItem("vendedor_name");
+                                    // No limpiamos vendedor_name aquí para que si el preventista vuelve, siga logueado
                                     localStorage.removeItem("vendedor_id");
                                     window.location.href = '/login';
                                 }} className="w-full bg-rose-50 text-rose-500 py-4 rounded-2xl font-black uppercase text-xs tracking-widest mb-2">Cerrar Sesión</button>
@@ -1868,6 +1867,33 @@ export default function PreventaPage() {
             </AnimatePresence>
             {/* Selector de Vendedor con Contraseña */}
             <AnimatePresence>
+
+                {isSuccessModalOpen && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[400] bg-black/60 backdrop-blur-md flex items-center justify-center p-6">
+                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[40px] p-8 shadow-2xl overflow-hidden relative border border-white/20">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+
+                            <div className="relative text-center">
+                                <div className="w-20 h-20 bg-emerald-500 text-white rounded-[28px] flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30 rotate-3">
+                                    <CheckCircle2 size={40} />
+                                </div>
+
+                                <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2">¡Pedido Recibido!</h2>
+                                <p className="text-slate-500 font-medium mb-8 text-sm">El pedido ha sido procesado correctamente y ya se encuentra en el sistema.</p>
+
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => setIsSuccessModalOpen(false)}
+                                        className="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                                    >
+                                        Continuar
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+
                 {!vendedorName && (
                     <div className="fixed inset-0 z-[300] bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-6 backdrop-blur-md bg-opacity-80">
                         <motion.div
@@ -1936,6 +1962,10 @@ export default function PreventaPage() {
                                                         if (tempPassword === pass) {
                                                             setVendedorName(selectedSellerToVerify.Nombre);
                                                             localStorage.setItem("vendedor_name", selectedSellerToVerify.Nombre);
+                                                            localStorage.setItem("vendedor_id", selectedSellerToVerify.id || "");
+                                                            localStorage.setItem("is_logged_in", "true");
+                                                            localStorage.setItem("user_role", "preventista");
+                                                            localStorage.setItem("user_name", selectedSellerToVerify.Nombre);
                                                             // Forzar sincronización con Firebase al entrar
                                                             refreshData(true);
                                                         } else {
@@ -1959,6 +1989,10 @@ export default function PreventaPage() {
                                                 if (tempPassword === pass) {
                                                     setVendedorName(selectedSellerToVerify.Nombre);
                                                     localStorage.setItem("vendedor_name", selectedSellerToVerify.Nombre);
+                                                    localStorage.setItem("vendedor_id", selectedSellerToVerify.id || "");
+                                                    localStorage.setItem("is_logged_in", "true");
+                                                    localStorage.setItem("user_role", "preventista");
+                                                    localStorage.setItem("user_name", selectedSellerToVerify.Nombre);
                                                     // Forzar sincronización con Firebase al entrar
                                                     refreshData(true);
                                                 } else {

@@ -14,10 +14,10 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
-    // Limpiar restos de sesiones previas al entrar al login
+    // No limpiamos el vendedor al entrar al login para permitir recargas y persistencia
     useEffect(() => {
-        localStorage.removeItem("vendedor_name");
-        localStorage.removeItem("vendedor_id");
+        // localStorage.removeItem("vendedor_name");
+        // localStorage.removeItem("vendedor_id");
     }, []);
 
     const handleLogin = async (e: React.FormEvent) => {

@@ -79,7 +79,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     const isLoggedIn = localStorage.getItem("is_logged_in");
     const role = localStorage.getItem("user_role");
 
-    if (!isLoggedIn && pathname !== '/login' && pathname !== '/landing' && pathname !== '/migracion') {
+    if (!isLoggedIn && pathname !== '/login' && pathname !== '/landing' && pathname !== '/migracion' && pathname !== '/preventa' && pathname !== '/tienda') {
       router.push('/login');
     } else if (isLoggedIn && pathname === '/login') {
       if (role === 'admin') router.push('/productos');
