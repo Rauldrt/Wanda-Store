@@ -17,15 +17,18 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 const CACHE_KEY = "wanda_cloud_data_cache";
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-    const [data, setData] = useState<any>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem(CACHE_KEY);
-            return saved ? JSON.parse(saved) : null;
-        }
-        return null;
-    });
-    const [loading, setLoading] = useState(!data); // No cargar si ya hay cache
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
+
+    useEffect(() => {
+        // Load from cache on mount (client-side only)
+        const saved = localStorage.getItem(CACHE_KEY);
+        if (saved) {
+            setData(JSON.parse(saved));
+            setLoading(false);
+        }
+    }, []);
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async (isSilent = false) => {

@@ -102,6 +102,10 @@ export const wandaApi: Record<string, any> = {
         await deleteDoc(doc(db, "sellers", String(id)));
         return { result: "OK" };
     },
+    deleteOrder: async (id: string) => {
+        await deleteDoc(doc(db, "orders", String(id)));
+        return { result: "OK" };
+    },
     saveConfig: async (config: any) => {
         await setDoc(doc(db, "settings", "global"), config, { merge: true });
         return { result: "OK" };

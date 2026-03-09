@@ -108,8 +108,16 @@ export async function migrateLocalStorageToFirebase() {
 
         if (Object.keys(fullBackup).length > 0) {
             const backupId = `legacy_${new Date().getTime()}`;
+            const dataString = JSON.stringify(fullBackup);
+
+            // Si el backup es mayor a 1MB (límite de Firestore), no lo guardamos como un solo doc
+            if (dataString.length > 1000000) {
+                console.warn("El backup de LocalStorage es demasiado grande para Firestore (>1MB). Se omite el respaldo automático.");
+                return;
+            }
+
             await setDoc(doc(db, "legacy_storage_backups", backupId), {
-                data: fullBackup,
+                dataString: dataString,
                 fecha: new Date().toISOString(),
                 user: sellerName || "default"
             });

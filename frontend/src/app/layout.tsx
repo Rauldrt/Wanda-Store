@@ -58,7 +58,12 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { loading, isSyncing, error } = useData();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // --- MIGRACIÓN DE DATOS LOCALES ---
   useEffect(() => {
@@ -117,7 +122,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/settings", icon: <Settings size={18} />, label: "Ajustes" },
   ];
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="flex-1 h-screen flex flex-col items-center justify-center gap-4 bg-[var(--background)] w-full">
         <div className="relative group/logo">

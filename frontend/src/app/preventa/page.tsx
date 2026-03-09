@@ -29,7 +29,9 @@ import {
     LogOut,
     ArrowLeft,
     Bell,
-    FileText
+    FileText,
+    EyeOff,
+    Trash
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
@@ -111,6 +113,17 @@ export default function PreventaPage() {
     const [openHistoryDates, setOpenHistoryDates] = useState<Set<string>>(new Set());
     const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
     const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+    const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem("hidden_orders");
+            return saved ? new Set(JSON.parse(saved)) : new Set();
+        }
+        return new Set();
+    });
+
+    useEffect(() => {
+        localStorage.setItem("hidden_orders", JSON.stringify(Array.from(hiddenOrderIds)));
+    }, [hiddenOrderIds]);
     const clientInputRef = useRef<HTMLInputElement>(null);
     const productInputRef = useRef<HTMLInputElement>(null);
     const clientDropdownRef = useRef<HTMLDivElement>(null);
@@ -801,14 +814,61 @@ export default function PreventaPage() {
         setIsHistoryOpen(false);
     };
 
+    const toggleHideOrder = (id: string) => {
+        console.log("Hiding order:", id);
+        if (!id) {
+            alert("No se pudo ocultar: ID faltante");
+            return;
+        }
+        setHiddenOrderIds(prev => {
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+        });
+    };
+
+    const handleDeleteOrder = async (id: string) => {
+        console.log("Attempting to delete order:", id);
+        if (!id) {
+            alert("No se pudo eliminar: ID faltante");
+            return;
+        }
+
+        const ok = window.confirm("¿Segur@ que quieres ELIMINAR PERMANENTEMENTE este pedido? Esta acción no se puede deshacer.");
+        console.log("Confirm result:", ok);
+        if (!ok) return;
+
+        try {
+            console.log("Calling API deleteOrder...");
+            const res = await wandaApi.deleteOrder(String(id));
+            console.log("Delete result:", res);
+
+            setHistory(prev => prev.filter(h => {
+                const hId = String(h.id || h.id_interno || h.id_pedido);
+                return hId !== String(id);
+            }));
+
+            console.log("Refreshing global data...");
+            await refreshData?.();
+
+            alert("Pedido eliminado definitivamente.");
+        } catch (error: any) {
+            console.error("Delete error:", error);
+            alert("Error al eliminar el pedido: " + (error.message || error));
+        }
+    };
+
     const filteredHistory = useMemo(() => {
         return history.filter(h => {
-            const payload = [h.cliente?.Nombre_Negocio || "", h.id || h.id_interno, h.total].join(" ");
+            const hId = h.id || h.id_interno || h.id_pedido;
+            if (hId && hiddenOrderIds.has(String(hId))) return false;
+
+            const payload = [h.cliente?.Nombre_Negocio || "", hId || "", h.total].join(" ");
             const matchesText = smartSearch(payload, historySearch);
             const matchesDate = historyDate ? h.fecha.startsWith(historyDate) : true;
             return matchesText && matchesDate;
         });
-    }, [history, historySearch, historyDate]);
+    }, [history, historySearch, historyDate, hiddenOrderIds]);
 
     // --- RENDER HELPERS ---
 
@@ -1665,33 +1725,38 @@ export default function PreventaPage() {
                                                                     className="overflow-hidden"
                                                                 >
                                                                     <div className="space-y-2 pl-2 pt-1 pb-2">
-                                                                        {orders.map((h: any, idx: number) => (
-                                                                            <div
-                                                                                key={h.id || String(h.id_interno || idx)}
-                                                                                onClick={() => setViewingOrder(h)}
-                                                                                className="bg-slate-50 dark:bg-slate-800 p-4 rounded-[24px] border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-indigo-500/30 active:scale-[0.98] transition-all"
-                                                                            >
-                                                                                <div className="flex justify-between items-start mb-2">
-                                                                                    <div>
-                                                                                        <p className="font-black text-sm">{h.cliente?.Nombre_Negocio || 'Cliente Desconocido'}</p>
-                                                                                        <p className="text-[9px] font-bold text-slate-400 uppercase">
-                                                                                            {h.fechaLocal?.split(' ').slice(1).join(' ') || ''}
-                                                                                        </p>
+                                                                        {orders.map((h: any, idx: number) => {
+                                                                            const hId = h.id || h.id_interno || h.id_pedido || `temp-${idx}`;
+                                                                            return (
+                                                                                <div
+                                                                                    key={`${hId}-${idx}`}
+                                                                                    onClick={() => setViewingOrder(h)}
+                                                                                    className="bg-slate-50 dark:bg-slate-800 p-4 rounded-[24px] border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-indigo-500/30 active:scale-[0.98] transition-all"
+                                                                                >
+                                                                                    <div className="flex justify-between items-start mb-2">
+                                                                                        <div>
+                                                                                            <p className="font-black text-sm">{h.cliente?.Nombre_Negocio || 'Cliente Desconocido'}</p>
+                                                                                            <p className="text-[9px] font-bold text-slate-400 uppercase">
+                                                                                                {h.fechaLocal?.split(' ').slice(1).join(' ') || ''}
+                                                                                            </p>
+                                                                                        </div>
+                                                                                        <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Enviado</span>
                                                                                     </div>
-                                                                                    <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Enviado</span>
-                                                                                </div>
-                                                                                <div className="text-[10px] text-slate-500 line-clamp-1 mb-3 italic">
-                                                                                    Haz clic para ver {h.items.length} producto{h.items.length > 1 ? 's' : ''}
-                                                                                </div>
-                                                                                <div className="flex items-center justify-between pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
-                                                                                    <span className="text-lg font-black text-indigo-600">${h.total.toLocaleString()}</span>
-                                                                                    <div className="flex gap-2">
-                                                                                        <button onClick={(e) => { e.stopPropagation(); shareToWhatsApp(h); }} className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20"><MessageCircle size={16} /></button>
-                                                                                        <button onClick={(e) => { e.stopPropagation(); repeatOrder(h); }} className="px-4 py-2.5 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-indigo-500/20 flex items-center gap-2 pr-5">Repetir <Clock size={12} /></button>
+                                                                                    <div className="text-[10px] text-slate-500 line-clamp-1 mb-3 italic">
+                                                                                        Haz clic para ver {h.items.length} producto{h.items.length > 1 ? 's' : ''}
+                                                                                    </div>
+                                                                                    <div className="flex items-center justify-between pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
+                                                                                        <span className="text-lg font-black text-indigo-600">${h.total.toLocaleString()}</span>
+                                                                                        <div className="flex gap-2">
+                                                                                            <button onClick={(e) => { e.stopPropagation(); toggleHideOrder(String(hId)); }} className="p-2.5 rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-500 transition-all border border-slate-200 dark:border-slate-700" title="Ocultar de mi vista"><EyeOff size={16} /></button>
+                                                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteOrder(String(hId)); }} className="p-2.5 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white transition-all border border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/30" title="Eliminar Permanentemente"><Trash2 size={16} /></button>
+                                                                                            <button onClick={(e) => { e.stopPropagation(); shareToWhatsApp(h); }} className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20"><MessageCircle size={16} /></button>
+                                                                                            <button onClick={(e) => { e.stopPropagation(); repeatOrder(h); }} className="px-4 py-2.5 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-indigo-500/20 flex items-center gap-2 pr-5">Repetir <Clock size={12} /></button>
+                                                                                        </div>
                                                                                     </div>
                                                                                 </div>
-                                                                            </div>
-                                                                        ))}
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 </motion.div>
                                                             )}
