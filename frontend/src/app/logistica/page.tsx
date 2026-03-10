@@ -448,15 +448,27 @@ export default function LogisticaPage() {
         });
     }, [allPendingOrders, searchTerm, filterDate, filterSeller]);
 
-    const routeNames = useMemo(() => {
-        // Solo mostramos como "rutas activas" aquellas que tienen al menos un pedido pendiente de entrega.
-        // Las rutas 100% liquidadas se consultan en el Historial.
-        const ordersInActiveStatus = orders.filter(o => o.estado === 'Pendiente' || o.estado === 'En Preparación' || !o.estado);
-        const set = new Set(ordersInActiveStatus.map(o => o.reparto).filter(r => r && r !== 'null' && r !== ''));
-        const allRoutes = Array.from(set) as string[];
-        if (!routeSearchTerm) return allRoutes;
-        return allRoutes.filter(rn => smartSearch(rn, routeSearchTerm));
-    }, [orders, routeSearchTerm]);
+    const routeInfo = useMemo(() => {
+        // 1. Obtener todos los nombres de reparto únicos de órdenes activas
+        const activeOrders = orders.filter(o => o.estado === 'Pendiente' || o.estado === 'En Preparación' || !o.estado);
+        const activeRouteNames = Array.from(new Set(activeOrders.map(o => o.reparto).filter(r => r && r !== 'null' && r !== '')));
+
+        // 2. Obtener todos los nombres de reparto únicos del historial
+        const historicalRouteNames = Array.from(new Set(liquidaciones.map(l => l.REPARTO).filter(Boolean)));
+
+        // 3. Crear una lista maestra ordenada de todos los repartos que han existido para asignar un número correlativo estable
+        const allEverRoutes = Array.from(new Set([...activeRouteNames, ...historicalRouteNames])).sort();
+
+        // 4. Construir el objeto de información para las rutas actualmente activas
+        return allEverRoutes
+            .filter(name => activeRouteNames.includes(name))
+            .map(name => {
+                const isReopened = historicalRouteNames.includes(name);
+                const index = allEverRoutes.indexOf(name) + 1;
+                return { name, index, isReopened };
+            })
+            .filter(route => !routeSearchTerm || smartSearch(route.name, routeSearchTerm));
+    }, [orders, liquidaciones, routeSearchTerm]);
 
     const recentRoutes = useMemo(() => {
         const routeData: Record<string, { name: string, lastDate: string }> = {};
@@ -1258,7 +1270,7 @@ export default function LogisticaPage() {
                 <div className="flex gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-[var(--border)] relative overflow-x-auto no-scrollbar backdrop-blur-sm shadow-inner w-full lg:w-auto pb-1.5 lg:pb-1.5">
                     {[
                         { id: 'pendientes', label: 'Pendientes', count: allPendingOrders.length, icon: Package },
-                        { id: 'rutas', label: 'Hojas de Ruta', count: routeNames.length, icon: Truck },
+                        { id: 'rutas', label: 'Hojas de Ruta', count: routeInfo.length, icon: Truck },
                         { id: 'historial', label: 'Historial', count: liquidaciones.length, icon: RotateCcw },
                         { id: 'comisiones', label: 'Comisiones', icon: CreditCard },
                         { id: 'resumenes', label: 'Resúmenes', icon: Layers, color: 'amber' }
@@ -1710,23 +1722,25 @@ export default function LogisticaPage() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {routeNames.length === 0 ? (
+                                {routeInfo.length === 0 ? (
                                     <div className="col-span-full p-12 text-center text-slate-400 font-bold bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
                                         No se encontraron hojas de ruta {routeSearchTerm ? 'que coincidan con la búsqueda' : 'activas'}
                                     </div>
                                 ) : (
-                                    routeNames.map(routeName => (
+                                    routeInfo.map(route => (
                                         <RouteCard
-                                            key={routeName as string}
-                                            name={routeName as string}
-                                            orderCount={orders.filter(o => o.reparto === routeName).length}
-                                            onManage={() => setEditingRoute(routeName as string)}
-                                            onViewOrders={() => setViewingOrdersRoute(routeName as string)}
-                                            onDelete={() => handleLiberarReparto(routeName as string)}
-                                            onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === routeName))}
-                                            onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === routeName), routeName as string)}
-                                            onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === routeName), routeName as string)}
-                                            onSettlement={() => setSettlingRoute(routeName as string)}
+                                            key={route.name}
+                                            name={route.name}
+                                            index={route.index}
+                                            isReopened={route.isReopened}
+                                            orderCount={orders.filter(o => o.reparto === route.name).length}
+                                            onManage={() => setEditingRoute(route.name)}
+                                            onViewOrders={() => setViewingOrdersRoute(route.name)}
+                                            onDelete={() => handleLiberarReparto(route.name)}
+                                            onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === route.name))}
+                                            onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)}
+                                            onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)}
+                                            onSettlement={() => setSettlingRoute(route.name)}
                                         />
                                     ))
                                 )}
@@ -5038,18 +5052,33 @@ function OrderCard({ order, isSelected, onSelect, onViewDetail, onPrint }: any) 
     );
 }
 
-function RouteCard({ name, orderCount, onManage, onViewOrders, onDelete, onPrintRemitos, onPrintRouteSheet, onPrintPicking, onSettlement }: any) {
+function RouteCard({ name, orderCount, index, isReopened, onManage, onViewOrders, onDelete, onPrintRemitos, onPrintRouteSheet, onPrintPicking, onSettlement }: any) {
     const [showPrintOptions, setShowPrintOptions] = useState(false);
 
     return (
-        <div className="tech-card overflow-hidden group">
+        <div className={`tech-card overflow-hidden group transition-all duration-300 ${isReopened ? 'ring-2 ring-amber-500/30' : ''}`}>
+            {isReopened && (
+                <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[9px] font-black uppercase tracking-[0.2em] py-1 text-center shadow-sm">
+                    Planilla Reabierta (Ya liquidada anteriormente)
+                </div>
+            )}
             <div className="p-5 flex justify-between items-center">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 shadow-inner">
-                        <Truck size={24} />
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner transition-colors ${isReopened ? 'bg-amber-500/10 border border-amber-500/20 text-amber-600' : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-500'}`}>
+                        <div className="relative">
+                            <Truck size={24} />
+                            <div className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-white dark:bg-slate-900 border-2 border-[var(--border)] flex items-center justify-center text-[10px] font-black shadow-lg text-slate-800 dark:text-white">
+                                {index}
+                            </div>
+                        </div>
                     </div>
                     <div>
-                        <h4 className="font-black text-lg group-hover:text-indigo-500 transition-colors">{name}</h4>
+                        <div className="flex items-center gap-2">
+                            <h4 className={`font-black text-lg group-hover:text-indigo-500 transition-colors ${isReopened ? 'text-amber-700 dark:text-amber-500' : ''}`}>{name}</h4>
+                            {isReopened && (
+                                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                            )}
+                        </div>
                         <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{orderCount} entregas</p>
                     </div>
                 </div>
