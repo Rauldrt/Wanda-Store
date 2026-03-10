@@ -944,7 +944,11 @@ export default function LogisticaPage() {
                                 </div>
                             `);
 
-            return copies.map(copy => `<div class="print-page">${copy}</div>`).join('');
+            if (isLong) {
+                return copies.map(copy => `<div class="print-page">${copy}</div>`).join('');
+            } else {
+                return `<div class="print-page">${copies.join('')}</div>`;
+            }
         }).join('')}
 
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
