@@ -648,24 +648,47 @@ export default function LogisticaPage() {
         const win = window.open('', '_blank');
         if (!win) return;
 
-        const totals = selectedLiqs.reduce((acc, l) => ({
-            efectivo: acc.efectivo + (l.EFECTIVO || 0),
-            transf: acc.transf + (l.TRANSF || 0),
-            cc: acc.cc + (l.CUENTAS_CORRIENTES || 0),
-            gastos: acc.gastos + (l.GASTOS || 0),
-            devoluciones: acc.devoluciones + (l.DEVOLUCIONES || 0)
-        }), { efectivo: 0, transf: 0, cc: 0, gastos: 0, devoluciones: 0 });
+        const totals = selectedLiqs.reduce((acc, l) => {
+            let efecReal = l.EFECTIVO || 0;
+            try {
+                if (l.DRAFT_JSON) {
+                    const draft = JSON.parse(l.DRAFT_JSON);
+                    if (draft.billetes) {
+                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => subAcc + (Number(den) * (qty as number)), 0);
+                    }
+                }
+            } catch (e) { }
 
-        const rows = selectedLiqs.map(l => `
+            return {
+                efectivo: acc.efectivo + efecReal,
+                transf: acc.transf + (l.TRANSF || 0),
+                cc: acc.cc + (l.CUENTAS_CORRIENTES || 0),
+                gastos: acc.gastos + (l.GASTOS || 0),
+                devoluciones: acc.devoluciones + (l.DEVOLUCIONES || 0)
+            };
+        }, { efectivo: 0, transf: 0, cc: 0, gastos: 0, devoluciones: 0 });
+
+        const rows = selectedLiqs.map(l => {
+            let efecReal = l.EFECTIVO || 0;
+            try {
+                if (l.DRAFT_JSON) {
+                    const draft = JSON.parse(l.DRAFT_JSON);
+                    if (draft.billetes) {
+                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => subAcc + (Number(den) * (qty as number)), 0);
+                    }
+                }
+            } catch (e) { }
+
+            return `
             <tr>
                 <td>${l.REPARTO}<br/><small>${new Date(l.FECHA).toLocaleDateString()}</small></td>
-                <td style="text-align:right">$${(l.EFECTIVO || 0).toLocaleString()}</td>
+                <td style="text-align:right">$${efecReal.toLocaleString()}</td>
                 <td style="text-align:right">$${(l.TRANSF || 0).toLocaleString()}</td>
                 <td style="text-align:right">$${(l.CUENTAS_CORRIENTES || 0).toLocaleString()}</td>
                 <td style="text-align:right">$${(l.GASTOS || 0).toLocaleString()}</td>
                 <td style="text-align:right">$${(l.DEVOLUCIONES || 0).toLocaleString()}</td>
             </tr>
-        `).join('');
+        `}).join('');
 
         win.document.write(`
             <html>
@@ -841,7 +864,8 @@ export default function LogisticaPage() {
                                             <thead>
                                                 <tr>
                                                     <th width="12%">CANT.</th>
-                                                    <th width="48%">DESCRIPCIÓN</th>
+                                                     <th width="8%">FACTOR</th>
+                                                    <th width="40%">DESCRIPCIÓN</th>
                                                     <th width="15%">P. UNIT.</th>
                                                     <th width="10%">BONIF.</th>
                                                     <th width="15%">TOTAL</th>
@@ -852,24 +876,31 @@ export default function LogisticaPage() {
                     const qty = item.cantidad || item.CANTIDAD || 0;
                     const bul = item.bultos || item.BULTOS || 0;
                     const uni = item.unidades || item.UNIDADES || 0;
-                    const isKg = item.unidad_medida === 'kg';
-                    const unitLabel = isKg ? 'kg' : 'un';
 
-                    // Mostrar cantidad: si es KG solo 3.123 Kg, si es bulto/unidad mostrar desglose
+                    const pId = item.id_prod || item.id_producto || item.id;
+                    const prod = (data?.products || []).find((p: any) => String(p.ID_Producto) === String(pId));
+                    const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
+                    const unitLabel = isKg ? 'kg' : 'un';
+                    const format = (item.formato || item._formato || (String(item.nombre || '').toUpperCase().includes('BULTO') ? 'BULTO' : 'UNIDAD')).toUpperCase();
+
                     let qtyDisplay = '';
                     if (isKg) {
                         qtyDisplay = `${qty.toFixed(3)} Kg`;
-                    } else if (bul > 0 && uni > 0) {
-                        qtyDisplay = `${bul} B / ${uni} ${unitLabel}`;
-                    } else if (bul > 0) {
-                        qtyDisplay = `${bul} BUL`;
+                    } else if (bul > 0 || uni > 0) {
+                        if (bul > 0 && uni > 0) qtyDisplay = `${bul} B / ${uni} ${unitLabel}`;
+                        else if (bul > 0) qtyDisplay = `${bul} BUL`;
+                        else qtyDisplay = `${uni} ${unitLabel}`;
                     } else {
-                        qtyDisplay = `${uni} ${unitLabel}`;
+                        qtyDisplay = format === 'BULTO' ? `${qty} BUL` : `${qty} ${unitLabel}`;
                     }
+
+                    const factor = prod?.UB || prod?.Unidades_Bulto || 1;
+                    const factorDisplay = format === 'BULTO' ? `x${factor}` : '-';
 
                     return `
                                                             <tr class="item-row">
                                                                 <td class="cen">${qtyDisplay}</td>
+                                                                <td class="cen" style="color: #666; font-size: 9px;">${factorDisplay}</td>
                                                                 <td>${item.nombre}</td>
                                                                 <td class="num">$${(parseFloat(String(item.precio).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                                                 <td class="cen">${(parseFloat(String(item.descuento || 0).replace(',', '.')) || 0) > 0 ? `${(parseFloat(String(item.descuento || 0).replace(',', '.')) || 0)}%` : '-'}</td>
@@ -879,6 +910,7 @@ export default function LogisticaPage() {
                 }).join('')}
                                                 ${/* Relleno para que el remito tenga altura constante */ Array(Math.max(0, 14 - (order.items?.length || 0))).fill(0).map(() => `
                                                     <tr class="item-row">
+                                                        <td class="cen">&nbsp;</td>
                                                         <td class="cen">&nbsp;</td>
                                                         <td>&nbsp;</td>
                                                         <td class="num">&nbsp;</td>
@@ -1204,7 +1236,7 @@ export default function LogisticaPage() {
 
     return (
         <div className="p-6 space-y-8 max-w-[1600px] mx-auto">
-            <div className="flex justify-between items-end">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shadow-inner">
                         <Truck size={24} />
@@ -1215,7 +1247,7 @@ export default function LogisticaPage() {
                     </div>
                 </div>
 
-                <div className="flex gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-[var(--border)] relative overflow-hidden backdrop-blur-sm shadow-inner">
+                <div className="flex gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-[var(--border)] relative overflow-x-auto no-scrollbar backdrop-blur-sm shadow-inner w-full lg:w-auto pb-1.5 lg:pb-1.5">
                     {[
                         { id: 'pendientes', label: 'Pendientes', count: allPendingOrders.length, icon: Package },
                         { id: 'rutas', label: 'Hojas de Ruta', count: routeNames.length, icon: Truck },
@@ -1231,7 +1263,7 @@ export default function LogisticaPage() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as any)}
                                 className={`
-                                    relative px-5 py-2.5 flex items-center gap-2.5 text-[11px] font-black uppercase tracking-tight rounded-xl transition-all duration-300 z-10
+                                    relative px-4 sm:px-5 py-2.5 flex items-center gap-2.5 text-[10px] sm:text-[11px] font-black uppercase tracking-tight rounded-xl transition-all duration-300 z-10 flex-shrink-0
                                     ${isActive
                                         ? 'text-white'
                                         : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}
@@ -1245,7 +1277,7 @@ export default function LogisticaPage() {
                                     />
                                 )}
                                 <Icon size={16} className={`${isActive ? 'scale-110' : 'opacity-60'} transition-all duration-300`} />
-                                <span className="whitespace-nowrap hidden sm:inline">{tab.label}</span>
+                                <span className="whitespace-nowrap">{tab.label}</span>
                                 {tab.count !== undefined && (
                                     <span className={`
                                         px-2 py-0.5 rounded-full text-[9px] font-black min-w-[20px] text-center
@@ -1453,7 +1485,7 @@ export default function LogisticaPage() {
                             ) : (
                                 <div className="space-y-6">
                                     {Object.keys(groupedPendingOrders).sort().map(seller => {
-                                        const sellerKey = `seller_${seller} `;
+                                        const sellerKey = `seller_${seller}`;
                                         const isSellerExpanded = expandedGroups.has(sellerKey);
                                         const datesInSeller = Object.keys(groupedPendingOrders[seller]).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
                                         const totalOrdersInSeller = datesInSeller.reduce((acc, d) => acc + groupedPendingOrders[seller][d].length, 0);
@@ -1494,7 +1526,7 @@ export default function LogisticaPage() {
                                                                     const groupOrders = groupedPendingOrders[seller][date];
                                                                     const totalGroup = groupOrders.reduce((acc, o) => acc + parseFloat(o.total), 0);
                                                                     const allGroupSelected = groupOrders.every(o => selectedOrders.has(o.id));
-                                                                    const dateKey = `date_${seller}_${date} `;
+                                                                    const dateKey = `date_${seller}_${date}`;
                                                                     const isDateExpanded = expandedGroups.has(dateKey);
 
                                                                     return (
@@ -1545,7 +1577,7 @@ export default function LogisticaPage() {
                                                                                     >
                                                                                         <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                                                                             {groupOrders.map(order => {
-                                                                                                const orderKey = `order_${order.id} `;
+                                                                                                const orderKey = `order_${order.id}`;
                                                                                                 const isOrderExpanded = expandedGroups.has(orderKey);
                                                                                                 const isSelected = selectedOrders.has(order.id);
 
@@ -3426,14 +3458,14 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 className="bg-white dark:bg-slate-900 w-full max-w-5xl h-[98vh] sm:h-[96vh] rounded-[30px] sm:rounded-[40px] overflow-hidden shadow-2xl flex flex-col border border-white/20"
             >
                 {/* Header */}
-                <div className="p-4 sm:p-5 border-b border-[var(--border)] flex justify-between items-center bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
+                <div className="p-4 sm:p-5 border-b border-[var(--border)] flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white border border-white/10 shadow-inner">
+                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white border border-white/10 shadow-inner flex-shrink-0">
                             <Check size={20} />
                         </div>
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-black tracking-tight leading-none">Rendición de Ruta</h3>
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <h3 className="text-lg font-black tracking-tight leading-none truncate">Rendición de Ruta</h3>
                                 <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 shadow-inner relative overflow-hidden backdrop-blur-sm">
                                     {[
                                         { id: 'standard', label: 'Estándar' },
@@ -3462,9 +3494,9 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                     })}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 mt-1.5">
-                                <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest">{routeName}</p>
-                                <span className="text-slate-500 text-[10px] opacity-30">|</span>
+                            <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                                <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest truncate">{routeName}</p>
+                                <span className="text-slate-500 text-[10px] opacity-30 hidden sm:inline">|</span>
                                 <input
                                     type="text"
                                     placeholder="NOMBRE CHOFER"
@@ -3472,7 +3504,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                     onChange={e => setChofer(e.target.value)}
                                     className="bg-white/10 border-none rounded-lg px-2 py-1 text-[10px] font-black text-white placeholder:text-white/30 focus:ring-1 ring-white/20 w-32 sm:w-48"
                                 />
-                                <div className="relative group ml-2 flex items-center gap-3">
+                                <div className="relative group flex items-center gap-3">
                                     <div className="relative">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-white transition-colors" size={12} />
                                         <input
