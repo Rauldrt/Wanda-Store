@@ -3834,8 +3834,19 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">BOLETA # {cc.orderId}</p>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <div className="text-right">
-                                                <p className="text-[9px] font-black text-amber-600">$ {cc.monto.toLocaleString()}</p>
+                                            <div className="text-right flex items-center gap-1">
+                                                <span className="text-[10px] font-black text-amber-600">$</span>
+                                                <input
+                                                    type="number"
+                                                    value={cc.monto}
+                                                    onChange={(e) => {
+                                                        const val = parseFloat(e.target.value) || 0;
+                                                        const next = [...cuentasCorrientes];
+                                                        next[idx].monto = val;
+                                                        setCuentasCorrientes(next);
+                                                    }}
+                                                    className="w-20 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-800 rounded-lg px-2 py-1 text-[10px] font-black text-amber-600 outline-none text-right"
+                                                />
                                             </div>
                                             <button
                                                 onClick={() => {
