@@ -1182,27 +1182,23 @@ export default function LogisticaPage() {
                 <table>
                     <thead>
                         <tr>
-                            <th width="5%">#</th>
-                            <th width="10%">PEDIDO</th>
-                            <th width="30%">CLIENTE / DIRECCIÓN</th>
-                            <th width="20%">BULTOS / PRODUCTOS</th>
-                            <th width="15%">TOTAL</th>
-                            <th width="20%">FIRMA / OBSERVACIÓN</th>
+                            <th width="5%">ORD.</th>
+                            <th width="45%">CLIENTE / DIRECCIÓN</th>
+                            <th width="15%">IMPORTE</th>
+                            <th width="35%">ANOTACIONES CHOFER</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${orderList.map((order, i) => `
-                            <tr>
-                                <td>${i + 1}</td>
-                                <td>${order.id.slice(-8)}</td>
+                            <tr style="height: 35px;">
+                                <td align="center"><b>${i + 1}</b></td>
                                 <td>
-                                    <b>${order.cliente_nombre}</b><br/>
-                                    <small>${order.direccion || 'S/D'}</small>
+                                    <div style="font-weight: bold; font-size: 11px;">${order.cliente_nombre}</div>
+                                    <div style="font-size: 9px; color: #666;">${order.direccion || 'S/D'}</div>
                                 </td>
-                                <td>
-                                    ${(order.items || []).map((it: any) => `${it.cantidad || it.CANTIDAD || 0} ${it.nombre || it.PRODUCTO}`).join(', ')}
+                                <td align="right" style="font-weight: bold; font-size: 11px;">
+                                    $${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </td>
-                                <td>$${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                 <td></td>
                             </tr>
                         `).join('')}
