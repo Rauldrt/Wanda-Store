@@ -327,7 +327,9 @@ const smartSearch = (text: string, query: string) => {
 
 export default function LogisticaPage() {
     const { data, loading, refreshData, setIsSyncing } = useData();
-    const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial' | 'comisiones'>('pendientes');
+    const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial' | 'comisiones' | 'resumenes'>('pendientes');
+    const [selectedSettlementsSummary, setSelectedSettlementsSummary] = useState<string[]>([]);
+    const [summarySearch, setSummarySearch] = useState("");
     const [commissionParams, setCommissionParams] = useState({
         pct_chofer: 1.5,
         fijo_entrega: 500,
@@ -349,7 +351,7 @@ export default function LogisticaPage() {
             ...order,
             items: (order.items || []).map((it: any) => {
                 const id = it.id_prod || it.id_producto || it.id;
-                const product = products.find(p => String(p.ID_Producto) === String(id));
+                const product = products.find((p: any) => String(p.ID_Producto) === String(id));
                 const isDetalleBulto = String(it.detalle || it.nombre || '').toUpperCase().includes('BULTO');
                 const detectedFormat = (it._formato || it.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
 
@@ -642,12 +644,86 @@ export default function LogisticaPage() {
     };
 
 
+    const handlePrintWeeklySummary = (selectedLiqs: any[]) => {
+        const win = window.open('', '_blank');
+        if (!win) return;
+
+        const totals = selectedLiqs.reduce((acc, l) => ({
+            efectivo: acc.efectivo + (l.EFECTIVO || 0),
+            transf: acc.transf + (l.TRANSF || 0),
+            cc: acc.cc + (l.CUENTAS_CORRIENTES || 0),
+            gastos: acc.gastos + (l.GASTOS || 0),
+            devoluciones: acc.devoluciones + (l.DEVOLUCIONES || 0)
+        }), { efectivo: 0, transf: 0, cc: 0, gastos: 0, devoluciones: 0 });
+
+        const rows = selectedLiqs.map(l => `
+            <tr>
+                <td>${l.REPARTO}<br/><small>${new Date(l.FECHA).toLocaleDateString()}</small></td>
+                <td style="text-align:right">$${(l.EFECTIVO || 0).toLocaleString()}</td>
+                <td style="text-align:right">$${(l.TRANSF || 0).toLocaleString()}</td>
+                <td style="text-align:right">$${(l.CUENTAS_CORRIENTES || 0).toLocaleString()}</td>
+                <td style="text-align:right">$${(l.GASTOS || 0).toLocaleString()}</td>
+                <td style="text-align:right">$${(l.DEVOLUCIONES || 0).toLocaleString()}</td>
+            </tr>
+        `).join('');
+
+        win.document.write(`
+            <html>
+                <head>
+                    <title>Resumen Semanal de Repartos</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 30px; color: #333; }
+                        h1 { font-size: 20px; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-transform: uppercase; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ccc; padding: 10px; font-size: 12px; }
+                        th { background: #f2f2f2; text-transform: uppercase; font-size: 10px; }
+                        .total-row { background: #000; color: #fff; font-weight: bold; }
+                        .footer { margin-top: 40px; font-size: 10px; color: #666; text-align: right; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Resumen Semanal / Agrupado</h1>
+                    <p>Filtro aplicado: ${selectedLiqs.length} repartos seleccionados.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Reparto / Fecha</th>
+                                <th>Efectivo</th>
+                                <th>Transferencia</th>
+                                <th>Cta. Cte.</th>
+                                <th>Gastos</th>
+                                <th>Devoluciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                        <tfoot>
+                            <tr class="total-row">
+                                <td>TOTALES</td>
+                                <td style="text-align:right">$${totals.efectivo.toLocaleString()}</td>
+                                <td style="text-align:right">$${totals.transf.toLocaleString()}</td>
+                                <td style="text-align:right">$${totals.cc.toLocaleString()}</td>
+                                <td style="text-align:right">$${totals.gastos.toLocaleString()}</td>
+                                <td style="text-align:right">$${totals.devoluciones.toLocaleString()}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div class="footer">Generado el ${new Date().toLocaleString()}</div>
+                    <script>window.onload = () => { window.print(); window.close(); }</script>
+                </body>
+            </html>
+        `);
+        win.document.close();
+    };
+
+
     const printOrders = (orderList: any[]) => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
         const html = `
-    <html>
+            <html>
             <head>
                 <title>Remitos de Entrega</title>
                 <style>
@@ -772,92 +848,77 @@ export default function LogisticaPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                ${order.items?.filter((item: any) => (parseFloat(String(item.cantidad).replace(',', '.')) || 0) > 0).map((item: any) => {
-                    let prod = products.find(p => String(p.ID_Producto) === String(item.id_prod));
-                    if (!prod && item.nombre) {
-                        prod = products.find(p => String(p.Nombre || '').trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
-                    }
-                    const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
-                    const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
-                    const parsedUb = parseFloat(String(rawUb).replace(',', '.'));
-                    const ub = (!rawUb || String(rawUb).trim() === '' || isNaN(parsedUb) || parsedUb === 0) ? 1 : parsedUb;
-                    const qty = parseFloat(String(item.cantidad).replace(',', '.')) || 0;
-                    const price = parseFloat(String(item.precio).replace(',', '.')) || 0;
-                    const disc = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
-                    const subtotal = (qty * price) * (1 - disc / 100);
+                                                ${order.items.map((item: any) => {
+                    const qty = item.cantidad || item.CANTIDAD || 0;
+                    const bul = item.bultos || item.BULTOS || 0;
+                    const uni = item.unidades || item.UNIDADES || 0;
+                    const isKg = item.unidad_medida === 'kg';
+                    const unitLabel = isKg ? 'kg' : 'un';
 
-                    let displayQty = "";
-                    const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
-                    const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
-                    const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
-                    const unitLabel = baseUnit.startsWith('UNID') || baseUnit === 'U' || baseUnit === '' ? 'U' : baseUnit;
-
+                    // Mostrar cantidad: si es KG solo 3.123 Kg, si es bulto/unidad mostrar desglose
+                    let qtyDisplay = '';
                     if (isKg) {
-                        displayQty = `${qty.toFixed(2)} KG`;
-                    } else if (ub > 1) {
-                        const bul = Math.floor(qty / ub);
-                        const uni = Math.round((qty % ub) * 100) / 100;
-                        if (bul > 0 && uni === 0) {
-                            displayQty = `${bul} BUL <span style="font-size: 8px; font-weight: bold; color: #333;">(x${ub} ${unitLabel})</span>`;
-                        } else if (bul > 0) {
-                            displayQty = `${bul} BUL + ${uni} ${unitLabel}`;
-                        } else {
-                            displayQty = `${qty} ${unitLabel}`;
-                        }
+                        qtyDisplay = `${qty.toFixed(3)} Kg`;
+                    } else if (bul > 0 && uni > 0) {
+                        qtyDisplay = `${bul} B / ${uni} ${unitLabel}`;
+                    } else if (bul > 0) {
+                        qtyDisplay = `${bul} BUL`;
                     } else {
-                        displayQty = `${qty} ${unitLabel}`;
+                        qtyDisplay = `${uni} ${unitLabel}`;
                     }
 
                     return `
-                                                        <tr class="item-row">
-                                                            <td class="cen" style="font-weight: bold">${displayQty}</td>
-                                                            <td style="font-weight: bold">${item.nombre}</td>
-                                                            <td class="num">$ ${price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                            <td class="cen">${disc > 0 ? `${disc}%` : '-'}</td>
-                                                            <td class="num" style="font-weight: bold">$ ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                        </tr>
-                                                    `;
+                                                            <tr class="item-row">
+                                                                <td class="cen">${qtyDisplay}</td>
+                                                                <td>${item.nombre}</td>
+                                                                <td class="num">$${(parseFloat(String(item.precio).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                <td class="cen">${(parseFloat(String(item.descuento || 0).replace(',', '.')) || 0) > 0 ? `${(parseFloat(String(item.descuento || 0).replace(',', '.')) || 0)}%` : '-'}</td>
+                                                                <td class="num">$${(parseFloat(String(item.subtotal).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                            </tr>
+                                                        `;
                 }).join('')}
-                                                <!-- Empty row to stretch borders to bottom -->
-                                                <tr>
-                                                    <td></td><td></td><td></td><td></td><td></td>
-                                                </tr>
+                                                ${/* Relleno para que el remito tenga altura constante */ Array(Math.max(0, 14 - (order.items?.length || 0))).fill(0).map(() => `
+                                                    <tr class="item-row">
+                                                        <td class="cen">&nbsp;</td>
+                                                        <td>&nbsp;</td>
+                                                        <td class="num">&nbsp;</td>
+                                                        <td class="cen">&nbsp;</td>
+                                                        <td class="num">&nbsp;</td>
+                                                    </tr>
+                                                `).join('')}
                                             </tbody>
                                         </table>
                                     </div>
                                     
                                     <div class="footer">
-                                        <div class="obs">Obs: ................................................................................</div>
+                                        <div class="obs">
+                                            ESTE DOCUMENTO NO TIENE VALOR FISCAL. ENTREGA SUJETA A DISPONIBILIDAD DE STOCK. EL RECEPTOR CONFORMA LA RECEPCIÓN DE LA MERCADERÍA.
+                                        </div>
                                         <div class="totals-box">
                                             <div class="subtotal-row">
                                                 <span>Subtotal:</span>
-                                                <span>$ ${parseFloat(String(order.items?.reduce((acc: number, val: any) => acc + (parseFloat(String(val.subtotal).replace(',', '.')) || 0), 0) || order.total).replace(',', '.')).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                <span>$${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                             </div>
-                                            ${parseFloat(String(order.descuento_general || 0).replace(',', '.')) > 0 ? `
-                                            <div class="subtotal-row" style="color: #444;">
-                                                <span>Desc. General:</span>
-                                                <span>-${order.descuento_general}%</span>
+                                            <div class="subtotal-row">
+                                                <span>Descuentos:</span>
+                                                <span>$0</span>
                                             </div>
-                                            ` : ''}
                                             <div class="total-row">
-                                                <span>Total:</span>
-                                                <span>$ ${parseFloat(String(order.total).replace(',', '.')).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                <span>TOTAL:</span>
+                                                <span>$${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                             </div>
                                         </div>
                                     </div>
-                            </div>
-                        `);
+                                </div>
+                            `);
 
-            if (isLong) {
-                return copies.map(copy => `<div class="print-page">${copy}</div>`).join('');
-            } else {
-                return `<div class="print-page">${copies.join('')}</div>`;
-            }
+            return copies.map(copy => `<div class="print-page">${copy}</div>`).join('');
         }).join('')}
+
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
             </html>
-    `;
+        `;
 
         printWindow.document.write(html);
         printWindow.document.close();
@@ -874,9 +935,9 @@ export default function LogisticaPage() {
                 if (parsedQty <= 0) return;
 
                 const id = item.id_prod || item.id_producto || item.id || item.nombre;
-                let prod = products.find(p => String(p.ID_Producto) === String(id));
+                let prod = products.find((p: any) => String(p.ID_Producto) === String(id));
                 if (!prod && item.nombre) {
-                    prod = products.find(p => String(p.Nombre || '').trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
+                    prod = products.find((p: any) => String(p.Nombre || '').trim().toLowerCase() === String(item.nombre).trim().toLowerCase());
                 }
                 const isKg = (prod?.Unidad || '').toLowerCase() === 'kg';
                 const baseUnit = String(prod?.Unidad || 'UNID').toUpperCase();
@@ -917,7 +978,7 @@ export default function LogisticaPage() {
         const formatCompact = (qty: number, ub: number, isKg: boolean, baseUnit: string) => {
             if (isKg) return `${qty.toFixed(2)} KG`;
             const unitLabel = baseUnit.toUpperCase().startsWith('UNID') || baseUnit.toUpperCase() === 'U' ? 'U' : baseUnit;
-            if (ub <= 1) return `${qty} ${unitLabel}`;
+            if (ub <= 1) return `${qty} ${unitLabel} `;
             const bul = Math.floor(qty / ub);
             const uni = Math.round((qty % ub) * 100) / 100;
             const suffix = `<small style="font-weight: bold; font-size: 10px; color: #333; margin-left: 4px;">(x${ub} ${unitLabel})</small>`;
@@ -931,7 +992,7 @@ export default function LogisticaPage() {
         const noPesables = sorted.filter(i => !i.isKg);
 
         const html = `
-    <html>
+            <html>
             <head>
                 <title>Picking List - ${routeName || 'Selección'}</title>
                 <style>
@@ -1009,7 +1070,7 @@ export default function LogisticaPage() {
                                             <div class="client-list">
                                                 ${item.clientes.map((c: any) => `
                                                     <div class="client-item">
-                                                        <span>\u2022 ${c.nombre}</span>
+                                                        <span>• ${c.nombre}</span>
                                                         <span>${c.cantidad.toFixed(2)} KG</span>
                                                     </div>
                                                 `).join('')}
@@ -1031,7 +1092,7 @@ export default function LogisticaPage() {
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
             </html>
-    `;
+        `;
 
         printWindow.document.write(html);
         printWindow.document.close();
@@ -1045,7 +1106,7 @@ export default function LogisticaPage() {
         const totalValue = orderList.reduce((acc, o) => acc + (parseFloat(String(o.total).replace(',', '.')) || 0), 0);
 
         const html = `
-    <html>
+            <html>
             <head>
                 <title>Hoja de Ruta - ${routeName}</title>
                 <style>
@@ -1055,7 +1116,7 @@ export default function LogisticaPage() {
                     table { width: 100%; border-collapse: collapse; margin-top: 2px; }
                     th, td { border: 1px solid #ccc; padding: 1px 6px; text-align: left; }
                     th { background: #f8fafc; font-weight: 900; text-transform: uppercase; font-size: 8.5px; color: #64748b; }
-                    .footer { margin-top: 15px; display: grid; grid-template-cols: 1fr 1fr; gap: 15px; }
+                    .footer { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
                     .firma { border-top: 1px solid #000; padding-top: 3px; text-align: center; font-weight: bold; text-transform: uppercase; font-size: 8.5px; }
                     .summary { background: #f1f5f9; padding: 6px 12px; border-radius: 6px; margin-top: 10px; display: flex; gap: 20px; font-size: 9px; }
                     .summary-item b { font-size: 11px; color: #4338ca; }
@@ -1077,31 +1138,37 @@ export default function LogisticaPage() {
                 <table>
                     <thead>
                         <tr>
-                            <th width="30">#</th>
-                            <th>CLIENTE</th>
-                            <th width="120">FORMA PAGO</th>
-                            <th width="120">A COBRAR</th>
-                            <th width="150">ESTADO / FIRMA</th>
+                            <th width="5%">#</th>
+                            <th width="10%">PEDIDO</th>
+                            <th width="30%">CLIENTE / DIRECCIÓN</th>
+                            <th width="20%">BULTOS / PRODUCTOS</th>
+                            <th width="15%">TOTAL</th>
+                            <th width="20%">FIRMA / OBSERVACIÓN</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${orderList.map((order, i) => `
                             <tr>
-                                <td style="color: #94a3b8; font-weight: bold; font-size: 10px;">${i + 1}</td>
+                                <td>${i + 1}</td>
+                                <td>${order.id.slice(-8)}</td>
                                 <td>
-                                    <div style="font-weight: 900; font-size: 11px; line-height: 1.1;">${order.cliente_nombre}</div>
-                                    ${order.notas ? `<div style="color: #d97706; font-size: 8px; margin-top: 1px; font-weight: bold;">${order.notas}</div>` : ''}
+                                    <b>${order.cliente_nombre}</b><br/>
+                                    <small>${order.direccion || 'S/D'}</small>
                                 </td>
-                                <td style="font-weight: bold; text-transform: uppercase; color: #475569; font-size: 9px;"></td>
-                                <td style="font-weight: 900; font-size: 12px;">$${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                <td align="center" style="color: #ccc; font-size: 10px;">________________</td>
+                                <td>
+                                    ${(order.items || []).map((it: any) => `${it.cantidad || it.CANTIDAD || 0} ${it.nombre || it.PRODUCTO}`).join(', ')}
+                                </td>
+                                <td>$${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td></td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
 
                 <div class="summary">
-                    <div class="summary-item">BULTOS TOTALES: <b>${Math.round(orderList.reduce((acc, o) => {
+                    <div class="summary-item">Total Pedidos: <b>${orderList.length}</b></div>
+                    <div class="summary-item">Valor Total: <b>$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</b></div>
+                    <div class="summary-item">Bultos Totales: <b>${Math.round(orderList.reduce((acc, o) => {
             return acc + (o.items?.reduce((iAcc: number, it: any) => {
                 const p = products.find(prod => String(prod.ID_Producto) === String(it.id_prod || it.id_producto || it.id));
                 const rawUb = p?.UB || p?.Unidades_Bulto || "1";
@@ -1111,8 +1178,6 @@ export default function LogisticaPage() {
                 return iAcc + (parseFloat(String(it.cantidad).replace(',', '.')) / ub);
             }, 0) || 0);
         }, 0))}</b></div>
-                    <div class="summary-item">VALOR TOTAL CARGA: <b>$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</b></div>
-                    <div class="summary-item">TOTAL ENTREGAS: <b>${orderList.length}</b></div>
                 </div>
 
                 <div class="footer">
@@ -1129,7 +1194,7 @@ export default function LogisticaPage() {
                 <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
             </body>
             </html>
-    `;
+        `;
 
         printWindow.document.write(html);
         printWindow.document.close();
@@ -1140,36 +1205,58 @@ export default function LogisticaPage() {
     return (
         <div className="p-6 space-y-8 max-w-[1600px] mx-auto">
             <div className="flex justify-between items-end">
-                <div>
-                    <h2 className="text-3xl font-black">Logística</h2>
-                    <p className="text-slate-500 text-sm">Organiza entregas y optimiza tus rutas.</p>
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shadow-inner">
+                        <Truck size={24} />
+                    </div>
+                    <div>
+                        <h2 className="text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">Logística</h2>
+                        <p className="text-slate-400 text-[11px] font-bold uppercase tracking-[0.2em] mt-0.5">Gestión de entregas y optimización</p>
+                    </div>
                 </div>
 
-                <div className="flex gap-1 bg-[var(--card)] border border-[var(--border)] p-1 rounded-xl">
-                    <button
-                        onClick={() => setActiveTab('pendientes')}
-                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'pendientes' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
-                    >
-                        Pendientes ({allPendingOrders.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('rutas')}
-                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'rutas' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
-                    >
-                        Hojas de Ruta ({routeNames.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('historial')}
-                        className={`px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'historial' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
-                    >
-                        Historial ({liquidaciones.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('comisiones')}
-                        className={`px-4 py-2 flex items-center gap-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'comisiones' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500'}`}
-                    >
-                        <CreditCard size={14} /> Comisiones
-                    </button>
+                <div className="flex gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-[var(--border)] relative overflow-hidden backdrop-blur-sm shadow-inner">
+                    {[
+                        { id: 'pendientes', label: 'Pendientes', count: allPendingOrders.length, icon: Package },
+                        { id: 'rutas', label: 'Hojas de Ruta', count: routeNames.length, icon: Truck },
+                        { id: 'historial', label: 'Historial', count: liquidaciones.length, icon: RotateCcw },
+                        { id: 'comisiones', label: 'Comisiones', icon: CreditCard },
+                        { id: 'resumenes', label: 'Resúmenes', icon: Layers, color: 'amber' }
+                    ].map((tab) => {
+                        const isActive = activeTab === tab.id;
+                        const Icon = tab.icon;
+
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`
+                                    relative px-5 py-2.5 flex items-center gap-2.5 text-[11px] font-black uppercase tracking-tight rounded-xl transition-all duration-300 z-10
+                                    ${isActive
+                                        ? 'text-white'
+                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}
+                                `}
+                            >
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="activeTabBg"
+                                        className={`absolute inset-0 ${tab.color === 'amber' ? 'bg-amber-500 shadow-amber-500/30' : 'bg-indigo-600 shadow-indigo-500/30'} rounded-xl shadow-xl z-[-1]`}
+                                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                                    />
+                                )}
+                                <Icon size={16} className={`${isActive ? 'scale-110' : 'opacity-60'} transition-all duration-300`} />
+                                <span className="whitespace-nowrap hidden sm:inline">{tab.label}</span>
+                                {tab.count !== undefined && (
+                                    <span className={`
+                                        px-2 py-0.5 rounded-full text-[9px] font-black min-w-[20px] text-center
+                                        ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}
+                                    `}>
+                                        {tab.count}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -1222,28 +1309,21 @@ export default function LogisticaPage() {
                                 </div>
 
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-dashed border-[var(--border)]">
-                                    <div className="flex items-center gap-4 w-full sm:w-auto">
-                                        <button
-                                            onClick={() => setViewMode('grid')}
-                                            className={`p - 1.5 rounded - md transition - all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'} `}
-                                            title="Vista Grilla"
-                                        >
-                                            <LayoutGrid size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => setViewMode('list')}
-                                            className={`p - 1.5 rounded - md transition - all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'} `}
-                                            title="Vista Lista"
-                                        >
-                                            <List size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => setViewMode('grouped')}
-                                            className={`p - 1.5 rounded - md transition - all ${viewMode === 'grouped' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'} `}
-                                            title="Vista Agrupada"
-                                        >
-                                            <Layers size={16} />
-                                        </button>
+                                    <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-[var(--border)] shadow-inner">
+                                        {[
+                                            { id: 'grid', icon: LayoutGrid, title: 'Vista Grilla' },
+                                            { id: 'list', icon: List, title: 'Vista Lista' },
+                                            { id: 'grouped', icon: Layers, title: 'Vista Agrupada' }
+                                        ].map((mode) => (
+                                            <button
+                                                key={mode.id}
+                                                onClick={() => setViewMode(mode.id as any)}
+                                                className={`p-2 rounded-lg transition-all duration-200 ${viewMode === mode.id ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                                title={mode.title}
+                                            >
+                                                <mode.icon size={16} />
+                                            </button>
+                                        ))}
                                     </div>
                                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                                         {filteredPendingOrders.length} resultados • {selectedOrders.size} seleccionados
@@ -1306,10 +1386,10 @@ export default function LogisticaPage() {
                                                 <th className="p-4 text-left w-10">
                                                     <div
                                                         onClick={(e) => { e.stopPropagation(); toggleSelectAll(); }}
-                                                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
+                                                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 ? 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'border-slate-300 bg-white'} `}
                                                     >
                                                         {selectedOrders.size === filteredPendingOrders.length && filteredPendingOrders.length > 0 && <CheckCircle2 size={12} />}
-                                                        {selectedOrders.size > 0 && selectedOrders.size < filteredPendingOrders.length && <div className="w-2 h-0.5 bg-slate-400" />}
+                                                        {selectedOrders.size > 0 && selectedOrders.size < filteredPendingOrders.length && <div className="w-2.5 h-0.5 bg-slate-400 rounded-full" />}
                                                     </div>
                                                 </th>
                                                 <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente</th>
@@ -1324,12 +1404,12 @@ export default function LogisticaPage() {
                                             {filteredPendingOrders.map(order => (
                                                 <tr
                                                     key={order.id}
-                                                    className={`hover:bg-indigo-500/5 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-indigo-500/5' : ''}`}
+                                                    className={`hover:bg-indigo-50/50 dark:hover:bg-indigo-500/5 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-indigo-500/5' : ''} `}
                                                     onClick={() => toggleOrderSelection(order.id)}
                                                 >
                                                     <td className="p-4" onClick={(e) => e.stopPropagation()}>
                                                         <div
-                                                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300'}`}
+                                                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${selectedOrders.has(order.id) ? 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'border-slate-300 bg-white'} `}
                                                         >
                                                             {selectedOrders.has(order.id) && <CheckCircle2 size={12} />}
                                                         </div>
@@ -1418,13 +1498,13 @@ export default function LogisticaPage() {
                                                                     const isDateExpanded = expandedGroups.has(dateKey);
 
                                                                     return (
-                                                                        <div key={date} className={`tech-card border transition-all overflow-hidden ${isDateExpanded ? 'border-indigo-500/50 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'}`}>
+                                                                        <div key={date} className={`tech - card border transition - all overflow - hidden ${isDateExpanded ? 'border-indigo-500/50 ring-4 ring-indigo-500/5' : 'border-[var(--border)]'} `}>
                                                                             <div
                                                                                 onClick={() => toggleGroup(dateKey)}
-                                                                                className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${isDateExpanded ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
+                                                                                className={`p - 4 flex justify - between items - center cursor - pointer transition - colors ${isDateExpanded ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'} `}
                                                                             >
                                                                                 <div className="flex items-center gap-4">
-                                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isDateExpanded ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                                                                    <div className={`w - 10 h - 10 rounded - xl flex items - center justify - center transition - all ${isDateExpanded ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'} `}>
                                                                                         <Calendar size={18} />
                                                                                     </div>
                                                                                     <div>
@@ -1444,7 +1524,7 @@ export default function LogisticaPage() {
                                                                                             }
                                                                                             setSelectedOrders(next);
                                                                                         }}
-                                                                                        className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${allGroupSelected ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}`}
+                                                                                        className={`px - 3 py - 1.5 rounded - xl text - [9px] font - black uppercase transition - all flex items - center gap - 2 ${allGroupSelected ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'} `}
                                                                                     >
                                                                                         <Check size={12} strokeWidth={4} />
                                                                                         {allGroupSelected ? 'Todos' : 'Marcar'}
@@ -1633,7 +1713,7 @@ export default function LogisticaPage() {
                                                 if (liq.DRAFT_JSON && liq.REPARTO) {
                                                     const draftData = JSON.parse(liq.DRAFT_JSON);
                                                     draftData.updatedAt = new Date().toISOString();
-                                                    localStorage.setItem(`wanda_settlement_${liq.REPARTO}`, JSON.stringify(draftData));
+                                                    localStorage.setItem(`wanda_settlement_${liq.REPARTO} `, JSON.stringify(draftData));
                                                     await wandaApi.saveSettlementDraft(liq.REPARTO, draftData);
                                                 }
 
@@ -1847,6 +1927,151 @@ export default function LogisticaPage() {
                             </div>
                         );
                     })()}
+
+                    {activeTab === 'resumenes' && (
+                        <div className="space-y-6">
+                            <div className="bg-[var(--card)] border border-[var(--border)] p-6 rounded-3xl shadow-sm space-y-6">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                    <div>
+                                        <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Selección de Repartos</h3>
+                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Elige los repartos para agrupar en el resumen mensual/semanal</p>
+                                    </div>
+                                    <div className="relative w-full md:w-64">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar liquidación..."
+                                            value={summarySearch}
+                                            onChange={(e) => setSummarySearch(e.target.value)}
+                                            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto p-2 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-[var(--border)]">
+                                    {liquidaciones
+                                        .filter(l => !summarySearch || normalizeText(l.REPARTO).includes(normalizeText(summarySearch)) || normalizeText(l.CHOFER).includes(normalizeText(summarySearch)))
+                                        .sort((a, b) => b.FECHA.localeCompare(a.FECHA))
+                                        .map(liq => (
+                                            <div
+                                                key={liq.id}
+                                                onClick={() => {
+                                                    setSelectedSettlementsSummary(prev =>
+                                                        prev.includes(liq.id) ? prev.filter(id => id !== liq.id) : [...prev, liq.id]
+                                                    );
+                                                }}
+                                                className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${selectedSettlementsSummary.includes(liq.id) ? 'border-amber-500 bg-amber-500/5 shadow-lg shadow-amber-500/10' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-amber-200'} `}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all ${selectedSettlementsSummary.includes(liq.id) ? 'bg-amber-500 border-amber-500 text-white shadow-md' : 'border-slate-300 bg-white'} `}>
+                                                        {selectedSettlementsSummary.includes(liq.id) && <Check size={10} strokeWidth={4} />}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-[10px] font-black uppercase truncate max-w-[120px]">{liq.REPARTO}</div>
+                                                        <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+                                                            {new Date(liq.FECHA).toLocaleDateString()} • {liq.CHOFER || 'N/A'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-[9px] font-black text-amber-600">${(liq.TOTAL_NETO || 0).toLocaleString()}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                </div>
+
+                                {selectedSettlementsSummary.length > 0 && (
+                                    <div className="pt-6 border-t border-[var(--border)] space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="flex justify-between items-end">
+                                            <h4 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-slate-100">Vista Previa del Resumen</h4>
+                                            <button
+                                                onClick={() => handlePrintWeeklySummary(liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)))}
+                                                className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20"
+                                            >
+                                                <Printer size={14} /> Imprimir Resumen ({selectedSettlementsSummary.length})
+                                            </button>
+                                        </div>
+
+                                        <div className="overflow-x-auto rounded-2xl border border-[var(--border)]">
+                                            <table className="w-full text-left text-xs border-collapse">
+                                                <thead className="bg-slate-50 dark:bg-slate-950 border-b border-[var(--border)]">
+                                                    <tr>
+                                                        <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px]">Reparto / Fecha</th>
+                                                        <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Efectivo</th>
+                                                        <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">MP / Transf</th>
+                                                        <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Cta Cte</th>
+                                                        <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Gastos</th>
+                                                        <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Devoluciones</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {liquidaciones
+                                                        .filter(l => selectedSettlementsSummary.includes(l.id))
+                                                        .map(l => (
+                                                            <tr key={l.id} className="hover:bg-amber-500/5 transition-colors">
+                                                                <td className="p-3">
+                                                                    <div className="font-extrabold text-slate-900 dark:text-slate-100">{l.REPARTO}</div>
+                                                                    <div className="text-[9px] text-slate-400 font-bold uppercase">{new Date(l.FECHA).toLocaleDateString()}</div>
+                                                                </td>
+                                                                <td className="p-3 text-right font-black text-slate-700 dark:text-slate-300">
+                                                                    ${(l.EFECTIVO || 0).toLocaleString()}
+                                                                </td>
+                                                                <td className="p-3 text-right font-black text-indigo-600">
+                                                                    ${(l.TRANSF || 0).toLocaleString()}
+                                                                </td>
+                                                                <td className="p-3 text-right font-black text-amber-600">
+                                                                    ${(l.CUENTAS_CORRIENTES || 0).toLocaleString()}
+                                                                </td>
+                                                                <td className="p-3 text-right font-black text-orange-600">
+                                                                    ${(l.GASTOS || 0).toLocaleString()}
+                                                                </td>
+                                                                <td className="p-3 text-right font-black text-rose-600">
+                                                                    ${(l.DEVOLUCIONES || 0).toLocaleString()}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                </tbody>
+                                                <tfoot className="bg-slate-900 text-white font-black uppercase tracking-widest text-[10px]">
+                                                    <tr>
+                                                        <td className="p-4">Totales Consolidados</td>
+                                                        <td className="p-4 text-right">
+                                                            ${liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)).reduce((acc, l) => acc + (l.EFECTIVO || 0), 0).toLocaleString()}
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            ${liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)).reduce((acc, l) => acc + (l.TRANSF || 0), 0).toLocaleString()}
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            ${liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)).reduce((acc, l) => acc + (l.CUENTAS_CORRIENTES || 0), 0).toLocaleString()}
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            ${liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)).reduce((acc, l) => acc + (l.GASTOS || 0), 0).toLocaleString()}
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            ${liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)).reduce((acc, l) => acc + (l.DEVOLUCIONES || 0), 0).toLocaleString()}
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedSettlementsSummary.length === 0 && (
+                                    <div className="p-20 text-center space-y-4">
+                                        <div className="w-20 h-20 bg-amber-100 dark:bg-amber-500/10 rounded-full flex items-center justify-center mx-auto text-amber-600">
+                                            <Layers size={40} />
+                                        </div>
+                                        <div className="max-w-xs mx-auto">
+                                            <p className="font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Comienza seleccionando repartos</p>
+                                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                                Marca los repartos en la lista superior para generar la tabla de resumen.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-6">
@@ -2124,7 +2349,7 @@ function ProductReplaceModal({ products, onClose, onSelect, currentProductName, 
 
     const filtered = useMemo(() => {
         if (searchTerm.length < 2) return [];
-        return products.filter(p =>
+        return products.filter((p: any) =>
             smartSearch(p.Nombre || "", searchTerm) ||
             smartSearch(String(p.ID_Producto || ""), searchTerm)
         ).slice(0, 10);
@@ -2924,6 +3149,15 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const [ccSearch, setCcSearch] = useState("");
     const [showCcDropdown, setShowCcDropdown] = useState(false);
 
+    // Optimized products filtering for manual returns
+    const filteredReturnProducts = useMemo(() => {
+        if (!returnSearch.trim()) return products.slice(0, 30);
+        return products.filter((p: any) => {
+            const searchData = `${p.Nombre || p.nombre || ''} ${p.ID_Producto || p.id || ''} ${p.PRODUCTO || ''} ${p.ID || ''}`;
+            return smartSearch(searchData, returnSearch);
+        }).slice(0, 30);
+    }, [products, returnSearch]);
+
     // --- PERSISTENCIA: Cargar borrador ---
     useEffect(() => {
         const loadDraft = async () => {
@@ -3145,6 +3379,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 gastos,
                 cuentas_corrientes: cuentasCorrientes,
                 total_cuentas_corrientes: totalCuentasCorrientes,
+                total_devoluciones: settlementMethod === 'alternative' ? devoluciones.reduce((acc, d) => acc + (d.subtotal || 0), 0) : 0,
                 notas: `Liquidación de ruta ${routeName}${settlementMethod === 'alternative' ? ' (Método Alternativo)' : ''}`,
                 desglose_billetes: billetes,
                 // Metadata para recuperación:
@@ -3199,19 +3434,32 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                         <div>
                             <div className="flex items-center gap-3">
                                 <h3 className="text-lg font-black tracking-tight leading-none">Rendición de Ruta</h3>
-                                <div className="flex bg-white/10 p-1 rounded-xl">
-                                    <button
-                                        onClick={() => setSettlementMethod('standard')}
-                                        className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${settlementMethod === 'standard' ? 'bg-indigo-500 text-white' : 'text-white/40 hover:text-white/60'}`}
-                                    >
-                                        Estándar
-                                    </button>
-                                    <button
-                                        onClick={() => setSettlementMethod('alternative')}
-                                        className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${settlementMethod === 'alternative' ? 'bg-indigo-500 text-white' : 'text-white/40 hover:text-white/60'}`}
-                                    >
-                                        Alternativo
-                                    </button>
+                                <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 shadow-inner relative overflow-hidden backdrop-blur-sm">
+                                    {[
+                                        { id: 'standard', label: 'Estándar' },
+                                        { id: 'alternative', label: 'Alternativo' }
+                                    ].map((method) => {
+                                        const isActive = settlementMethod === method.id;
+                                        return (
+                                            <button
+                                                key={method.id}
+                                                onClick={() => setSettlementMethod(method.id as any)}
+                                                className={`
+                                                    relative px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all duration-300 z-10
+                                                    ${isActive ? 'text-white' : 'text-white/40 hover:text-white/60'}
+                                                `}
+                                            >
+                                                {isActive && (
+                                                    <motion.div
+                                                        layoutId="settlementTabBg"
+                                                        className="absolute inset-0 bg-indigo-500 shadow-lg shadow-indigo-500/40 rounded-lg z-[-1]"
+                                                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                                                    />
+                                                )}
+                                                {method.label}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 mt-1.5">
@@ -3251,298 +3499,309 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 </div>
 
                 <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-                    <div className="flex-[1.5] overflow-auto p-6 space-y-4 border-r border-[var(--border)] relative">
-                        {settlementMethod === 'standard' ? (
-                            <>
-                                <div className="flex flex-col gap-3 mb-6 px-2">
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                        <LayoutGrid size={14} className="text-indigo-500" /> Detalle de Entregas
-                                    </h4>
-                                    <div className="flex items-center justify-end">
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                                                <button
-                                                    onClick={() => setViewMode('grid')}
-                                                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
-                                                >
-                                                    <LayoutGrid size={14} />
-                                                </button>
-                                                <button
-                                                    onClick={() => setViewMode('list')}
-                                                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
-                                                >
-                                                    <List size={14} />
-                                                </button>
+                    <div className="flex-[1.5] flex flex-col relative border-r border-[var(--border)]">
+                        <div className="flex-1 overflow-auto p-6 space-y-4 custom-scrollbar">
+                            {settlementMethod === 'standard' ? (
+                                <>
+                                    <div className="flex flex-col gap-3 mb-6 px-2">
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <LayoutGrid size={14} className="text-indigo-500" /> Detalle de Entregas
+                                        </h4>
+                                        <div className="flex items-center justify-end">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                                                    <button
+                                                        onClick={() => setViewMode('grid')}
+                                                        className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
+                                                    >
+                                                        <LayoutGrid size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setViewMode('list')}
+                                                        className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-400'}`}
+                                                    >
+                                                        <List size={14} />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {viewMode === 'grid' ? (
-                                    <div className="space-y-4">
-                                        {filteredOrders.map((order: any) => (
-                                            <div key={order.id} className={`p-5 rounded-3xl border transition-all ${order.estado_rendicion === 'Rechazado' ? 'bg-rose-50/50 border-rose-100 dark:bg-rose-500/5 dark:border-rose-500/20 grayscale' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-800 shadow-sm'}`}>
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div>
-                                                        <p className="font-black text-sm text-slate-800 dark:text-slate-100">{order.cliente_nombre}</p>
-                                                        <p className="text-[10px] text-slate-400 font-mono">#{order.id.slice(-8)}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className={`font-black text-sm ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
-                                                            ${order.total_final.toLocaleString()}
-                                                        </p>
-                                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter line-through">
-                                                            Orig: ${order.total_original.toLocaleString()}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex gap-2">
-                                                    {['Entregado', 'Parcial', 'Rechazado'].map(st => (
-                                                        <button
-                                                            key={st}
-                                                            onClick={() => toggleStatus(order.id, st)}
-                                                            className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${order.estado_rendicion === st
-                                                                ? (st === 'Entregado' ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                                                    : st === 'Rechazado' ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20'
-                                                                        : 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20')
-                                                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-indigo-300'
-                                                                }`}
-                                                        >
-                                                            {st}
-                                                        </button>
-                                                    ))}
-                                                </div>
-
-                                                {order.estado_rendicion === 'Parcial' && (
-                                                    <button
-                                                        onClick={() => setEditingPartialId(order.id)}
-                                                        className="w-full mt-3 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-[9px] font-black uppercase border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <Edit2 size={12} /> Ajustar Cantidades
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="bg-white dark:bg-slate-900 rounded-[30px] border border-[var(--border)] overflow-hidden">
-                                        <table className="w-full text-left">
-                                            <thead className="bg-slate-50 dark:bg-slate-800/50">
-                                                <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                    <th className="px-6 py-4">Cliente / ID</th>
-                                                    <th className="px-6 py-4">Importe</th>
-                                                    <th className="px-6 py-4 text-center">Estado</th>
-                                                    <th className="px-6 py-4 text-right">Ajuste</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {filteredOrders.map((order: any) => (
-                                                    <tr key={order.id} className={`group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors ${order.estado_rendicion === 'Rechazado' ? 'opacity-50' : ''}`}>
-                                                        <td className="px-6 py-4">
-                                                            <p className="font-bold text-xs">{order.cliente_nombre}</p>
-                                                            <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <p className={`font-black text-xs ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
+                                    {viewMode === 'grid' ? (
+                                        <div className="space-y-4">
+                                            {filteredOrders.map((order: any) => (
+                                                <div key={order.id} className={`p-5 rounded-3xl border transition-all ${order.estado_rendicion === 'Rechazado' ? 'bg-rose-50/50 border-rose-100 dark:bg-rose-500/5 dark:border-rose-500/20 grayscale' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-800 shadow-sm'}`}>
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <div>
+                                                            <p className="font-black text-sm text-slate-800 dark:text-slate-100">{order.cliente_nombre}</p>
+                                                            <p className="text-[10px] text-slate-400 font-mono">#{order.id.slice(-8)}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className={`font-black text-sm ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
                                                                 ${order.total_final.toLocaleString()}
                                                             </p>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-center">
-                                                            <div className="flex justify-center">
-                                                                <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
-                                                                    {['E', 'P', 'R'].map((label, idx) => {
-                                                                        const statuses = ['Entregado', 'Parcial', 'Rechazado'];
-                                                                        const st = statuses[idx];
-                                                                        const isActive = order.estado_rendicion === st;
-                                                                        return (
-                                                                            <button
-                                                                                key={st}
-                                                                                onClick={() => toggleStatus(order.id, st)}
-                                                                                className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-black transition-all ${isActive
-                                                                                    ? (st === 'Entregado' ? 'bg-emerald-500 text-white' : st === 'Rechazado' ? 'bg-rose-500 text-white' : 'bg-indigo-500 text-white')
-                                                                                    : 'text-slate-400 hover:text-slate-600'
-                                                                                    }`}
-                                                                            >
-                                                                                {label}
-                                                                            </button>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right">
-                                                            {order.estado_rendicion === 'Parcial' && (
-                                                                <button
-                                                                    onClick={() => setEditingPartialId(order.id)}
-                                                                    className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 rounded-lg"
-                                                                >
-                                                                    <Edit2 size={12} />
-                                                                </button>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            // --- MÉTODO ALTERNATIVO: DEVOLUCIONES MANUALES ---
-                            <div className="space-y-6">
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            <RotateCcw size={14} className="text-rose-500" /> Ingreso de Devoluciones (Stock)
-                                        </h4>
-                                    </div>
+                                                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter line-through">
+                                                                Orig: ${order.total_original.toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
 
-                                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] max-h-[400px] overflow-y-auto custom-scrollbar">
-                                        <table className="w-full text-left">
-                                            <thead>
-                                                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                    <th className="px-4 py-3">Producto</th>
-                                                    <th className="px-4 py-3 text-center">Cant.</th>
-                                                    <th className="px-4 py-3 text-center">Precio</th>
-                                                    <th className="px-4 py-3 text-right">Subtotal</th>
-                                                    <th className="px-4 py-3 text-right">Acción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {devoluciones.length === 0 ? (
-                                                    <tr>
-                                                        <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-bold text-xs italic">
-                                                            No hay devoluciones registradas manualmente
-                                                        </td>
+                                                    <div className="flex gap-2">
+                                                        {['Entregado', 'Parcial', 'Rechazado'].map(st => (
+                                                            <button
+                                                                key={st}
+                                                                onClick={() => toggleStatus(order.id, st)}
+                                                                className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${order.estado_rendicion === st
+                                                                    ? (st === 'Entregado' ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                                        : st === 'Rechazado' ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20'
+                                                                            : 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20')
+                                                                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-indigo-300'
+                                                                    }`}
+                                                            >
+                                                                {st}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+
+                                                    {order.estado_rendicion === 'Parcial' && (
+                                                        <button
+                                                            onClick={() => setEditingPartialId(order.id)}
+                                                            className="w-full mt-3 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-[9px] font-black uppercase border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <Edit2 size={12} /> Ajustar Cantidades
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="bg-white dark:bg-slate-900 rounded-[30px] border border-[var(--border)] overflow-hidden">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-slate-50 dark:bg-slate-800/50">
+                                                    <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                        <th className="px-6 py-4">Cliente / ID</th>
+                                                        <th className="px-6 py-4">Importe</th>
+                                                        <th className="px-6 py-4 text-center">Estado</th>
+                                                        <th className="px-6 py-4 text-right">Ajuste</th>
                                                     </tr>
-                                                ) : devoluciones.map((dev, idx) => (
-                                                    <tr key={dev.id_prod}>
-                                                        <td className="px-4 py-3">
-                                                            <p className="font-bold text-xs">{dev.nombre}</p>
-                                                            <p className="text-[9px] font-mono text-slate-400">{dev.id_prod}</p>
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex flex-col items-center gap-1.5">
-                                                                <div className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="number"
-                                                                        id={`dev-qty-${dev.id_prod}`}
-                                                                        value={dev.qty}
-                                                                        onChange={(e) => {
-                                                                            const n = parseFloat(e.target.value) || 0;
-                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
-                                                                        }}
-                                                                        className="w-12 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
-                                                                    />
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {filteredOrders.map((order: any) => (
+                                                        <tr key={order.id} className={`group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors ${order.estado_rendicion === 'Rechazado' ? 'opacity-50' : ''}`}>
+                                                            <td className="px-6 py-4">
+                                                                <p className="font-bold text-xs">{order.cliente_nombre}</p>
+                                                                <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <p className={`font-black text-xs ${order.estado_rendicion === 'Rechazado' ? 'text-rose-500' : 'text-indigo-600'}`}>
+                                                                    ${order.total_final.toLocaleString()}
+                                                                </p>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-center">
+                                                                <div className="flex justify-center">
+                                                                    <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
+                                                                        {['E', 'P', 'R'].map((label, idx) => {
+                                                                            const statuses = ['Entregado', 'Parcial', 'Rechazado'];
+                                                                            const st = statuses[idx];
+                                                                            const isActive = order.estado_rendicion === st;
+                                                                            return (
+                                                                                <button
+                                                                                    key={st}
+                                                                                    onClick={() => toggleStatus(order.id, st)}
+                                                                                    className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-black transition-all ${isActive
+                                                                                        ? (st === 'Entregado' ? 'bg-emerald-500 text-white' : st === 'Rechazado' ? 'bg-rose-500 text-white' : 'bg-indigo-500 text-white')
+                                                                                        : 'text-slate-400 hover:text-slate-600'
+                                                                                        }`}
+                                                                                >
+                                                                                    {label}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
                                                                 </div>
-                                                                {(dev.ub || 1) > 1 && (
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                {order.estado_rendicion === 'Parcial' && (
                                                                     <button
-                                                                        onClick={() => {
-                                                                            const nextFmt = dev.formato === 'UNID' ? 'BULTO' : 'UNID';
-                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, formato: nextFmt, subtotal: d.qty * d.precio * (nextFmt === 'BULTO' ? (d.ub || 1) : 1) } : d));
-                                                                        }}
-                                                                        className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all ${dev.formato === 'BULTO' ? 'bg-amber-500 border-amber-500 text-white' : 'border-indigo-200 text-indigo-500 hover:bg-indigo-50 dark:border-indigo-900/30'}`}
+                                                                        onClick={() => setEditingPartialId(order.id)}
+                                                                        className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 rounded-lg"
                                                                     >
-                                                                        {dev.formato} (x{dev.ub || 1})
+                                                                        <Edit2 size={12} />
                                                                     </button>
                                                                 )}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex justify-center">
-                                                                <input
-                                                                    type="number"
-                                                                    value={dev.precio}
-                                                                    onChange={(e) => {
-                                                                        const p = parseFloat(e.target.value) || 0;
-                                                                        setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p * (d.formato === 'BULTO' ? d.ub : 1) } : d));
-                                                                    }}
-                                                                    className="w-16 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
-                                                                />
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right">
-                                                            <p className="font-black text-xs text-rose-500">${dev.subtotal.toLocaleString()}</p>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right">
-                                                            <button
-                                                                onClick={() => setDevoluciones(devoluciones.filter((_, i) => i !== idx))}
-                                                                className="p-1.5 text-slate-400 hover:text-rose-500 rounded"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
-                                                        </td>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                // --- MÉTODO ALTERNATIVO: DEVOLUCIONES MANUALES ---
+                                <div className="space-y-6">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <RotateCcw size={14} className="text-rose-500" /> Ingreso de Devoluciones (Stock)
+                                            </h4>
+                                        </div>
+
+                                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] max-h-[400px] overflow-y-auto custom-scrollbar">
+                                            <table className="w-full text-left">
+                                                <thead>
+                                                    <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                        <th className="px-4 py-3">Producto</th>
+                                                        <th className="px-4 py-3 text-center">Cant.</th>
+                                                        <th className="px-4 py-3 text-center">Precio</th>
+                                                        <th className="px-4 py-3 text-right">Subtotal</th>
+                                                        <th className="px-4 py-3 text-right">Acción</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {devoluciones.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-bold text-xs italic">
+                                                                No hay devoluciones registradas manualmente
+                                                            </td>
+                                                        </tr>
+                                                    ) : devoluciones.map((dev, idx) => (
+                                                        <tr key={dev.id_prod}>
+                                                            <td className="px-4 py-3">
+                                                                <p className="font-bold text-xs">{dev.nombre}</p>
+                                                                <p className="text-[9px] font-mono text-slate-400">{dev.id_prod}</p>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex flex-col items-center gap-1.5">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <input
+                                                                            type="number"
+                                                                            id={`dev-qty-${dev.id_prod}`}
+                                                                            value={dev.qty}
+                                                                            onChange={(e) => {
+                                                                                const n = parseFloat(e.target.value) || 0;
+                                                                                setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
+                                                                            }}
+                                                                            className="w-12 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
+                                                                        />
+                                                                    </div>
+                                                                    {(dev.ub || 1) > 1 && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const nextFmt = dev.formato === 'UNID' ? 'BULTO' : 'UNID';
+                                                                                setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, formato: nextFmt, subtotal: d.qty * d.precio * (nextFmt === 'BULTO' ? (d.ub || 1) : 1) } : d));
+                                                                            }}
+                                                                            className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all ${dev.formato === 'BULTO' ? 'bg-amber-500 border-amber-500 text-white' : 'border-indigo-200 text-indigo-500 hover:bg-indigo-50 dark:border-indigo-900/30'}`}
+                                                                        >
+                                                                            {dev.formato} (x{dev.ub || 1})
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex justify-center">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={dev.precio}
+                                                                        onChange={(e) => {
+                                                                            const p = parseFloat(e.target.value) || 0;
+                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p * (d.formato === 'BULTO' ? d.ub : 1) } : d));
+                                                                        }}
+                                                                        className="w-16 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
+                                                                    />
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right">
+                                                                <p className="font-black text-xs text-rose-500">${dev.subtotal.toLocaleString()}</p>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right">
+                                                                <button
+                                                                    onClick={() => setDevoluciones(devoluciones.filter((_, i) => i !== idx))}
+                                                                    className="p-1.5 text-slate-400 hover:text-rose-500 rounded"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <DollarSign size={14} className="text-emerald-500" /> Cobranza por Pedido
+                                        </h4>
+                                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] overflow-hidden">
+                                            <table className="w-full text-left">
+                                                <thead>
+                                                    <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                        <th className="px-4 py-3">Cliente</th>
+                                                        <th className="px-4 py-3">Total Pedido</th>
+                                                        <th className="px-4 py-3 text-center">Pagado EF</th>
+                                                        <th className="px-4 py-3 text-center">Pagado TR</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {filteredOrders.map((order: any) => (
+                                                        <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                                                            <td className="px-4 py-3">
+                                                                <p className="font-bold text-xs">{order.cliente_nombre}</p>
+                                                                <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <p className="font-black text-xs text-indigo-600">${order.total_original.toLocaleString()}</p>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex justify-center">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={order.pago_efectivo || ''}
+                                                                        onChange={(e) => {
+                                                                            const val = parseFloat(e.target.value) || 0;
+                                                                            setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_efectivo: val } : o));
+                                                                        }}
+                                                                        className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-emerald-600"
+                                                                        placeholder="$ 0"
+                                                                    />
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex justify-center">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={order.pago_transferencia || ''}
+                                                                        onChange={(e) => {
+                                                                            const val = parseFloat(e.target.value) || 0;
+                                                                            setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_transferencia: val } : o));
+                                                                        }}
+                                                                        className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-blue-600"
+                                                                        placeholder="$ 0"
+                                                                    />
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
+                            )}
+                        </div>
 
-                                <div className="space-y-4">
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                        <DollarSign size={14} className="text-emerald-500" /> Cobranza por Pedido
-                                    </h4>
-                                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] overflow-hidden">
-                                        <table className="w-full text-left">
-                                            <thead>
-                                                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                    <th className="px-4 py-3">Cliente</th>
-                                                    <th className="px-4 py-3">Total Pedido</th>
-                                                    <th className="px-4 py-3 text-center">Pagado EF</th>
-                                                    <th className="px-4 py-3 text-center">Pagado TR</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                {filteredOrders.map((order: any) => (
-                                                    <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                                                        <td className="px-4 py-3">
-                                                            <p className="font-bold text-xs">{order.cliente_nombre}</p>
-                                                            <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <p className="font-black text-xs text-indigo-600">${order.total_original.toLocaleString()}</p>
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex justify-center">
-                                                                <input
-                                                                    type="number"
-                                                                    value={order.pago_efectivo || ''}
-                                                                    onChange={(e) => {
-                                                                        const val = parseFloat(e.target.value) || 0;
-                                                                        setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_efectivo: val } : o));
-                                                                    }}
-                                                                    className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-emerald-600"
-                                                                    placeholder="$ 0"
-                                                                />
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex justify-center">
-                                                                <input
-                                                                    type="number"
-                                                                    value={order.pago_transferencia || ''}
-                                                                    onChange={(e) => {
-                                                                        const val = parseFloat(e.target.value) || 0;
-                                                                        setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_transferencia: val } : o));
-                                                                    }}
-                                                                    className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-blue-600"
-                                                                    placeholder="$ 0"
-                                                                />
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                {/* FAB para Agregar Devolución */}
-                                <div className="absolute bottom-8 right-8 z-[70] flex flex-col items-end">
+                        {/* FAB para Agregar Devolución - Solo en modo alternativo */}
+                        {settlementMethod === 'alternative' && (
+                            <div className="absolute bottom-8 right-8 z-[70] flex flex-col items-end">
+                                <AnimatePresence>
                                     {showReturnDropdown && (
-                                        <div className="mb-4 w-72 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden p-2 origin-bottom-right animate-in fade-in slide-in-from-bottom-4">
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                            className="mb-4 w-72 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden p-2 origin-bottom-right"
+                                        >
                                             <input
                                                 type="text"
                                                 placeholder="Buscar producto..."
@@ -3552,23 +3811,25 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                 className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-xl px-3 py-2 text-xs font-bold mb-2 outline-none"
                                             />
                                             <div className="max-h-48 overflow-auto space-y-1 custom-scrollbar">
-                                                {products.filter((p: any) => smartSearch(`${p.Nombre} ${p.ID_Producto}`, returnSearch)).slice(0, 30).map((p: any) => {
-                                                    const itemPrice = parseFloat(String(p.Precio_Unitario || 0).replace(',', '.'));
+                                                {filteredReturnProducts.map((p: any) => {
+                                                    const itemPrice = parseFloat(String(p.Precio_Unitario || p.precio || 0).replace(',', '.'));
                                                     return (
                                                         <button
-                                                            key={p.ID_Producto}
+                                                            key={p.ID_Producto || p.id}
                                                             onClick={() => {
+                                                                const pid = p.ID_Producto || p.id;
+                                                                const pName = p.Nombre || p.nombre || p.PRODUCTO;
                                                                 const rawUb = p.UB || p.Unidades_Bulto || "1";
                                                                 const ub = parseFloat(String(rawUb).replace(',', '.'));
 
                                                                 setDevoluciones((prev) => {
-                                                                    const exists = prev.find(d => d.id_prod === p.ID_Producto);
+                                                                    const exists = prev.find(d => String(d.id_prod) === String(pid));
                                                                     if (exists) {
-                                                                        return prev.map((d) => d.id_prod === p.ID_Producto ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * (d.precio || 0) * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d);
+                                                                        return prev.map((d) => String(d.id_prod) === String(pid) ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * (d.precio || 0) * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d);
                                                                     } else {
                                                                         return [...prev, {
-                                                                            id_prod: p.ID_Producto,
-                                                                            nombre: p.Nombre,
+                                                                            id_prod: String(pid),
+                                                                            nombre: pName,
                                                                             qty: 1,
                                                                             precio: itemPrice,
                                                                             subtotal: itemPrice,
@@ -3580,7 +3841,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                 setShowReturnDropdown(false);
                                                                 setReturnSearch("");
                                                                 setTimeout(() => {
-                                                                    const input = document.getElementById(`dev-qty-${p.ID_Producto}`);
+                                                                    const input = document.getElementById(`dev-qty-${pid}`);
                                                                     if (input) {
                                                                         input.focus();
                                                                         (input as HTMLInputElement).select();
@@ -3590,23 +3851,27 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                             className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0"
                                                         >
                                                             <div className="flex justify-between items-center">
-                                                                <span>{p.Nombre}</span>
-                                                                <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-md font-black">${itemPrice.toLocaleString()}</span>
+                                                                <span className="truncate mr-2">{p.Nombre || p.nombre || p.PRODUCTO}</span>
+                                                                <span className="text-[10px] text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-md font-black shrink-0">${itemPrice.toLocaleString()}</span>
                                                             </div>
                                                         </button>
                                                     );
                                                 })}
+                                                {filteredReturnProducts.length === 0 && (
+                                                    <div className="p-4 text-center text-[10px] text-slate-400 font-bold uppercase">No se encontraron productos</div>
+                                                )}
                                             </div>
-                                        </div>
+                                        </motion.div>
                                     )}
-                                    <button
-                                        onClick={() => setShowReturnDropdown(!showReturnDropdown)}
-                                        className="w-14 h-14 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(244,63,94,0.4)] hover:scale-110 active:scale-95 transition-all group"
-                                        title="Agregar Devolución"
-                                    >
-                                        <Plus size={24} className={`transition-transform duration-300 ${showReturnDropdown ? 'rotate-45' : ''}`} />
-                                    </button>
-                                </div>
+                                </AnimatePresence>
+
+                                <button
+                                    onClick={() => setShowReturnDropdown(!showReturnDropdown)}
+                                    className="w-14 h-14 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(244,63,94,0.4)] hover:scale-110 active:scale-95 transition-all group"
+                                    title="Agregar Devolución"
+                                >
+                                    <Plus size={24} className={`transition-transform duration-300 ${showReturnDropdown ? 'rotate-45' : ''}`} />
+                                </button>
                             </div>
                         )}
                     </div>
@@ -3791,8 +4056,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                             <div className="max-h-48 overflow-auto">
                                                 {localOrders.filter((o: any) =>
                                                     !cuentasCorrientes.some((cc: any) => cc.orderId === o.id) &&
-                                                    (o.cliente_nombre?.toLowerCase().includes(ccSearch.toLowerCase()) ||
-                                                        o.id?.toLowerCase().includes(ccSearch.toLowerCase()))
+                                                    smartSearch(`${o.cliente_nombre} ${o.id}`, ccSearch)
                                                 ).map((o: any) => (
                                                     <button
                                                         key={o.id}

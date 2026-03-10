@@ -347,6 +347,8 @@ export const wandaApi: Record<string, any> = {
             EFECTIVO: efectivo,
             TRANSF: transferencia,
             GASTOS: gastosTotal,
+            CUENTAS_CORRIENTES: parseFloat(data.total_cuentas_corrientes || 0),
+            DEVOLUCIONES: parseFloat(data.total_devoluciones || 0),
             TOTAL_NETO: (efectivo + transferencia) - gastosTotal,
             OBS: data.notas || "",
             ORDENES_JSON: JSON.stringify({ ordenes: data.ordenes || [] }), // Retro-compatibilidad visual
