@@ -741,9 +741,12 @@ export default function LogisticaPage() {
     };
 
 
-    const printOrders = (orderList: any[]) => {
+    const printOrders = (rawOrderList: any[]) => {
+        // Filtrar pedidos vacíos (total 0)
+        const orderList = rawOrderList.filter(o => (parseFloat(String(o.total).replace(',', '.')) || 0) > 0);
+
         const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
+        if (!printWindow || orderList.length === 0) return;
 
         const html = `
             <html>
@@ -808,7 +811,12 @@ export default function LogisticaPage() {
             </head>
             <body>
                 ${orderList.map((order, index) => {
-            const isLong = order.items && order.items.length > 14;
+            // Filtrar items con cantidad 0
+            const activeItems = (order.items || []).filter((it: any) => {
+                const q = parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.'));
+                return q > 0;
+            });
+            const isLong = activeItems.length > 14;
             const copies = ['ORIGINAL', 'DUPLICADO'].map((type) => `
                             <div class="remito ${isLong ? 'long-format' : ''}">
                                 <div class="copy-type">${type}</div>
@@ -872,7 +880,7 @@ export default function LogisticaPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                ${order.items.map((item: any) => {
+                                                ${activeItems.map((item: any) => {
                     const qty = item.cantidad || item.CANTIDAD || 0;
                     const bul = item.bultos || item.BULTOS || 0;
                     const uni = item.unidades || item.UNIDADES || 0;
@@ -908,7 +916,7 @@ export default function LogisticaPage() {
                                                             </tr>
                                                         `;
                 }).join('')}
-                                                ${/* Relleno para que el remito tenga altura constante */ Array(Math.max(0, 14 - (order.items?.length || 0))).fill(0).map(() => `
+                                                ${/* Relleno para que el remito tenga altura constante */ Array(Math.max(0, 14 - activeItems.length)).fill(0).map(() => `
                                                     <tr class="item-row">
                                                         <td class="cen">&nbsp;</td>
                                                         <td class="cen">&nbsp;</td>
