@@ -417,6 +417,7 @@ export default function LogisticaPage() {
     const [viewingOrdersRoute, setViewingOrdersRoute] = useState<string | null>(null);
     const [viewingDetailId, setViewingDetailId] = useState<string | null>(null);
     const [routeSearchTerm, setRouteSearchTerm] = useState("");
+    const [routeViewMode, setRouteViewMode] = useState<'grid' | 'list'>('grid');
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [assignRouteName, setAssignRouteName] = useState("");
 
@@ -1710,24 +1711,42 @@ export default function LogisticaPage() {
                     {activeTab === 'rutas' && (
                         <div className="space-y-6">
                             <div className="bg-[var(--card)] border border-[var(--border)] p-4 rounded-2xl shadow-sm">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar hoja de ruta por nombre de chofer o transporte..."
-                                        value={routeSearchTerm}
-                                        onChange={(e) => setRouteSearchTerm(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                    />
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar hoja de ruta por nombre de chofer o transporte..."
+                                            value={routeSearchTerm}
+                                            onChange={(e) => setRouteSearchTerm(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-[var(--border)] shadow-inner">
+                                        <button
+                                            onClick={() => setRouteViewMode('grid')}
+                                            className={`p-2 rounded-lg transition-all duration-200 ${routeViewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                            title="Vista Grilla"
+                                        >
+                                            <LayoutGrid size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => setRouteViewMode('list')}
+                                            className={`p-2 rounded-lg transition-all duration-200 ${routeViewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                            title="Vista Lista"
+                                        >
+                                            <List size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {routeInfo.length === 0 ? (
-                                    <div className="col-span-full p-12 text-center text-slate-400 font-bold bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
-                                        No se encontraron hojas de ruta {routeSearchTerm ? 'que coincidan con la búsqueda' : 'activas'}
-                                    </div>
-                                ) : (
-                                    routeInfo.map(route => (
+                            {routeInfo.length === 0 ? (
+                                <div className="p-12 text-center text-slate-400 font-bold bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
+                                    No se encontraron hojas de ruta {routeSearchTerm ? 'que coincidan con la búsqueda' : 'activas'}
+                                </div>
+                            ) : routeViewMode === 'grid' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {routeInfo.map(route => (
                                         <RouteCard
                                             key={route.name}
                                             name={route.name}
@@ -1742,9 +1761,72 @@ export default function LogisticaPage() {
                                             onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)}
                                             onSettlement={() => setSettlingRoute(route.name)}
                                         />
-                                    ))
-                                )}
-                            </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden overflow-x-auto shadow-sm">
+                                    <table className="w-full border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-[var(--border)]">
+                                                <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-16">#</th>
+                                                <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Ruta / Chofer</th>
+                                                <th className="p-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">Entregas</th>
+                                                <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-40">Estado</th>
+                                                <th className="p-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest w-64">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[var(--border)]">
+                                            {routeInfo.map(route => {
+                                                const count = orders.filter(o => o.reparto === route.name).length;
+                                                return (
+                                                    <tr key={route.name} className={`hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${route.isReopened ? 'bg-amber-500/5' : ''}`}>
+                                                        <td className="p-4">
+                                                            <span className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-black border border-[var(--border)] shadow-sm">
+                                                                {route.index}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <Truck size={14} className={route.isReopened ? 'text-amber-500' : 'text-indigo-500'} />
+                                                                <span className={`font-bold ${route.isReopened ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                                    {route.name}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-center">
+                                                            <span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500">
+                                                                {count}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            {route.isReopened ? (
+                                                                <span className="px-2 py-1 rounded-md bg-amber-500/10 text-amber-600 text-[9px] font-black uppercase tracking-wider border border-amber-500/20">
+                                                                    Reabierta
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-600 text-[9px] font-black uppercase tracking-wider border border-indigo-500/20">
+                                                                    Activa
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-4 text-right whitespace-nowrap">
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <button onClick={() => setViewingOrdersRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Ver Pedidos"><Eye size={16} /></button>
+                                                                <button onClick={() => setEditingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Gestionar"><Edit2 size={16} /></button>
+                                                                <button onClick={() => printOrders(orders.filter(o => o.reparto === route.name))} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Imprimir Remitos"><Printer size={16} /></button>
+                                                                <button onClick={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-emerald-500 transition-colors" title="Picking"><Package size={16} /></button>
+                                                                <button onClick={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-amber-500 transition-colors" title="Hoja de Ruta"><MapPin size={16} /></button>
+                                                                <button onClick={() => setSettlingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Liquidar"><CheckCircle size={16} /></button>
+                                                                <button onClick={() => handleLiberarReparto(route.name)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Liberar Ruta"><Trash2 size={16} /></button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
 
