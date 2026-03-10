@@ -28,6 +28,7 @@ import {
     Calendar,
     ChevronDown,
     ChevronUp,
+    Clock,
     MessageCircle,
     Copy,
     Save,
@@ -37,7 +38,6 @@ import {
     DollarSign,
     Loader2,
     Settings,
-    Clock,
     Edit2,
     Minus,
     Layers,
@@ -67,7 +67,9 @@ const printSettlement = (data: {
     totalDevoluciones: number,
     balanceDiferencia: number,
     netoARendir: number,
-    devoluciones?: any[]
+    devoluciones?: any[],
+    cuentasCorrientes?: any[],
+    totalCuentasCorrientes?: number
 }, mode: 'full' | 'audit' = 'full') => {
     const win = window.open('', '_blank');
     if (!win) return;
@@ -105,6 +107,14 @@ const printSettlement = (data: {
             <td>${d.qty} ${d.formato || 'UNID'}</td>
             <td style="text-align:right">$${(d.precio || 0).toLocaleString()}</td>
             <td style="text-align:right">$${(d.subtotal || 0).toLocaleString()}</td>
+        </tr>
+    `).join('');
+
+    const ccRows = (data.cuentasCorrientes || []).map((cc: any) => `
+        <tr>
+            <td>${cc.cliente}</td>
+            <td># ${cc.orderId}</td>
+            <td style="text-align:right">$${(cc.monto || 0).toLocaleString()}</td>
         </tr>
     `).join('');
 
@@ -186,6 +196,18 @@ const printSettlement = (data: {
                                 </tbody>
                             </table>
                         </div>
+
+                        <div class="card">
+                            <div class="card-title">Cuentas Corrientes (No Cobrado)</div>
+                            <table>
+                                <thead>
+                                    <tr><th>Cliente</th><th>Boleta</th><th style="text-align:right">Monto</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${ccRows || '<tr><td colspan="3" style="text-align:center">Sin Cuentas Corrientes</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <!-- Columna Derecha: Auditoría Unificada -->
@@ -208,6 +230,10 @@ const printSettlement = (data: {
                                     <span>$${(data.gastosTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div class="audit-row" style="opacity: 0.9;">
+                                    <span>(-) Cuentas Corrientes</span>
+                                    <span>$${(data.totalCuentasCorrientes || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                <div class="audit-row" style="opacity: 0.9;">
                                     <span>(-) Efectivo (Desglose)</span>
                                     <span>$${data.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
@@ -227,7 +253,7 @@ const printSettlement = (data: {
                             </div>
                             
                             <div style="font-size: 10px; color: #94a3b8; margin-top: 20px; text-align: center; font-style: italic; font-weight: 700;">
-                                Fórmula: (Neto a Rendir) - (Devoluciones + Gastos + Efectivo + Transf)
+                                Fórmula: (Neto a Rendir) - (Devoluciones + Gastos + CC + Efectivo + Transf)
                             </div>
                         </div>
                     </div>
@@ -2894,6 +2920,9 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'none'>('none');
     const [showBillBreakdown, setShowBillBreakdown] = useState(false);
     const [billetes, setBilletes] = useState<Record<number, number>>({});
+    const [cuentasCorrientes, setCuentasCorrientes] = useState<{ orderId: string, cliente: string, monto: number }[]>([]);
+    const [ccSearch, setCcSearch] = useState("");
+    const [showCcDropdown, setShowCcDropdown] = useState(false);
 
     // --- PERSISTENCIA: Cargar borrador ---
     useEffect(() => {
@@ -2922,6 +2951,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 if (data.settlementMethod) setSettlementMethod(data.settlementMethod);
                 if (data.devoluciones) setDevoluciones(data.devoluciones);
                 if (data.billetes) setBilletes(data.billetes);
+                if (data.cuentasCorrientes) setCuentasCorrientes(data.cuentasCorrientes);
                 setDraftStatus('saved');
             }
         };
@@ -2940,6 +2970,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 settlementMethod,
                 devoluciones,
                 billetes,
+                cuentasCorrientes,
                 updatedAt: new Date().toISOString()
             };
 
@@ -2957,7 +2988,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
         }, 1200);
 
         return () => clearTimeout(timeout);
-    }, [localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes, routeName]);
+    }, [localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes, cuentasCorrientes, routeName]);
 
     const clearDraft = async () => {
         localStorage.removeItem(`wanda_settlement_${routeName}`);
@@ -2993,6 +3024,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const totalPagosPedidos = localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0) + (o.pago_transferencia || 0), 0);
 
     const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+    const totalCuentasCorrientes = cuentasCorrientes.reduce((acc, cc) => acc + (cc.monto || 0), 0);
 
     const totalEfectivoDesglose = useMemo(() => {
         return Object.entries(billetes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0);
@@ -3009,6 +3041,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const balanceDiferencia = netoARendir - (
         (settlementMethod === 'alternative' ? totalDevolucionesVal : 0) +
         totalGastos +
+        totalCuentasCorrientes +
         totalEfectivoDesglose +
         totalTransfCalculado
     );
@@ -3040,6 +3073,8 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             netoARendir: netoARendir,
             billetes,
             gastos,
+            cuentasCorrientes,
+            totalCuentasCorrientes,
             ordenes: localOrders.map((o: any) => ({
                 id: o.id,
                 cliente_nombre: o.cliente_nombre,
@@ -3108,11 +3143,13 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                     transferencia: localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0)
                 } : pagos,
                 gastos,
+                cuentas_corrientes: cuentasCorrientes,
+                total_cuentas_corrientes: totalCuentasCorrientes,
                 notas: `Liquidación de ruta ${routeName}${settlementMethod === 'alternative' ? ' (Método Alternativo)' : ''}`,
                 desglose_billetes: billetes,
                 // Metadata para recuperación:
                 _full_draft: {
-                    localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes
+                    localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes, cuentasCorrientes
                 }
             };
 
@@ -3727,6 +3764,96 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                             </div>
                         </div>
 
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                    <Clock size={14} className="text-amber-500" /> Cuentas Corrientes
+                                </h4>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowCcDropdown(!showCcDropdown)}
+                                        className="p-1.5 bg-amber-50 dark:bg-amber-500/10 text-amber-600 rounded-lg hover:bg-amber-600 hover:text-white transition-all flex items-center gap-1"
+                                    >
+                                        <Plus size={14} /> <span className="text-[10px] font-black">AGREGAR</span>
+                                    </button>
+
+                                    {showCcDropdown && (
+                                        <div className="absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
+                                            <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                                <input
+                                                    placeholder="Buscar boleta / cliente..."
+                                                    value={ccSearch}
+                                                    onChange={e => setCcSearch(e.target.value)}
+                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-[10px] font-bold outline-none"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="max-h-48 overflow-auto">
+                                                {localOrders.filter((o: any) =>
+                                                    !cuentasCorrientes.some((cc: any) => cc.orderId === o.id) &&
+                                                    (o.cliente_nombre?.toLowerCase().includes(ccSearch.toLowerCase()) ||
+                                                        o.id?.toLowerCase().includes(ccSearch.toLowerCase()))
+                                                ).map((o: any) => (
+                                                    <button
+                                                        key={o.id}
+                                                        onClick={() => {
+                                                            const montoCC = o.total_final || o.total;
+                                                            setCuentasCorrientes([...cuentasCorrientes, {
+                                                                orderId: o.id,
+                                                                cliente: o.cliente_nombre,
+                                                                monto: montoCC
+                                                            }]);
+                                                            // Al pasar a CC, si estamos en modo estándar, seteamos pagos a 0 para ese pedido
+                                                            setLocalOrders((prev: any[]) => prev.map((lo: any) => lo.id === o.id ? { ...lo, pago_efectivo: 0, pago_transferencia: 0 } : lo));
+                                                            setShowCcDropdown(false);
+                                                            setCcSearch("");
+                                                        }}
+                                                        className="w-full px-4 py-2 text-left hover:bg-amber-50 dark:hover:bg-amber-500/10 border-b border-slate-50 dark:border-slate-800 last:border-0"
+                                                    >
+                                                        <div className="text-[10px] font-black truncate">{o.cliente_nombre}</div>
+                                                        <div className="flex justify-between items-center opacity-60">
+                                                            <span className="text-[9px] font-bold"># {o.id}</span>
+                                                            <span className="text-[9px] font-black text-amber-600">$ {parseFloat(o.total_final).toLocaleString()}</span>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                                {localOrders.filter((o: any) => !cuentasCorrientes.some((cc: any) => cc.orderId === o.id)).length === 0 && (
+                                                    <div className="p-4 text-center text-[10px] text-slate-400 font-bold uppercase">No hay boletas disponibles</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                {cuentasCorrientes.map((cc, idx) => (
+                                    <div key={idx} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-xl p-3 flex justify-between items-center group hover:border-amber-500/50 transition-all">
+                                        <div className="flex-1">
+                                            <p className="text-[10px] font-black text-slate-800 dark:text-slate-100 truncate">{cc.cliente}</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">BOLETA # {cc.orderId}</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="text-right">
+                                                <p className="text-[9px] font-black text-amber-600">$ {cc.monto.toLocaleString()}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const removed = cuentasCorrientes[idx];
+                                                    setCuentasCorrientes(cuentasCorrientes.filter((_, i) => i !== idx));
+                                                    // Restauramos pago efectivo si se quita de CC (comportamiento por defecto)
+                                                    setLocalOrders((prev: any[]) => prev.map((lo: any) => lo.id === removed.orderId ? { ...lo, pago_efectivo: lo.total_final } : lo));
+                                                }}
+                                                className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
                         <div className="pt-6 border-t border-[var(--border)] mt-auto space-y-4">
                             <div className="flex justify-between items-center text-slate-400 text-[10px] font-black uppercase tracking-widest px-2">
                                 <span>{settlementMethod === 'standard' ? 'Total Vendido' : 'Carga Total Distribuida'}</span>
@@ -3741,6 +3868,10 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                             <div className="flex justify-between items-center text-slate-400 text-[10px] font-black uppercase tracking-widest px-2">
                                 <span>Gastos de Ruta</span>
                                 <span className="text-rose-500">-${totalGastos.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-slate-400 text-[10px] font-black uppercase tracking-widest px-2">
+                                <span>Cuentas Corrientes</span>
+                                <span className="text-rose-500">-${totalCuentasCorrientes.toLocaleString()}</span>
                             </div>
 
                             <div className="p-6 bg-slate-900 dark:bg-white rounded-[32px] text-white dark:text-slate-900 shadow-2xl shadow-indigo-500/10">
@@ -3774,6 +3905,10 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                         <span>Gastos</span>
                                         <span>- $ {totalGastos.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                     </div>
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-rose-300 uppercase">
+                                        <span>Ctas. Corrientes</span>
+                                        <span>- $ {totalCuentasCorrientes.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
                                     {settlementMethod === 'alternative' && (
                                         <div className="flex justify-between items-center text-[10px] font-bold text-rose-300 uppercase">
                                             <span>Devoluciones</span>
@@ -3783,8 +3918,8 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                 </div>
 
                                 <div className="flex justify-between items-center">
-                                    <div className="text-[9px] font-black uppercase opacity-60 tracking-tighter text-indigo-200">Total Auditado (Dinero + Gastos + Dev)</div>
-                                    <div className="text-lg font-black">$ {(totalEfectivoDesglose + totalTransfCalculado + totalGastos + (settlementMethod === 'alternative' ? totalDevolucionesVal : 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                    <div className="text-[9px] font-black uppercase opacity-60 tracking-tighter text-indigo-200">Total Auditado (Dinero + Gastos + Dev + CC)</div>
+                                    <div className="text-lg font-black">$ {(totalEfectivoDesglose + totalTransfCalculado + totalGastos + totalCuentasCorrientes + (settlementMethod === 'alternative' ? totalDevolucionesVal : 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                                 </div>
                             </div>
 
