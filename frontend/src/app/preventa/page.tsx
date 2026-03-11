@@ -31,7 +31,9 @@ import {
     Bell,
     FileText,
     EyeOff,
-    Trash
+    Trash,
+    FileEdit,
+    Edit3
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
@@ -106,6 +108,7 @@ export default function PreventaPage() {
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
     const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
     const [viewingOrder, setViewingOrder] = useState<any>(null);
+    const [editingOrder, setEditingOrder] = useState<any>(null);
     const [activeSearch, setActiveSearch] = useState<'client' | 'product' | null>(null);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
@@ -496,6 +499,43 @@ export default function PreventaPage() {
         }
     };
 
+    const handleEditOrder = (order: any) => {
+        if (order.reparto && order.reparto !== "null" && order.reparto.trim() !== "") {
+            alert("No puedes editar este pedido porque ya ha sido asignado a un reparto.");
+            return;
+        }
+
+        setEditingOrder(order);
+
+        const newCarrito: { [key: string]: number } = {};
+        const newModoBulto: { [key: string]: boolean } = {};
+
+        (order.items || []).forEach((item: any) => {
+            const id = item.id_prod || item.id_producto || item.id;
+            newCarrito[id] = item.cantidad;
+            newModoBulto[id] = !!item.esBulto;
+        });
+
+        setCarrito(newCarrito);
+        setModoBulto(newModoBulto);
+
+        const client = order.cliente || { Nombre_Negocio: order.cliente_nombre, ID_Cliente: order.cliente_id };
+        setSelectedClient(client);
+        setClientSearch(client.Nombre_Negocio);
+        setOrderNotes(order.notas || "");
+
+        setIsHistoryOpen(false);
+        setIsCartOpen(true);
+    };
+
+    const cancelEditOrder = () => {
+        setEditingOrder(null);
+        setCarrito({});
+        setSelectedClient(null);
+        setClientSearch("");
+        setOrderNotes("");
+    };
+
     const handleConfirmOrder = async () => {
         if (!selectedClient) {
             alert("❌ Debes seleccionar un cliente");
@@ -525,8 +565,8 @@ export default function PreventaPage() {
         }
 
         const orderData = {
-            id_interno: Date.now(),
-            id: `PREV-${Date.now()}`,
+            id_interno: editingOrder ? editingOrder.id_interno : Date.now(),
+            id: editingOrder ? editingOrder.id : `PREV-${Date.now()}`,
             cliente: selectedClient,
             vendedor: vendedorName,
             items: Object.entries(carrito).map(([id, qty]) => {
@@ -576,13 +616,17 @@ export default function PreventaPage() {
         };
 
         try {
-            await wandaApi.createOrder(orderData);
-
-            // Ya no guardamos en historial local, se sincroniza solo
-            refreshData(true);
-
-            setLastOrderData(orderData);
-            setIsSuccessModalOpen(true); // Set success modal open
+            if (editingOrder) {
+                await wandaApi.saveOrderCorrection(orderData);
+                alert("✅ Pedido actualizado con éxito");
+                setEditingOrder(null);
+                refreshData(true);
+            } else {
+                await wandaApi.createOrder(orderData);
+                refreshData(true);
+                setLastOrderData(orderData);
+                setIsSuccessModalOpen(true);
+            }
 
             setCarrito({});
             setSelectedClient(null);
@@ -601,6 +645,7 @@ export default function PreventaPage() {
             setSelectedClient(null);
             setClientSearch("");
             setOrderNotes("");
+            setEditingOrder(null);
             setIsCartOpen(false);
         } finally {
             setIsSubmitting(false);
@@ -1498,13 +1543,23 @@ export default function PreventaPage() {
                                     <span className="text-sm font-bold text-slate-400 uppercase">Total</span>
                                     <span className="text-3xl font-black text-indigo-600">${calculateTotal().toLocaleString()}</span>
                                 </div>
+                                {editingOrder && (
+                                    <button
+                                        onClick={cancelEditOrder}
+                                        className="w-full py-3 mb-2 rounded-[24px] font-black uppercase text-[10px] tracking-widest text-rose-500 bg-rose-50 dark:bg-rose-900/30 transition-all hover:bg-rose-100 dark:hover:bg-rose-900/50"
+                                    >
+                                        Cancelar Edición
+                                    </button>
+                                )}
                                 <button
                                     onClick={handleConfirmOrder}
                                     disabled={isSubmitting}
-                                    className={`w-full py-5 rounded-[24px] font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2 transition-all ${isSubmitting ? 'bg-slate-100 text-slate-400' : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-95'}`}
+                                    className={`w-full py-5 rounded-[24px] font-black uppercase text-[11px] sm:text-xs tracking-widest flex items-center justify-center gap-2 transition-all ${isSubmitting ? 'bg-slate-100 text-slate-400' : (editingOrder ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95' : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-95')}`}
                                 >
                                     {isSubmitting ? (
                                         <>Procesando <Plus className="animate-spin" size={18} /></>
+                                    ) : editingOrder ? (
+                                        <>Actualizar Pedido <FileEdit size={18} /></>
                                     ) : (
                                         <>Enviar Pedido <CheckCircle2 size={18} /></>
                                     )}
@@ -1749,6 +1804,9 @@ export default function PreventaPage() {
                                                                                         <span className="text-lg font-black text-indigo-600">${h.total.toLocaleString()}</span>
                                                                                         <div className="flex gap-2">
                                                                                             <button onClick={(e) => { e.stopPropagation(); toggleHideOrder(String(hId)); }} className="p-2.5 rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-500 transition-all border border-slate-200 dark:border-slate-700" title="Ocultar de mi vista"><EyeOff size={16} /></button>
+                                                                                            {(!h.reparto || String(h.reparto) === "null" || String(h.reparto).trim() === "") && (
+                                                                                                <button onClick={(e) => { e.stopPropagation(); handleEditOrder(h); }} className="p-2.5 rounded-xl bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white transition-all border border-blue-100 dark:bg-blue-900/20 dark:border-blue-900/30" title="Editar Pedido"><Edit3 size={16} /></button>
+                                                                                            )}
                                                                                             <button onClick={(e) => { e.stopPropagation(); handleDeleteOrder(String(hId)); }} className="p-2.5 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white transition-all border border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/30" title="Eliminar Permanentemente"><Trash2 size={16} /></button>
                                                                                             <button onClick={(e) => { e.stopPropagation(); shareToWhatsApp(h); }} className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20"><MessageCircle size={16} /></button>
                                                                                             <button onClick={(e) => { e.stopPropagation(); repeatOrder(h); }} className="px-4 py-2.5 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-indigo-500/20 flex items-center gap-2 pr-5">Repetir <Clock size={12} /></button>

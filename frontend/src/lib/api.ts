@@ -260,15 +260,19 @@ export const wandaApi: Record<string, any> = {
         const batch = writeBatch(db);
         const orderRef = doc(db, "orders", String(pedidoEditado.id));
 
-        // En Firestore toda la estructura está junta (no como en SQL). 
-        // Actualizamos de golpe el array de items, el total y otras variables.
-        batch.update(orderRef, {
+        const updateData: any = {
             items: pedidoEditado.items,
             total: pedidoEditado.total,
             descuento_general: pedidoEditado.descuento_general || 0,
-            cliente_id: pedidoEditado.id_cliente || pedidoEditado.cliente_id,
-            cliente_nombre: pedidoEditado.cliente_nombre
-        });
+            cliente_id: pedidoEditado.cliente_id || pedidoEditado.cliente?.ID_Cliente || pedidoEditado.cliente?.id || "",
+            cliente_nombre: pedidoEditado.cliente_nombre || pedidoEditado.cliente?.Nombre_Negocio || ""
+        };
+
+        if (pedidoEditado.notas !== undefined) updateData.notas = pedidoEditado.notas;
+        if (pedidoEditado.gps !== undefined) updateData.gps = pedidoEditado.gps;
+        if (pedidoEditado.cliente !== undefined) updateData.cliente = pedidoEditado.cliente;
+
+        batch.update(orderRef, updateData);
 
         await batch.commit();
         return { result: "OK" };
