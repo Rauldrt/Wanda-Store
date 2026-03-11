@@ -274,8 +274,9 @@ export default function ProductosPage() {
 
     // Clonación de Producto
     const handleDuplicateProduct = (product: any) => {
+        const { id, ...rest } = product; // Remove original ID property
         const clone = {
-            ...product,
+            ...rest,
             ID_Producto: 'Auto',
             Nombre: `${product.Nombre} (Copia)`,
             Stock_Actual: 0

@@ -52,7 +52,11 @@ export const wandaApi: Record<string, any> = {
     // ---------------- ESCRITURAS SIMPLES ----------------
 
     saveProduct: async (product: any) => {
-        const id = String(product.ID_Producto || product.id || `PROD-${new Date().getTime().toString().slice(-6)}`).replace(/\//g, "-").trim();
+        let reqId = product.ID_Producto || product.id;
+        if (!reqId || String(reqId).trim().toLowerCase() === 'auto') {
+            reqId = `PROD-${new Date().getTime().toString().slice(-6)}`;
+        }
+        const id = String(reqId).replace(/\//g, "-").trim();
         product.id = id;
         product.ID_Producto = id;
         await setDoc(doc(db, "products", id), product, { merge: true });
