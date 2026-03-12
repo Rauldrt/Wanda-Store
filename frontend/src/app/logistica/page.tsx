@@ -1203,11 +1203,10 @@ export default function LogisticaPage() {
                     </thead>
                     <tbody>
                         ${orderList.map((order, i) => `
-                            <tr style="height: 35px;">
+                            <tr style="height: 20px;">
                                 <td align="center"><b>${i + 1}</b></td>
                                 <td>
                                     <div style="font-weight: bold; font-size: 11px;">${order.cliente_nombre}</div>
-                                    <div style="font-size: 9px; color: #666;">${order.direccion || 'S/D'}</div>
                                 </td>
                                 <td align="right" style="font-weight: bold; font-size: 11px;">
                                     $${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
