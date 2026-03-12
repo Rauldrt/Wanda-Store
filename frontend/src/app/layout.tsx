@@ -177,7 +177,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                   <span>&lt;/&gt;</span>
                 </div>
               </div>
-              {!isSidebarCollapsed && <span className="font-black text-xl tracking-tighter uppercase italic truncate">Wanda<span className="text-indigo-500">Cloud</span></span>}
+              {!isSidebarCollapsed && <span className="font-black text-xl uppercase italic whitespace-nowrap">Wanda <span className="text-indigo-500">Cloud</span></span>}
             </div>
             
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 shrink-0">

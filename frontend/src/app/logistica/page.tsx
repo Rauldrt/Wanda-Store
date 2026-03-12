@@ -2924,7 +2924,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed md:left-64 inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
         >
             <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -3284,6 +3284,12 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const [cuentasCorrientes, setCuentasCorrientes] = useState<{ orderId: string, cliente: string, monto: number }[]>([]);
     const [ccSearch, setCcSearch] = useState("");
     const [showCcDropdown, setShowCcDropdown] = useState(false);
+    const [transferenciasExtras, setTransferenciasExtras] = useState<{ orderId: string, cliente: string, monto: number }[]>([]);
+    const [trSearch, setTrSearch] = useState("");
+    const [showTrDropdown, setShowTrDropdown] = useState(false);
+    const [isGastosExpanded, setIsGastosExpanded] = useState(false);
+    const [isTrExpanded, setIsTrExpanded] = useState(false);
+    const [isCcExpanded, setIsCcExpanded] = useState(false);
 
     // Optimized products filtering for manual returns
     const filteredReturnProducts = useMemo(() => {
@@ -3322,6 +3328,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 if (data.devoluciones) setDevoluciones(data.devoluciones);
                 if (data.billetes) setBilletes(data.billetes);
                 if (data.cuentasCorrientes) setCuentasCorrientes(data.cuentasCorrientes);
+                if (data.transferenciasExtras) setTransferenciasExtras(data.transferenciasExtras);
                 setDraftStatus('saved');
             }
         };
@@ -3341,6 +3348,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 devoluciones,
                 billetes,
                 cuentasCorrientes,
+                transferenciasExtras,
                 updatedAt: new Date().toISOString()
             };
 
@@ -3358,7 +3366,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
         }, 1200);
 
         return () => clearTimeout(timeout);
-    }, [localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes, cuentasCorrientes, routeName]);
+    }, [localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes, cuentasCorrientes, transferenciasExtras, routeName]);
 
     const clearDraft = async () => {
         localStorage.removeItem(`wanda_settlement_${routeName}`);
@@ -3395,6 +3403,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
     const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
     const totalCuentasCorrientes = cuentasCorrientes.reduce((acc, cc) => acc + (cc.monto || 0), 0);
+    const totalTransferenciasExtras = transferenciasExtras.reduce((acc, tr) => acc + (tr.monto || 0), 0);
 
     const totalEfectivoDesglose = useMemo(() => {
         return Object.entries(billetes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0);
@@ -3402,8 +3411,8 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
     const totalTransfCalculado = useMemo(() => {
         if (settlementMethod === 'standard') return pagos.transferencia;
-        return localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0);
-    }, [settlementMethod, pagos.transferencia, localOrders]);
+        return localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0) + totalTransferenciasExtras;
+    }, [settlementMethod, pagos.transferencia, localOrders, totalTransferenciasExtras]);
 
     const netoARendir = settlementMethod === 'standard' ? totalRendicion : totalCargaRuta;
 
@@ -3426,7 +3435,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             ? localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0), 0)
             : (pagos.efectivo || 0);
         const transfLoc = settlementMethod === 'alternative'
-            ? localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0)
+            ? localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0) + totalTransferenciasExtras
             : (pagos.transferencia || 0);
 
         printSettlement({
@@ -3445,6 +3454,8 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             gastos,
             cuentasCorrientes,
             totalCuentasCorrientes,
+            transferenciasExtras,
+            totalTransferenciasExtras,
             ordenes: localOrders.map((o: any) => ({
                 id: o.id,
                 cliente_nombre: o.cliente_nombre,
@@ -3510,7 +3521,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 })),
                 pagos: settlementMethod === 'alternative' ? {
                     efectivo: localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0), 0),
-                    transferencia: localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0)
+                    transferencia: localOrders.reduce((acc: number, o: any) => acc + (o.pago_transferencia || 0), 0) + totalTransferenciasExtras
                 } : pagos,
                 gastos,
                 cuentas_corrientes: cuentasCorrientes,
@@ -3520,7 +3531,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 desglose_billetes: billetes,
                 // Metadata para recuperación:
                 _full_draft: {
-                    localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes, cuentasCorrientes
+                    localOrders, pagos, gastos, chofer, settlementMethod, devoluciones, billetes, cuentasCorrientes, transferenciasExtras
                 }
             };
 
@@ -3555,7 +3566,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     return (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed md:left-64 inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
         >
             <motion.div
                 initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -4119,55 +4130,175 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
                         <div>
                             <div className="flex justify-between items-center mb-4">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <h4 
+                                    className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 cursor-pointer hover:text-slate-600 transition-colors"
+                                    onClick={() => setIsGastosExpanded(!isGastosExpanded)}
+                                >
+                                    {isGastosExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
                                     <RotateCcw size={14} className="text-rose-500" /> Gastos de Ruta
                                 </h4>
                                 <button
-                                    onClick={() => setGastos([...gastos, { desc: '', monto: 0 }])}
+                                    onClick={() => {
+                                        setGastos([...gastos, { desc: '', monto: 0 }]);
+                                        setIsGastosExpanded(true);
+                                    }}
                                     className="p-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition-all"
                                 >
                                     <Plus size={14} />
                                 </button>
                             </div>
 
-                            <div className="space-y-2">
-                                {gastos.map((g, idx) => (
-                                    <div key={idx} className="flex gap-2 animate-in slide-in-from-right-4">
-                                        <input
-                                            placeholder="Descripción"
-                                            value={g.desc}
-                                            onChange={e => {
-                                                const next = [...gastos];
-                                                next[idx].desc = e.target.value;
-                                                setGastos(next);
-                                            }}
-                                            className="flex-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold"
-                                        />
-                                        <input
-                                            type="number"
-                                            placeholder="Monto"
-                                            value={g.monto || ''}
-                                            onChange={e => {
-                                                const next = [...gastos];
-                                                next[idx].monto = parseFloat(e.target.value) || 0;
-                                                setGastos(next);
-                                            }}
-                                            className="w-24 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-black text-rose-500"
-                                        />
-                                        <button
-                                            onClick={() => setGastos(gastos.filter((_, i) => i !== idx))}
-                                            className="p-2 text-slate-300 hover:text-rose-500"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                            {isGastosExpanded && (
+                                <div className="space-y-2">
+                                    {gastos.map((g, idx) => (
+                                        <div key={idx} className="flex gap-2 animate-in slide-in-from-right-4">
+                                            <input
+                                                placeholder="Descripción"
+                                                value={g.desc}
+                                                onChange={e => {
+                                                    const next = [...gastos];
+                                                    next[idx].desc = e.target.value;
+                                                    setGastos(next);
+                                                }}
+                                                className="flex-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold"
+                                            />
+                                            <input
+                                                type="number"
+                                                placeholder="Monto"
+                                                value={g.monto || ''}
+                                                onChange={e => {
+                                                    const next = [...gastos];
+                                                    next[idx].monto = parseFloat(e.target.value) || 0;
+                                                    setGastos(next);
+                                                }}
+                                                className="w-24 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-black text-rose-500"
+                                            />
+                                            <button
+                                                onClick={() => setGastos(gastos.filter((_, i) => i !== idx))}
+                                                className="p-2 text-slate-300 hover:text-rose-500"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
+
+                        {settlementMethod === 'alternative' && (
+                            <div>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 
+                                        className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 cursor-pointer hover:text-slate-600 transition-colors"
+                                        onClick={() => setIsTrExpanded(!isTrExpanded)}
+                                    >
+                                        {isTrExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
+                                        <DollarSign size={14} className="text-indigo-500" /> Transferencias
+                                    </h4>
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowTrDropdown(!showTrDropdown)}
+                                            className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1"
+                                        >
+                                            <Plus size={14} /> <span className="text-[10px] font-black">AGREGAR</span>
+                                        </button>
+
+                                        {showTrDropdown && (
+                                            <div className="absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
+                                                <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                                    <input
+                                                        placeholder="Buscar boleta / cliente..."
+                                                        value={trSearch}
+                                                        onChange={e => setTrSearch(e.target.value)}
+                                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-[10px] font-bold outline-none"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <div className="max-h-48 overflow-auto">
+                                                    {localOrders.filter((o: any) =>
+                                                        !transferenciasExtras.some((tr: any) => tr.orderId === o.id) &&
+                                                        smartSearch(`${o.cliente_nombre} ${o.id}`, trSearch)
+                                                    ).map((o: any) => (
+                                                        <button
+                                                            key={o.id}
+                                                            onClick={() => {
+                                                                const montoTR = o.total_final || o.total;
+                                                                setTransferenciasExtras([...transferenciasExtras, {
+                                                                    orderId: o.id,
+                                                                    cliente: o.cliente_nombre,
+                                                                    monto: montoTR
+                                                                }]);
+                                                                setLocalOrders((prev: any[]) => prev.map((lo: any) => lo.id === o.id ? { ...lo, pago_efectivo: 0, pago_transferencia: 0 } : lo));
+                                                                setShowTrDropdown(false);
+                                                                setTrSearch("");
+                                                                setIsTrExpanded(true);
+                                                            }}
+                                                            className="w-full px-4 py-2 text-left hover:bg-indigo-50 dark:hover:bg-indigo-500/10 border-b border-slate-50 dark:border-slate-800 last:border-0"
+                                                        >
+                                                            <div className="text-[10px] font-black truncate">{o.cliente_nombre}</div>
+                                                            <div className="flex justify-between items-center opacity-60">
+                                                                <span className="text-[9px] font-bold"># {o.id}</span>
+                                                                <span className="text-[9px] font-black text-indigo-600">$ {parseFloat(o.total_final).toLocaleString()}</span>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                    {localOrders.filter((o: any) => !transferenciasExtras.some((tr: any) => tr.orderId === o.id)).length === 0 && (
+                                                        <div className="p-4 text-center text-[10px] text-slate-400 font-bold uppercase">No hay boletas disponibles</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {isTrExpanded && (
+                                    <div className="space-y-2 mb-6">
+                                        {transferenciasExtras.map((tr, idx) => (
+                                        <div key={idx} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-xl p-3 flex justify-between items-center group hover:border-indigo-500/50 transition-all">
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-black text-slate-800 dark:text-slate-100 truncate">{tr.cliente}</p>
+                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">BOLETA # {tr.orderId}</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right flex items-center gap-1">
+                                                    <span className="text-[10px] font-black text-indigo-600">$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={tr.monto}
+                                                        onChange={(e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            const next = [...transferenciasExtras];
+                                                            next[idx].monto = val;
+                                                            setTransferenciasExtras(next);
+                                                        }}
+                                                        className="w-20 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-800 rounded-lg px-2 py-1 text-[10px] font-black text-indigo-600 outline-none text-right"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const removed = transferenciasExtras[idx];
+                                                        setTransferenciasExtras(transferenciasExtras.filter((_, i) => i !== idx));
+                                                        setLocalOrders((prev: any[]) => prev.map((lo: any) => lo.id === removed.orderId ? { ...lo, pago_efectivo: lo.total_final } : lo));
+                                                    }}
+                                                    className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div>
                             <div className="flex justify-between items-center mb-4">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <h4 
+                                    className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 cursor-pointer hover:text-slate-600 transition-colors"
+                                    onClick={() => setIsCcExpanded(!isCcExpanded)}
+                                >
+                                    {isCcExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
                                     <Clock size={14} className="text-amber-500" /> Cuentas Corrientes
                                 </h4>
                                 <div className="relative">
@@ -4207,6 +4338,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                             setLocalOrders((prev: any[]) => prev.map((lo: any) => lo.id === o.id ? { ...lo, pago_efectivo: 0, pago_transferencia: 0 } : lo));
                                                             setShowCcDropdown(false);
                                                             setCcSearch("");
+                                                            setIsCcExpanded(true);
                                                         }}
                                                         className="w-full px-4 py-2 text-left hover:bg-amber-50 dark:hover:bg-amber-500/10 border-b border-slate-50 dark:border-slate-800 last:border-0"
                                                     >
@@ -4226,43 +4358,45 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                {cuentasCorrientes.map((cc, idx) => (
-                                    <div key={idx} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-xl p-3 flex justify-between items-center group hover:border-amber-500/50 transition-all">
-                                        <div className="flex-1">
-                                            <p className="text-[10px] font-black text-slate-800 dark:text-slate-100 truncate">{cc.cliente}</p>
-                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">BOLETA # {cc.orderId}</p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="text-right flex items-center gap-1">
-                                                <span className="text-[10px] font-black text-amber-600">$</span>
-                                                <input
-                                                    type="number"
-                                                    value={cc.monto}
-                                                    onChange={(e) => {
-                                                        const val = parseFloat(e.target.value) || 0;
-                                                        const next = [...cuentasCorrientes];
-                                                        next[idx].monto = val;
-                                                        setCuentasCorrientes(next);
-                                                    }}
-                                                    className="w-20 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-800 rounded-lg px-2 py-1 text-[10px] font-black text-amber-600 outline-none text-right"
-                                                />
+                            {isCcExpanded && (
+                                <div className="space-y-2">
+                                    {cuentasCorrientes.map((cc, idx) => (
+                                        <div key={idx} className="bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-xl p-3 flex justify-between items-center group hover:border-amber-500/50 transition-all">
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-black text-slate-800 dark:text-slate-100 truncate">{cc.cliente}</p>
+                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">BOLETA # {cc.orderId}</p>
                                             </div>
-                                            <button
-                                                onClick={() => {
-                                                    const removed = cuentasCorrientes[idx];
-                                                    setCuentasCorrientes(cuentasCorrientes.filter((_, i) => i !== idx));
-                                                    // Restauramos pago efectivo si se quita de CC (comportamiento por defecto)
-                                                    setLocalOrders((prev: any[]) => prev.map((lo: any) => lo.id === removed.orderId ? { ...lo, pago_efectivo: lo.total_final } : lo));
-                                                }}
-                                                className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right flex items-center gap-1">
+                                                    <span className="text-[10px] font-black text-amber-600">$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={cc.monto}
+                                                        onChange={(e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            const next = [...cuentasCorrientes];
+                                                            next[idx].monto = val;
+                                                            setCuentasCorrientes(next);
+                                                        }}
+                                                        className="w-20 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-800 rounded-lg px-2 py-1 text-[10px] font-black text-amber-600 outline-none text-right"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const removed = cuentasCorrientes[idx];
+                                                        setCuentasCorrientes(cuentasCorrientes.filter((_, i) => i !== idx));
+                                                        // Restauramos pago efectivo si se quita de CC (comportamiento por defecto)
+                                                        setLocalOrders((prev: any[]) => prev.map((lo: any) => lo.id === removed.orderId ? { ...lo, pago_efectivo: lo.total_final } : lo));
+                                                    }}
+                                                    className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="pt-6 border-t border-[var(--border)] mt-auto space-y-4">
@@ -4479,7 +4613,7 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
     return (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed md:left-64 inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xl"
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xl"
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -4666,7 +4800,7 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed md:left-64 inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -5271,7 +5405,7 @@ function RouteOrdersModal({ routeName, orders, onClose, onRemoveOrder }: any) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed md:left-64 inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
