@@ -69,7 +69,9 @@ const printSettlement = (data: {
     netoARendir: number,
     devoluciones?: any[],
     cuentasCorrientes?: any[],
-    totalCuentasCorrientes?: number
+    totalCuentasCorrientes?: number,
+    transferenciasExtras?: any[],
+    totalTransferenciasExtras?: number
 }, mode: 'full' | 'audit' = 'full') => {
     const win = window.open('', '_blank');
     if (!win) return;
