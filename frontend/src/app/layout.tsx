@@ -19,7 +19,10 @@ import {
   Map,
   Save,
   Layout,
-  DatabaseBackup
+  DatabaseBackup,
+  ChevronLeft,
+  ChevronRight,
+  LogOut
 } from "lucide-react";
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -58,6 +61,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { loading, isSyncing, error } = useData();
 
@@ -161,21 +165,22 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
 
       <aside className={`
-        fixed md:sticky top-0 left-0 z-[101] h-screen bg-[var(--card)] border-r border-[var(--border)] transition-all duration-300
-        ${isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0 w-64'}
+        fixed md:sticky top-0 left-0 z-[101] h-screen bg-[var(--card)] border-r border-[var(--border)] transition-all duration-300 flex flex-col
+        ${isMobileMenuOpen ? 'translate-x-0 w-72' : `-translate-x-full md:translate-x-0 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}
       `}>
-        <div className="p-6 h-full flex flex-col">
-          <div className="flex items-center justify-between mb-10">
-            <div className="flex items-center gap-3">
-              <div className="relative group/logo cursor-pointer" onClick={() => router.push('/landing')}>
+        <div className="p-4 md:p-6 h-full flex flex-col overflow-y-auto custom-scroll overflow-x-hidden">
+          <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} mb-10 relative`}>
+            <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+              <div className="relative group/logo cursor-pointer shrink-0" onClick={() => router.push('/landing')} title="Wanda Cloud">
                 <div className="absolute inset-0 bg-indigo-500 blur opacity-10 group-hover:opacity-30 transition-opacity" />
                 <div className="relative w-8 h-8 rounded-lg bg-slate-900 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black text-xs">
                   <span>&lt;/&gt;</span>
                 </div>
               </div>
-              <span className="font-black text-xl tracking-tighter uppercase italic">Wanda<span className="text-indigo-500">Cloud</span></span>
+              {!isSidebarCollapsed && <span className="font-black text-xl tracking-tighter uppercase italic truncate">Wanda<span className="text-indigo-500">Cloud</span></span>}
             </div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400">
+            
+            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 shrink-0">
               <X size={20} />
             </button>
           </div>
@@ -187,21 +192,37 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 {...item}
                 active={pathname === item.href}
                 onClick={() => setIsMobileMenuOpen(false)}
+                collapsed={isSidebarCollapsed}
               />
             ))}
           </nav>
 
-          <div className="mt-auto pt-6 border-t border-[var(--border)]">
-            <div className="flex items-center justify-between px-2">
+          <div className="mt-auto pt-6 border-t border-[var(--border)] flex flex-col gap-4">
+            <button 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+              className="hidden md:flex items-center justify-center p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors mx-auto w-full"
+            >
+              {isSidebarCollapsed ? <ChevronRight size={18} /> : (
+                <div className="flex items-center justify-between w-full px-2">
+                  <span className="text-xs font-bold shrink-0">Colapsar</span>
+                  <ChevronLeft size={18} className="shrink-0" />
+                </div>
+              )}
+            </button>
+
+            <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center flex-col gap-4' : 'justify-between px-2'}`}>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-indigo-500 uppercase">
-                  {(pathname !== '/login' && typeof window !== 'undefined') ? localStorage.getItem('user_role')?.slice(0, 2) : 'WA'}
+                <div className="w-8 h-8 shrink-0 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-indigo-500 uppercase" title={(pathname !== '/login' && typeof window !== 'undefined') ? localStorage.getItem('user_role') || 'Usuario' : 'WA'}>
+                  {(pathname !== '/login' && typeof window !== 'undefined') ? (localStorage.getItem('user_role')?.slice(0, 2) || 'WA') : 'WA'}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold truncate">Usuario</p>
-                  <p className="text-[10px] text-slate-500 truncate capitalize">{(pathname !== '/login' && typeof window !== 'undefined') ? localStorage.getItem('user_role') : 'Cargando...'}</p>
-                </div>
+                {!isSidebarCollapsed && (
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold truncate">Usuario</p>
+                    <p className="text-[10px] text-slate-500 truncate capitalize">{(pathname !== '/login' && typeof window !== 'undefined') ? localStorage.getItem('user_role') : 'Cargando...'}</p>
+                  </div>
+                )}
               </div>
+              
               <button
                 onClick={() => {
                   localStorage.removeItem("user_role");
@@ -213,10 +234,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                   localStorage.removeItem("vendedor_id");
                   window.location.href = '/login';
                 }}
-                className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                className={`p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors shrink-0 ${isSidebarCollapsed ? 'mx-auto' : ''}`}
                 title="Cerrar Sesión"
               >
-                <X size={16} />
+                <LogOut size={16} />
               </button>
             </div>
           </div>
@@ -263,23 +284,23 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   );
 }
 
-function NavItem({ label, href, icon, active, onClick }: any) {
+function NavItem({ label, href, icon, active, onClick, collapsed }: any) {
   return (
     <Link href={href} onClick={onClick}>
       <div className={`
-        flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group cursor-pointer border
+        flex items-center ${collapsed ? 'justify-center p-3' : 'gap-3 px-4 py-3'} rounded-xl transition-all duration-300 group cursor-pointer border
         ${active
           ? 'bg-indigo-500 text-white font-bold border-indigo-400 shadow-lg shadow-indigo-500/10'
           : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 border-transparent hover:border-[var(--border)]'}
-      `}>
-        <span className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-indigo-500'} transition-colors`}>
+      `} title={collapsed ? label : undefined}>
+        <span className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-indigo-500'} transition-colors shrink-0`}>
           {icon}
         </span>
-        <span className="text-sm">{label}</span>
-        {active && (
+        {!collapsed && <span className="text-sm truncate">{label}</span>}
+        {active && !collapsed && (
           <motion.div
             layoutId="nav-active"
-            className="ml-auto w-1 h-1 rounded-full bg-white"
+            className="ml-auto w-1 h-1 rounded-full bg-white shrink-0"
           />
         )}
       </div>
