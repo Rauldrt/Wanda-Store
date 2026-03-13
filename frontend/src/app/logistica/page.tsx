@@ -3288,6 +3288,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const [devoluciones, setDevoluciones] = useState<{ id_prod: string, nombre: string, qty: number, precio: number, subtotal: number, formato?: string, ub?: number }[]>([]);
     const [showReturnDropdown, setShowReturnDropdown] = useState(false);
     const [returnSearch, setReturnSearch] = useState("");
+    const [isCobranzaOpen, setIsCobranzaOpen] = useState(false);
     const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'none'>('none');
     const [showBillBreakdown, setShowBillBreakdown] = useState(false);
     const [billetes, setBilletes] = useState<Record<number, number>>({});
@@ -3804,145 +3805,241 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                             </h4>
                                         </div>
 
-                                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] max-h-[400px] overflow-y-auto custom-scrollbar">
-                                            <table className="w-full text-left">
-                                                <thead>
-                                                    <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                        <th className="px-4 py-3">Producto</th>
-                                                        <th className="px-4 py-3 text-center">Cant.</th>
-                                                        <th className="px-4 py-3 text-center">Precio</th>
-                                                        <th className="px-4 py-3 text-right">Subtotal</th>
-                                                        <th className="px-4 py-3 text-right">Acción</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                    {devoluciones.length === 0 ? (
-                                                        <tr>
-                                                            <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-bold text-xs italic">
-                                                                No hay devoluciones registradas manualmente
-                                                            </td>
-                                                        </tr>
-                                                    ) : devoluciones.map((dev, idx) => (
-                                                        <tr key={dev.id_prod}>
-                                                            <td className="px-4 py-3">
-                                                                <p className="font-bold text-xs">{dev.nombre}</p>
-                                                                <p className="text-[9px] font-mono text-slate-400">{dev.id_prod}</p>
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <div className="flex flex-col items-center gap-1.5">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <input
-                                                                            type="number"
-                                                                            id={`dev-qty-${dev.id_prod}`}
-                                                                            value={dev.qty}
-                                                                            onChange={(e) => {
-                                                                                const n = parseFloat(e.target.value) || 0;
-                                                                                setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
-                                                                            }}
-                                                                            className="w-12 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
-                                                                        />
-                                                                    </div>
+                                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] max-h-[500px] sm:max-h-[400px] overflow-y-auto custom-scrollbar">
+                                            {/* Vista Móvil (Cards) */}
+                                            <div className="block sm:hidden flex-col gap-2 p-2 sm:p-0">
+                                                {devoluciones.length === 0 ? (
+                                                    <div className="p-8 text-center text-slate-400 font-bold text-xs italic">
+                                                        No hay devoluciones registradas manualmente
+                                                    </div>
+                                                ) : devoluciones.map((dev, idx) => (
+                                                    <div key={dev.id_prod} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col gap-3 relative mb-2 last:mb-0">
+                                                        <div className="pr-8">
+                                                            <p className="font-bold text-sm leading-tight text-slate-800 dark:text-slate-200">{dev.nombre}</p>
+                                                            <p className="text-[10px] font-mono text-slate-400 mt-1">{dev.id_prod}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setDevoluciones(devoluciones.filter((_, i) => i !== idx))}
+                                                            className="absolute top-2 right-2 p-2 text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-900/30 hover:text-rose-500 rounded-lg transition-colors"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                        
+                                                        <div className="grid grid-cols-2 gap-3 mt-1">
+                                                            <div>
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Cant.</label>
+                                                                <div className="flex flex-col gap-2 mt-1">
+                                                                    <input
+                                                                        type="number"
+                                                                        id={`dev-qty-mob-${dev.id_prod}`}
+                                                                        value={dev.qty}
+                                                                        onChange={(e) => {
+                                                                            const n = parseFloat(e.target.value) || 0;
+                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
+                                                                        }}
+                                                                        className="w-full text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 text-base font-black focus:ring-2 ring-indigo-500 transition-all outline-none shadow-sm"
+                                                                    />
                                                                     {(dev.ub || 1) > 1 && (
                                                                         <button
                                                                             onClick={() => {
                                                                                 const nextFmt = dev.formato === 'UNID' ? 'BULTO' : 'UNID';
                                                                                 setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, formato: nextFmt, subtotal: d.qty * d.precio * (nextFmt === 'BULTO' ? (d.ub || 1) : 1) } : d));
                                                                             }}
-                                                                            className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all ${dev.formato === 'BULTO' ? 'bg-amber-500 border-amber-500 text-white' : 'border-indigo-200 text-indigo-500 hover:bg-indigo-50 dark:border-indigo-900/30'}`}
+                                                                            className={`text-[10px] font-black uppercase px-2 py-1.5 rounded-lg transition-all text-center border ${dev.formato === 'BULTO' ? 'bg-amber-500 border-amber-500 text-white shadow-md' : 'bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}`}
                                                                         >
                                                                             {dev.formato} (x{dev.ub || 1})
                                                                         </button>
                                                                     )}
                                                                 </div>
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <div className="flex justify-center">
-                                                                    <input
-                                                                        type="number"
-                                                                        value={dev.precio}
-                                                                        onChange={(e) => {
-                                                                            const p = parseFloat(e.target.value) || 0;
-                                                                            setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p * (d.formato === 'BULTO' ? d.ub : 1) } : d));
-                                                                        }}
-                                                                        className="w-16 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
-                                                                    />
+                                                            </div>
+                                                            <div className="flex flex-col justify-between">
+                                                                <div>
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Precio</label>
+                                                                    <div className="mt-1">
+                                                                        <input
+                                                                            type="number"
+                                                                            value={dev.precio}
+                                                                            onChange={(e) => {
+                                                                                const p = parseFloat(e.target.value) || 0;
+                                                                                setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p * (d.formato === 'BULTO' ? d.ub : 1) } : d));
+                                                                            }}
+                                                                            className="w-full text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 text-base font-black focus:ring-2 ring-indigo-500 transition-all outline-none shadow-sm"
+                                                                        />
+                                                                    </div>
                                                                 </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right">
-                                                                <p className="font-black text-xs text-rose-500">${dev.subtotal.toLocaleString()}</p>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right">
-                                                                <button
-                                                                    onClick={() => setDevoluciones(devoluciones.filter((_, i) => i !== idx))}
-                                                                    className="p-1.5 text-slate-400 hover:text-rose-500 rounded"
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
-                                                            </td>
+                                                                <div className="mt-3 text-right bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Subtotal</p>
+                                                                    <p className="font-black text-base text-rose-500 leading-none">${dev.subtotal.toLocaleString()}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Vista Desktop (Tabla) */}
+                                            <div className="hidden sm:block">
+                                                <table className="w-full text-left">
+                                                    <thead>
+                                                        <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                            <th className="px-4 py-3">Producto</th>
+                                                            <th className="px-4 py-3 text-center">Cant.</th>
+                                                            <th className="px-4 py-3 text-center">Precio</th>
+                                                            <th className="px-4 py-3 text-right">Subtotal</th>
+                                                            <th className="px-4 py-3 text-right">Acción</th>
                                                         </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                        {devoluciones.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-bold text-xs italic">
+                                                                    No hay devoluciones registradas manualmente
+                                                                </td>
+                                                            </tr>
+                                                        ) : devoluciones.map((dev, idx) => (
+                                                            <tr key={dev.id_prod}>
+                                                                <td className="px-4 py-3">
+                                                                    <p className="font-bold text-xs">{dev.nombre}</p>
+                                                                    <p className="text-[9px] font-mono text-slate-400">{dev.id_prod}</p>
+                                                                </td>
+                                                                <td className="px-4 py-3">
+                                                                    <div className="flex flex-col items-center gap-1.5">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <input
+                                                                                type="number"
+                                                                                id={`dev-qty-${dev.id_prod}`}
+                                                                                value={dev.qty}
+                                                                                onChange={(e) => {
+                                                                                    const n = parseFloat(e.target.value) || 0;
+                                                                                    setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
+                                                                                }}
+                                                                                className="w-16 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
+                                                                            />
+                                                                        </div>
+                                                                        {(dev.ub || 1) > 1 && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    const nextFmt = dev.formato === 'UNID' ? 'BULTO' : 'UNID';
+                                                                                    setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, formato: nextFmt, subtotal: d.qty * d.precio * (nextFmt === 'BULTO' ? (d.ub || 1) : 1) } : d));
+                                                                                }}
+                                                                                className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all ${dev.formato === 'BULTO' ? 'bg-amber-500 border-amber-500 text-white' : 'border-indigo-200 text-indigo-500 hover:bg-indigo-50 dark:border-indigo-900/30'}`}
+                                                                            >
+                                                                                {dev.formato} (x{dev.ub || 1})
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3">
+                                                                    <div className="flex justify-center">
+                                                                        <input
+                                                                            type="number"
+                                                                            value={dev.precio}
+                                                                            onChange={(e) => {
+                                                                                const p = parseFloat(e.target.value) || 0;
+                                                                                setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p * (d.formato === 'BULTO' ? d.ub : 1) } : d));
+                                                                            }}
+                                                                            className="w-20 text-center bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 text-xs font-black focus:ring-1 ring-indigo-500 transition-all outline-none"
+                                                                        />
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    <p className="font-black text-xs text-rose-500">${dev.subtotal.toLocaleString()}</p>
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    <button
+                                                                        onClick={() => setDevoluciones(devoluciones.filter((_, i) => i !== idx))}
+                                                                        className="p-1.5 text-slate-400 hover:text-rose-500 rounded"
+                                                                    >
+                                                                        <Trash2 size={16} />
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div className="space-y-4">
-                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            <DollarSign size={14} className="text-emerald-500" /> Cobranza por Pedido
-                                        </h4>
-                                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] overflow-hidden">
-                                            <table className="w-full text-left">
-                                                <thead>
-                                                    <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                        <th className="px-4 py-3">Cliente</th>
-                                                        <th className="px-4 py-3">Total Pedido</th>
-                                                        <th className="px-4 py-3 text-center">Pagado EF</th>
-                                                        <th className="px-4 py-3 text-center">Pagado TR</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                    {filteredOrders.map((order: any) => (
-                                                        <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                                                            <td className="px-4 py-3">
-                                                                <p className="font-bold text-xs">{order.cliente_nombre}</p>
-                                                                <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <p className="font-black text-xs text-indigo-600">${order.total_original.toLocaleString()}</p>
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <div className="flex justify-center">
-                                                                    <input
-                                                                        type="number"
-                                                                        value={order.pago_efectivo || ''}
-                                                                        onChange={(e) => {
-                                                                            const val = parseFloat(e.target.value) || 0;
-                                                                            setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_efectivo: val } : o));
-                                                                        }}
-                                                                        className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-emerald-600"
-                                                                        placeholder="$ 0"
-                                                                    />
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <div className="flex justify-center">
-                                                                    <input
-                                                                        type="number"
-                                                                        value={order.pago_transferencia || ''}
-                                                                        onChange={(e) => {
-                                                                            const val = parseFloat(e.target.value) || 0;
-                                                                            setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_transferencia: val } : o));
-                                                                        }}
-                                                                        className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-blue-600"
-                                                                        placeholder="$ 0"
-                                                                    />
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                        <button
+                                            onClick={() => setIsCobranzaOpen(!isCobranzaOpen)}
+                                            className="w-full flex justify-between items-center py-3 px-4 bg-white dark:bg-slate-900 border border-[var(--border)] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm group"
+                                        >
+                                            <h4 className="text-[10px] sm:text-xs font-black text-slate-400 group-hover:text-emerald-500 uppercase tracking-widest flex items-center gap-2 transition-colors">
+                                                <DollarSign size={16} className="text-emerald-500" /> Cobranza por Pedido
+                                            </h4>
+                                            <div className="text-slate-400 group-hover:text-emerald-500 transition-colors">
+                                                {isCobranzaOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                            </div>
+                                        </button>
+                                        
+                                        <AnimatePresence>
+                                            {isCobranzaOpen && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    className="overflow-hidden"
+                                                >
+                                                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--border)] overflow-hidden">
+                                                        <div className="overflow-x-auto custom-scrollbar">
+                                                            <table className="w-full text-left whitespace-nowrap">
+                                                                <thead>
+                                                                    <tr className="bg-slate-50 dark:bg-slate-800/50 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                                        <th className="px-4 py-3">Cliente</th>
+                                                                        <th className="px-4 py-3">Total Pedido</th>
+                                                                        <th className="px-4 py-3 text-center">Pagado EF</th>
+                                                                        <th className="px-4 py-3 text-center">Pagado TR</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                                    {filteredOrders.map((order: any) => (
+                                                                        <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                                                                            <td className="px-4 py-3">
+                                                                                <p className="font-bold text-xs">{order.cliente_nombre}</p>
+                                                                                <p className="text-[9px] font-mono text-slate-400">#{order.id.slice(-6)}</p>
+                                                                            </td>
+                                                                            <td className="px-4 py-3">
+                                                                                <p className="font-black text-xs text-indigo-600">${order.total_original.toLocaleString()}</p>
+                                                                            </td>
+                                                                            <td className="px-4 py-3">
+                                                                                <div className="flex justify-center">
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        value={order.pago_efectivo || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const val = parseFloat(e.target.value) || 0;
+                                                                                            setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_efectivo: val } : o));
+                                                                                        }}
+                                                                                        className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-emerald-600 focus:ring-2 ring-emerald-500 outline-none"
+                                                                                        placeholder="$ 0"
+                                                                                    />
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="px-4 py-3">
+                                                                                <div className="flex justify-center">
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        value={order.pago_transferencia || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const val = parseFloat(e.target.value) || 0;
+                                                                                            setLocalOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, pago_transferencia: val } : o));
+                                                                                        }}
+                                                                                        className="w-20 bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-1.5 px-2 text-center text-xs font-black text-blue-600 focus:ring-2 ring-blue-500 outline-none"
+                                                                                        placeholder="$ 0"
+                                                                                    />
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
                                 </div>
                             )}
@@ -3950,14 +4047,14 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
                         {/* FAB para Agregar Devolución - Solo en modo alternativo */}
                         {settlementMethod === 'alternative' && (
-                            <div className="absolute bottom-8 right-8 z-[70] flex flex-col items-end">
+                            <div className="fixed bottom-6 right-6 lg:absolute lg:bottom-8 lg:right-8 z-[70] flex flex-col items-end pointer-events-none">
                                 <AnimatePresence>
                                     {showReturnDropdown && (
                                         <motion.div
                                             initial={{ opacity: 0, scale: 0.9, y: 10 }}
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                            className="mb-4 w-72 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden p-2 origin-bottom-right"
+                                            className="mb-4 w-72 bg-white dark:bg-slate-800 border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden p-2 origin-bottom-right pointer-events-auto"
                                         >
                                             <input
                                                 type="text"
@@ -3998,10 +4095,15 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                                 setShowReturnDropdown(false);
                                                                 setReturnSearch("");
                                                                 setTimeout(() => {
-                                                                    const input = document.getElementById(`dev-qty-${pid}`);
-                                                                    if (input) {
-                                                                        input.focus();
-                                                                        (input as HTMLInputElement).select();
+                                                                    const inputMob = document.getElementById(`dev-qty-mob-${pid}`);
+                                                                    const inputDesk = document.getElementById(`dev-qty-${pid}`);
+                                                                    
+                                                                    if (window.innerWidth < 640 && inputMob) {
+                                                                        inputMob.focus();
+                                                                        (inputMob as HTMLInputElement).select();
+                                                                    } else if (inputDesk) {
+                                                                        inputDesk.focus();
+                                                                        (inputDesk as HTMLInputElement).select();
                                                                     }
                                                                 }, 50);
                                                             }}
@@ -4024,7 +4126,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
                                 <button
                                     onClick={() => setShowReturnDropdown(!showReturnDropdown)}
-                                    className="w-14 h-14 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(244,63,94,0.4)] hover:scale-110 active:scale-95 transition-all group"
+                                    className="w-14 h-14 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(244,63,94,0.4)] hover:scale-110 active:scale-95 transition-all group pointer-events-auto"
                                     title="Agregar Devolución"
                                 >
                                     <Plus size={24} className={`transition-transform duration-300 ${showReturnDropdown ? 'rotate-45' : ''}`} />
