@@ -832,7 +832,7 @@ export default function LogisticaPage() {
                 const q = parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.'));
                 return q > 0;
             });
-            const isLong = activeItems.length > 14;
+            const isLong = activeItems.length > 17;
             const copies = ['ORIGINAL', 'DUPLICADO'].map((type) => `
                             <div class="remito ${isLong ? 'long-format' : ''}">
                                 <div class="copy-type">${type}</div>
@@ -932,7 +932,7 @@ export default function LogisticaPage() {
                                                             </tr>
                                                         `;
                 }).join('')}
-                                                ${/* Relleno para que el remito tenga altura constante */ Array(Math.max(0, 14 - activeItems.length)).fill(0).map(() => `
+                                                ${/* Relleno para que el remito tenga altura constante */ Array(Math.max(0, 17 - activeItems.length)).fill(0).map(() => `
                                                     <tr class="item-row">
                                                         <td class="cen">&nbsp;</td>
                                                         <td class="cen">&nbsp;</td>
