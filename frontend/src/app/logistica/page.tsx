@@ -809,6 +809,7 @@ export default function LogisticaPage() {
                     td:first-child { border-left: none; }
                     td:last-child { border-right: none; }
                     tr.item-row td { border-bottom: none; border-top: none; height: 1%; } /* 1% makes row fit content tightly */
+                    tr.stretcher-row td { border-bottom: none; border-top: none; height: auto; }
 
                     .footer { border-top: 2px solid #000; margin-top: auto; padding-top: 5px; display: flex; justify-content: space-between; align-items: flex-end; }
                     .obs { width: 50%; font-size: 8px; color: #666; }
@@ -941,6 +942,14 @@ export default function LogisticaPage() {
                                                         <td class="num">&nbsp;</td>
                                                     </tr>
                                                 `).join('')}
+                                                <tr class="stretcher-row">
+                                                    <td class="cen"></td>
+                                                    <td class="cen"></td>
+                                                    <td></td>
+                                                    <td class="num"></td>
+                                                    <td class="cen"></td>
+                                                    <td class="num"></td>
+                                                </tr>
                                             </tbody>
                                         </table>
                                     </div>
