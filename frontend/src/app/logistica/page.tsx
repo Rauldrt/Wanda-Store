@@ -5819,12 +5819,15 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
         const gTotal = parseFloat(liquidacion.GASTOS || 0);
         const efecTotal = draft.billetes ? Object.entries(draft.billetes).reduce((acc, [den, qty]) => acc + (den === 'CHEQUES' ? Number(qty) : Number(den) * (qty as number)), 0) : parseFloat(liquidacion.EFECTIVO || 0);
         const transTotal = parseFloat(liquidacion.TRANSF || 0);
+        const totalCtaCte = (draft.cuentasCorrientes || []).reduce((acc: number, c: any) => acc + (parseFloat(c.monto) || 0), 0);
+        const totalTransExt = (draft.transferenciasExtras || []).reduce((acc: number, t: any) => acc + (parseFloat(t.monto) || 0), 0);
 
         const balDif = netoARendirVal - (
             (stMethod === 'alternative' ? totalDevVal : 0) +
             gTotal +
             efecTotal +
-            transTotal
+            transTotal +
+            totalCtaCte
         );
 
         printSettlement({
@@ -5835,12 +5838,16 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
             efectivo: efecTotal,
             transf: transTotal,
             gastosTotal: gTotal,
-            totalNeto: (efecTotal + transTotal) - gTotal,
+            totalNeto: (efecTotal + transTotal) - gTotal, // Note: we keep it as it was if required or modify if needed to match.
             totalDevoluciones: stMethod === 'alternative' ? totalDevVal : 0,
             balanceDiferencia: balDif,
             netoARendir: netoARendirVal,
             billetes: draft.billetes,
             gastos: draft.gastos || [],
+            cuentasCorrientes: draft.cuentasCorrientes || [],
+            totalCuentasCorrientes: totalCtaCte,
+            transferenciasExtras: draft.transferenciasExtras || [],
+            totalTransferenciasExtras: totalTransExt,
             ordenes: ordersForCalc.map((o: any) => ({
                 id: o.id,
                 cliente_nombre: o.cliente_nombre,
@@ -5849,7 +5856,8 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
                 total_original: o.total_original || o.total,
                 efectivo: o.pago_efectivo || 0,
                 transf: o.pago_transferencia || 0
-            }))
+            })),
+            devoluciones: draft.devoluciones || []
         }, mode);
     };
 
