@@ -77,9 +77,10 @@ const printSettlement = (data: {
     if (!win) return;
 
     const billRows = Object.entries(data.billetes || {}).map(([den, qty]) => {
-        const amount = Number(den) * (qty as number);
+        const isCheques = den === 'CHEQUES';
+        const amount = isCheques ? Number(qty) : Number(den) * (qty as number);
         if (amount === 0) return '';
-        return `<tr><td>$${den}</td><td>x${qty}</td><td style="text-align:right">$${amount.toLocaleString()}</td></tr>`;
+        return `<tr><td>${isCheques ? 'CHEQUES' : `$${den}`}</td><td>${isCheques ? '-' : `x${qty}`}</td><td style="text-align:right">$${amount.toLocaleString()}</td></tr>`;
     }).join('');
 
     const gastosRows = (data.gastos || []).map((g: any) => `
@@ -669,7 +670,7 @@ export default function LogisticaPage() {
                 if (l.DRAFT_JSON) {
                     const draft = JSON.parse(l.DRAFT_JSON);
                     if (draft.billetes) {
-                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => subAcc + (Number(den) * (qty as number)), 0);
+                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => subAcc + (den === 'CHEQUES' ? Number(qty) : Number(den) * (qty as number)), 0);
                     }
                 }
             } catch (e) { }
@@ -689,7 +690,7 @@ export default function LogisticaPage() {
                 if (l.DRAFT_JSON) {
                     const draft = JSON.parse(l.DRAFT_JSON);
                     if (draft.billetes) {
-                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => subAcc + (Number(den) * (qty as number)), 0);
+                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => subAcc + (den === 'CHEQUES' ? Number(qty) : Number(den) * (qty as number)), 0);
                     }
                 }
             } catch (e) { }
@@ -3291,7 +3292,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const [isCobranzaOpen, setIsCobranzaOpen] = useState(false);
     const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'none'>('none');
     const [showBillBreakdown, setShowBillBreakdown] = useState(false);
-    const [billetes, setBilletes] = useState<Record<number, number>>({});
+    const [billetes, setBilletes] = useState<Record<string, number>>({});
     const [cuentasCorrientes, setCuentasCorrientes] = useState<{ orderId: string, cliente: string, monto: number }[]>([]);
     const [ccSearch, setCcSearch] = useState("");
     const [showCcDropdown, setShowCcDropdown] = useState(false);
@@ -3418,7 +3419,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
     const totalTransferenciasExtras = transferenciasExtras.reduce((acc, tr) => acc + (tr.monto || 0), 0);
 
     const totalEfectivoDesglose = useMemo(() => {
-        return Object.entries(billetes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0);
+        return Object.entries(billetes).reduce((acc, [den, qty]) => acc + (den === 'CHEQUES' ? Number(qty) : Number(den) * (qty as number)), 0);
     }, [billetes]);
 
     const totalTransfCalculado = useMemo(() => {
@@ -4169,7 +4170,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                                 title="Desglose de Billetes"
                                             >
                                                 <List size={18} />
-                                                {Object.keys(billetes).length > 0 && <span className="text-[10px] font-black">{Object.values(billetes).reduce((a, b) => a + (b as number), 0)}</span>}
+                                                {Object.keys(billetes).length > 0 && <span className="text-[10px] font-black">{Object.entries(billetes).reduce((a, [k, v]) => a + (k === 'CHEQUES' ? 0 : (v as number)), 0)}</span>}
                                             </button>
                                         </div>
                                         <div className="h-px bg-slate-100 dark:bg-slate-800 mx-2" />
@@ -4211,10 +4212,14 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                     </div>
                                     {Object.keys(billetes).length > 0 && (
                                         <div className="p-2 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
-                                            <p className="text-[8px] font-black text-emerald-600 uppercase mb-1">Desglose Guardado ({Object.values(billetes).reduce((a, b) => a + (b as number), 0)} billetes)</p>
+                                            <p className="text-[8px] font-black text-emerald-600 uppercase mb-1">
+                                                Desglose Guardado ({Object.entries(billetes).reduce((a, [d, b]) => a + (d === 'CHEQUES' ? 0 : (b as number)), 0)} billetes)
+                                            </p>
                                             <div className="flex flex-wrap gap-1">
                                                 {Object.entries(billetes).map(([den, qty]) => (qty as number) > 0 && (
-                                                    <span key={den} className="text-[8px] font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-100">${den} x{qty}</span>
+                                                    <span key={den} className="text-[8px] font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-100">
+                                                        {den === 'CHEQUES' ? `CHEQUES $` : `$${den} x`}{qty}
+                                                    </span>
                                                 ))}
                                             </div>
                                         </div>
@@ -4235,7 +4240,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                                     billetes={billetes}
                                     onChange={(newBilletes: any) => {
                                         setBilletes(newBilletes);
-                                        const sum = Object.entries(newBilletes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0);
+                                        const sum = Object.entries(newBilletes).reduce((acc, [den, qty]) => acc + (den === 'CHEQUES' ? Number(qty) : Number(den) * (qty as number)), 0);
                                         if (settlementMethod === 'standard') {
                                             setPagos(prev => ({ ...prev, efectivo: sum }));
                                         }
@@ -4638,9 +4643,9 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
 function BillBreakdownModal({ billetes, onChange, onClose }: any) {
     const denominations = [20000, 10000, 2000, 1000, 500, 200, 100, 50, 20, 10];
-    const total = Object.entries(billetes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0);
+    const total = Object.entries(billetes).reduce((acc, [den, qty]) => acc + (den === 'CHEQUES' ? Number(qty) : Number(den) * (qty as number)), 0);
 
-    const handleQtyChange = (den: number, val: string) => {
+    const handleQtyChange = (den: string | number, val: string) => {
         const n = parseInt(val) || 0;
         onChange({ ...billetes, [den]: n });
     };
@@ -4666,6 +4671,27 @@ function BillBreakdownModal({ billetes, onChange, onClose }: any) {
                     </div>
 
                     <div className="space-y-3 mb-8 max-h-[400px] overflow-auto pr-2 custom-scrollbar">
+                        <div className="flex items-center gap-4 bg-teal-50 dark:bg-teal-900/30 p-3 rounded-2xl border border-teal-100 dark:border-teal-800 group hover:border-teal-500 transition-all mb-4">
+                            <div className="w-16 text-right">
+                                <span className="text-xs font-black text-teal-400">#</span>
+                                <span className="text-sm font-black text-teal-800 dark:text-teal-200 ml-1">CHQS</span>
+                            </div>
+                            <div className="flex-1">
+                                <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    placeholder="Total (Monto)"
+                                    value={billetes['CHEQUES'] || ''}
+                                    onChange={(e) => handleQtyChange('CHEQUES', e.target.value)}
+                                    className="w-full bg-white dark:bg-slate-900 border border-teal-200 dark:border-teal-700 rounded-xl px-4 py-2 text-center text-sm font-black focus:ring-2 focus:ring-teal-500 outline-none group-hover:shadow-lg transition-all"
+                                />
+                            </div>
+                            <div className="w-24 text-right">
+                                <p className="text-[8px] font-black uppercase text-teal-400">Subtotal</p>
+                                <p className="text-xs font-black text-teal-600">${((billetes['CHEQUES'] as number) || 0).toLocaleString()}</p>
+                            </div>
+                        </div>
+
                         {denominations.map(den => (
                             <div key={den} className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 group hover:border-indigo-500 transition-all">
                                 <div className="w-16 text-right">
@@ -5626,7 +5652,7 @@ function SettlementHistoryCard({ liquidacion, onRevert }: { liquidacion: any, on
 
         const netoARendirVal = draft.localOrders ? (stMethod === 'standard' ? totalRendicion : totalCargaRuta) : parseFloat(liquidacion.TOTAL_NETO || 0);
         const gTotal = parseFloat(liquidacion.GASTOS || 0);
-        const efecTotal = draft.billetes ? Object.entries(draft.billetes).reduce((acc, [den, qty]) => acc + (Number(den) * (qty as number)), 0) : parseFloat(liquidacion.EFECTIVO || 0);
+        const efecTotal = draft.billetes ? Object.entries(draft.billetes).reduce((acc, [den, qty]) => acc + (den === 'CHEQUES' ? Number(qty) : Number(den) * (qty as number)), 0) : parseFloat(liquidacion.EFECTIVO || 0);
         const transTotal = parseFloat(liquidacion.TRANSF || 0);
 
         const balDif = netoARendirVal - (
