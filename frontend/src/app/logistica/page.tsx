@@ -3366,9 +3366,10 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             // Guardar en LocalStorage
             localStorage.setItem(`wanda_settlement_${routeName}`, JSON.stringify(dataToSave));
 
-            // Sincronizar con Firestore (Nube) para otros dispositivos
+            // Sincronizar con Firestore (Nube) para otros dispositivos - Evitar JSON undefined values
             try {
-                await wandaApi.saveSettlementDraft(routeName, dataToSave);
+                const scrubbedData = JSON.parse(JSON.stringify(dataToSave));
+                await wandaApi.saveSettlementDraft(routeName, scrubbedData);
                 setDraftStatus('saved');
             } catch (e) {
                 // Si falla la nube, al menos guardamos en local
@@ -3499,9 +3500,12 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
                 // Devoluciones manuales
                 devoluciones.forEach(d => {
-                    const ub = parseFloat(String(d.ub || "1"));
-                    const finalQty = d.formato === 'BULTO' ? d.qty * ub : d.qty;
-                    stockAdjustments.push({ id: d.id_prod, Stock: finalQty });
+                    const ub = parseFloat(String(d.ub || "1")) || 1;
+                    const cleanQty = parseFloat(String(d.qty)) || 0;
+                    const finalQty = d.formato === 'BULTO' ? cleanQty * ub : cleanQty;
+                    if (finalQty > 0 || finalQty < 0) { // Evita NaNs o ceros absolutos si se desea conservar historico
+                        stockAdjustments.push({ id: d.id_prod, Stock: finalQty });
+                    }
                 });
             } else {
                 // En método estándar, calculamos los deltas de pedidos parciales
@@ -3546,7 +3550,8 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                 }
             };
 
-            const res = await wandaApi.liquidarRuta(payload);
+            const scrubbedPayload = JSON.parse(JSON.stringify(payload));
+            const res = await wandaApi.liquidarRuta(scrubbedPayload);
             if (res.result === 'OK' || !res.error) {
                 alert("Ruta liquidada con éxito");
                 await clearDraft(); // Limpiar borrador local y nube
