@@ -42,6 +42,7 @@ import {
     Minus,
     Layers,
     Eye,
+    EyeOff,
     ShoppingCart,
     Tag,
     Scale,
@@ -330,7 +331,7 @@ const smartSearch = (text: string, query: string) => {
 
 export default function LogisticaPage() {
     const { data, loading, refreshData, setIsSyncing } = useData();
-    const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial' | 'comisiones' | 'resumenes'>('pendientes');
+    const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial' | 'comisiones' | 'resumenes' | 'ocultos'>('pendientes');
     const [selectedSettlementsSummary, setSelectedSettlementsSummary] = useState<string[]>([]);
     const [summarySearch, setSummarySearch] = useState("");
     const [commissionParams, setCommissionParams] = useState({
@@ -452,27 +453,43 @@ export default function LogisticaPage() {
         });
     }, [allPendingOrders, searchTerm, filterDate, filterSeller]);
 
+    const hiddenRoutes = useMemo(() => {
+        return (data?.config?.hiddenRoutes || []) as string[];
+    }, [data?.config]);
+
     const routeInfo = useMemo(() => {
-        // 1. Obtener todos los nombres de reparto únicos de órdenes activas
         const activeOrders = orders.filter(o => o.estado === 'Pendiente' || o.estado === 'En Preparación' || !o.estado);
         const activeRouteNames = Array.from(new Set(activeOrders.map(o => o.reparto).filter(r => r && r !== 'null' && r !== '')));
-
-        // 2. Obtener todos los nombres de reparto únicos del historial
         const historicalRouteNames = Array.from(new Set(liquidaciones.map(l => l.REPARTO).filter(Boolean)));
-
-        // 3. Crear una lista maestra ordenada de todos los repartos que han existido para asignar un número correlativo estable
         const allEverRoutes = Array.from(new Set([...activeRouteNames, ...historicalRouteNames])).sort();
 
-        // 4. Construir el objeto de información para las rutas actualmente activas
         return allEverRoutes
             .filter(name => activeRouteNames.includes(name))
+            .filter(name => !hiddenRoutes.includes(name))
             .map(name => {
                 const isReopened = historicalRouteNames.includes(name);
                 const index = allEverRoutes.indexOf(name) + 1;
                 return { name, index, isReopened };
             })
             .filter(route => !routeSearchTerm || smartSearch(route.name, routeSearchTerm));
-    }, [orders, liquidaciones, routeSearchTerm]);
+    }, [orders, liquidaciones, routeSearchTerm, hiddenRoutes]);
+
+    const hiddenRouteInfo = useMemo(() => {
+        const activeOrders = orders.filter(o => o.estado === 'Pendiente' || o.estado === 'En Preparación' || !o.estado);
+        const activeRouteNames = Array.from(new Set(activeOrders.map(o => o.reparto).filter(r => r && r !== 'null' && r !== '')));
+        const historicalRouteNames = Array.from(new Set(liquidaciones.map(l => l.REPARTO).filter(Boolean)));
+        const allEverRoutes = Array.from(new Set([...activeRouteNames, ...historicalRouteNames])).sort();
+
+        return allEverRoutes
+            .filter(name => activeRouteNames.includes(name))
+            .filter(name => hiddenRoutes.includes(name))
+            .map(name => {
+                const isReopened = historicalRouteNames.includes(name);
+                const index = allEverRoutes.indexOf(name) + 1;
+                return { name, index, isReopened };
+            })
+            .filter(route => !routeSearchTerm || smartSearch(route.name, routeSearchTerm));
+    }, [orders, liquidaciones, routeSearchTerm, hiddenRoutes]);
 
     const recentRoutes = useMemo(() => {
         const routeData: Record<string, { name: string, lastDate: string }> = {};
@@ -1264,6 +1281,24 @@ export default function LogisticaPage() {
         printWindow.document.close();
     };
 
+    const handleToggleHide = async (routeName: string) => {
+        setIsSyncing(true);
+        try {
+            const currentHidden = [...hiddenRoutes];
+            const isHidden = currentHidden.includes(routeName);
+            const newHiddenRoutes = isHidden
+                ? currentHidden.filter(r => r !== routeName)
+                : [...currentHidden, routeName];
+            await wandaApi.saveConfig({ ...(data?.config || {}), hiddenRoutes: newHiddenRoutes });
+            await refreshData(true);
+        } catch (err) {
+            console.error(err);
+            alert("Error al actualizar visibilidad de la ruta.");
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     if (loading && !data) return <div className="h-[60vh] flex items-center justify-center">Sincronizando logística...</div>;
 
     return (
@@ -1285,7 +1320,8 @@ export default function LogisticaPage() {
                         { id: 'rutas', label: 'Hojas de Ruta', count: routeInfo.length, icon: Truck },
                         { id: 'historial', label: 'Historial', count: liquidaciones.length, icon: RotateCcw },
                         { id: 'comisiones', label: 'Comisiones', icon: CreditCard },
-                        { id: 'resumenes', label: 'Resúmenes', icon: Layers, color: 'amber' }
+                        { id: 'resumenes', label: 'Resúmenes', icon: Layers, color: 'amber' },
+                        { id: 'ocultos', label: 'Ocultos', count: hiddenRouteInfo.length, icon: EyeOff, color: 'amber' }
                     ].map((tab) => {
                         const isActive = activeTab === tab.id;
                         const Icon = tab.icon;
@@ -1763,6 +1799,7 @@ export default function LogisticaPage() {
                                             name={route.name}
                                             index={route.index}
                                             isReopened={route.isReopened}
+                                            isHidden={false}
                                             orderCount={orders.filter(o => o.reparto === route.name).length}
                                             onManage={() => setEditingRoute(route.name)}
                                             onViewOrders={() => setViewingOrdersRoute(route.name)}
@@ -1771,6 +1808,7 @@ export default function LogisticaPage() {
                                             onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)}
                                             onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)}
                                             onSettlement={() => setSettlingRoute(route.name)}
+                                            onToggleHide={handleToggleHide}
                                         />
                                     ))}
                                 </div>
@@ -1829,6 +1867,126 @@ export default function LogisticaPage() {
                                                                 <button onClick={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-amber-500 transition-colors" title="Hoja de Ruta"><MapPin size={16} /></button>
                                                                 <button onClick={() => setSettlingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Liquidar"><CheckCircle size={16} /></button>
                                                                 <button onClick={() => handleLiberarReparto(route.name)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Liberar Ruta"><Trash2 size={16} /></button>
+                                                                <button onClick={() => handleToggleHide(route.name)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors" title="Ocultar Ruta"><EyeOff size={16} /></button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'ocultos' && (
+                        <div className="space-y-6">
+                            <div className="bg-[var(--card)] border border-[var(--border)] p-4 rounded-2xl shadow-sm">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar hoja de ruta oculta..."
+                                            value={routeSearchTerm}
+                                            onChange={(e) => setRouteSearchTerm(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-[var(--border)] shadow-inner">
+                                        <button
+                                            onClick={() => setRouteViewMode('grid')}
+                                            className={`p-2 rounded-lg transition-all duration-200 ${routeViewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                            title="Vista Grilla"
+                                        >
+                                            <LayoutGrid size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => setRouteViewMode('list')}
+                                            className={`p-2 rounded-lg transition-all duration-200 ${routeViewMode === 'list' ? 'bg-white dark:bg-slate-700 text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                            title="Vista Lista"
+                                        >
+                                            <List size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {hiddenRouteInfo.length === 0 ? (
+                                <div className="p-12 text-center text-slate-400 font-bold bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
+                                    No hay rutas ocultas en este momento
+                                </div>
+                            ) : routeViewMode === 'grid' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {hiddenRouteInfo.map(route => (
+                                        <RouteCard
+                                            key={route.name}
+                                            name={route.name}
+                                            index={route.index}
+                                            isReopened={route.isReopened}
+                                            isHidden={true}
+                                            orderCount={orders.filter(o => o.reparto === route.name).length}
+                                            onManage={() => setEditingRoute(route.name)}
+                                            onViewOrders={() => setViewingOrdersRoute(route.name)}
+                                            onDelete={() => handleLiberarReparto(route.name)}
+                                            onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === route.name))}
+                                            onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)}
+                                            onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)}
+                                            onSettlement={() => setSettlingRoute(route.name)}
+                                            onToggleHide={handleToggleHide}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden overflow-x-auto shadow-sm">
+                                    <table className="w-full border-collapse">
+                                        <thead>
+                                            <tr className="bg-amber-50 dark:bg-amber-900/10 border-b border-[var(--border)]">
+                                                <th className="p-4 text-left text-[10px] font-black text-amber-600 uppercase tracking-widest w-16">#</th>
+                                                <th className="p-4 text-left text-[10px] font-black text-amber-600 uppercase tracking-widest">Ruta / Chofer</th>
+                                                <th className="p-4 text-center text-[10px] font-black text-amber-600 uppercase tracking-widest w-24">Entregas</th>
+                                                <th className="p-4 text-left text-[10px] font-black text-amber-600 uppercase tracking-widest w-40">Estado</th>
+                                                <th className="p-4 text-right text-[10px] font-black text-amber-600 uppercase tracking-widest w-64">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[var(--border)]">
+                                            {hiddenRouteInfo.map(route => {
+                                                const count = orders.filter(o => o.reparto === route.name).length;
+                                                return (
+                                                    <tr key={route.name} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors opacity-75 grayscale hover:grayscale-0 focus-within:grayscale-0">
+                                                        <td className="p-4">
+                                                            <span className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-black border border-[var(--border)] shadow-sm text-slate-400">
+                                                                {route.index}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <EyeOff size={14} className="text-amber-500" />
+                                                                <span className="font-bold text-slate-500 dark:text-slate-400 line-through">
+                                                                    {route.name}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-center">
+                                                            <span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500">
+                                                                {count}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-wider border border-slate-200">
+                                                                Oculta
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 text-right whitespace-nowrap">
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <button onClick={() => setViewingOrdersRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Ver Pedidos"><Eye size={16} /></button>
+                                                                <button onClick={() => setEditingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Gestionar"><Edit2 size={16} /></button>
+                                                                <button onClick={() => printOrders(orders.filter(o => o.reparto === route.name))} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Imprimir Remitos"><Printer size={16} /></button>
+                                                                <button onClick={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-emerald-500 transition-colors" title="Picking"><Package size={16} /></button>
+                                                                <button onClick={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-amber-500 transition-colors" title="Hoja de Ruta"><MapPin size={16} /></button>
+                                                                <button onClick={() => setSettlingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Liquidar"><CheckCircle size={16} /></button>
+                                                                <button onClick={() => handleLiberarReparto(route.name)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Liberar Ruta"><Trash2 size={16} /></button>
+                                                                <button onClick={() => handleToggleHide(route.name)} className="p-2 bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white rounded-lg transition-colors" title="Restaurar Ruta"><Eye size={16} /></button>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -5411,7 +5569,7 @@ function OrderCard({ order, isSelected, onSelect, onViewDetail, onPrint }: any) 
     );
 }
 
-function RouteCard({ name, orderCount, index, isReopened, onManage, onViewOrders, onDelete, onPrintRemitos, onPrintRouteSheet, onPrintPicking, onSettlement }: any) {
+function RouteCard({ name, orderCount, index, isReopened, isHidden, onManage, onViewOrders, onDelete, onPrintRemitos, onPrintRouteSheet, onPrintPicking, onSettlement, onToggleHide }: any) {
     const [showPrintOptions, setShowPrintOptions] = useState(false);
 
     return (
@@ -5448,6 +5606,13 @@ function RouteCard({ name, orderCount, index, isReopened, onManage, onViewOrders
                         title="Ver Pedidos de esta ruta"
                     >
                         <Eye size={16} />
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onToggleHide(name); }}
+                        className={`p-2.5 rounded-xl transition-all ${isHidden ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'} `}
+                        title={isHidden ? "Restaurar ruta visible" : "Ocultar ruta de logística"}
+                    >
+                        {isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
                     </button>
                     <button
                         onClick={() => setShowPrintOptions(!showPrintOptions)}
