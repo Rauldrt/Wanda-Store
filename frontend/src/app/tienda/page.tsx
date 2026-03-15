@@ -26,6 +26,7 @@ import {
     LocateFixed
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { wandaApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { getImageUrl, normalizeText, smartSearch } from "@/lib/utils";
@@ -429,7 +430,8 @@ export default function TiendaOnlinePage() {
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tienda Online</span>
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                    <ThemeToggle />
                     <button onClick={() => setIsProfileOpen(true)} className="w-11 h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-500 transition-colors">
                         <Settings size={20} />
                     </button>

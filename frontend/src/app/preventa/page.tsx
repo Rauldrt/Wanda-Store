@@ -36,6 +36,7 @@ import {
     Edit3
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { wandaApi } from "@/lib/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -1220,6 +1221,7 @@ export default function PreventaPage() {
                         </div>
                     </div>
                     <div className="flex gap-1">
+                        <ThemeToggle />
                         <button onClick={() => setIsCartOpen(true)} className="p-2 rounded-full hover:bg-black/5 relative text-indigo-500">
                             <ShoppingCart size={20} />
                             {totalItems > 0 && (

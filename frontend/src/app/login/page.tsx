@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { wandaApi } from "@/lib/api";
 import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithPopup } from "firebase/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function LoginPage() {
     const [role, setRole] = useState<'admin' | 'preventista' | null>(null);
@@ -70,7 +71,11 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 font-sans transition-colors">
+            <div className="absolute top-6 right-6 z-50">
+                <ThemeToggle />
+            </div>
+            
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/5 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px]" />
@@ -79,13 +84,13 @@ export default function LoginPage() {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md bg-white rounded-[40px] shadow-2xl shadow-slate-200/50 p-8 relative z-10 border border-slate-100"
+                className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl shadow-slate-200/50 dark:shadow-black/50 p-8 relative z-10 border border-slate-100 dark:border-slate-800"
             >
                 <div className="text-center mb-10">
                     <div className="w-16 h-16 bg-indigo-500 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-xl shadow-indigo-500/20 rotate-3">
                         <Store size={32} />
                     </div>
-                    <h1 className="text-3xl font-black text-slate-800 tracking-tight">WANDA</h1>
+                    <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">WANDA</h1>
                     <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-1">Sistemas de Distribución</p>
                 </div>
 
@@ -95,14 +100,14 @@ export default function LoginPage() {
 
                         <button
                             onClick={() => setRole('admin')}
-                            className="w-full flex items-center justify-between p-6 bg-slate-50 hover:bg-indigo-50 border-2 border-transparent hover:border-indigo-500/20 rounded-[28px] transition-all group"
+                            className="w-full flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-2 border-transparent hover:border-indigo-500/20 rounded-[28px] transition-all group"
                         >
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-indigo-500 shadow-sm transition-colors">
+                                <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-indigo-500 shadow-sm transition-colors">
                                     <Shield size={24} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="font-black text-slate-800">Administrador</h3>
+                                    <h3 className="font-black text-slate-800 dark:text-white">Administrador</h3>
                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gestión Total</p>
                                 </div>
                             </div>
@@ -111,14 +116,14 @@ export default function LoginPage() {
 
                         <button
                             onClick={() => setRole('preventista')}
-                            className="w-full flex items-center justify-between p-6 bg-slate-50 hover:bg-emerald-50 border-2 border-transparent hover:border-emerald-500/20 rounded-[28px] transition-all group"
+                            className="w-full flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border-2 border-transparent hover:border-emerald-500/20 rounded-[28px] transition-all group"
                         >
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-emerald-500 shadow-sm transition-colors">
+                                <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-emerald-500 shadow-sm transition-colors">
                                     <User size={24} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="font-black text-slate-800">Preventista</h3>
+                                    <h3 className="font-black text-slate-800 dark:text-white">Preventista</h3>
                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Pedidos Móvil</p>
                                 </div>
                             </div>
@@ -128,15 +133,15 @@ export default function LoginPage() {
                         <button
                             onClick={handleGoogleLogin}
                             disabled={loading}
-                            className="w-full flex items-center justify-between p-6 bg-slate-900 text-white rounded-[28px] transition-all hover:bg-black shadow-lg shadow-black/10 active:scale-95 group relative overflow-hidden disabled:opacity-70 disabled:pointer-events-none"
+                            className="w-full flex items-center justify-between p-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[28px] transition-all hover:bg-black shadow-lg shadow-black/10 active:scale-95 group relative overflow-hidden disabled:opacity-70 disabled:pointer-events-none"
                         >
                             <div className="flex items-center gap-4 relative z-10">
-                                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white shadow-sm transition-colors">
+                                <div className="w-12 h-12 bg-white/10 dark:bg-slate-900/10 rounded-2xl flex items-center justify-center text-white dark:text-slate-900 shadow-sm transition-colors">
                                     {loading ? <Loader2 className="animate-spin" size={24} /> : <Globe size={24} />}
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-black">Tienda Online</h3>
-                                    <p className="text-[10px] text-white/50 font-bold uppercase tracking-widest">
+                                    <p className="text-[10px] text-white/50 dark:text-slate-900/50 font-bold uppercase tracking-widest">
                                         {loading ? 'Conectando...' : 'Acceso con Google'}
                                     </p>
                                 </div>
@@ -165,7 +170,7 @@ export default function LoginPage() {
                             >
                                 <ArrowRight className="rotate-180" size={20} />
                             </button>
-                            <h2 className="text-xl font-black text-slate-800 capitalize">{role}</h2>
+                            <h2 className="text-xl font-black text-slate-800 dark:text-white capitalize">{role}</h2>
                         </div>
 
                         <div className="relative">
@@ -176,7 +181,7 @@ export default function LoginPage() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Introduce tu clave"
-                                className="w-full bg-slate-50 hover:bg-slate-100/50 border-2 border-slate-100 focus:border-indigo-500/20 focus:bg-white rounded-2xl py-4 pl-12 pr-4 outline-none transition-all font-bold text-slate-800"
+                                className="w-full bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-indigo-500/20 focus:bg-white dark:focus:bg-slate-800 rounded-2xl py-4 pl-12 pr-4 outline-none transition-all font-bold text-slate-800 dark:text-white"
                             />
                         </div>
 

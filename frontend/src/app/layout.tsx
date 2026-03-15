@@ -30,6 +30,8 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from "framer-motion";
 import { DataProvider, useData } from "@/context/DataContext";
 import { migrateLocalStorageToFirebase } from "@/lib/migration";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -49,9 +51,11 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body suppressHydrationWarning className={`${inter.className} min-h-screen bg-[var(--background)] flex`}>
-        <DataProvider>
-          <LayoutContent>{children}</LayoutContent>
-        </DataProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <DataProvider>
+            <LayoutContent>{children}</LayoutContent>
+          </DataProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
@@ -264,6 +268,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 Error de Sincronización
               </span>
             )}
+            <ThemeToggle />
             <button className="p-2 text-slate-400 hover:text-indigo-500 transition-colors relative">
               <Bell size={20} />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[var(--card)]" />
