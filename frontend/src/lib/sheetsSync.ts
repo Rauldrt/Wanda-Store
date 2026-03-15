@@ -105,15 +105,25 @@ export const sheetsSync = {
         const data = sheetsSync.parseCSV(csvText);
         if (data.length === 0) return { success: false, message: "No se encontraron datos" };
 
-        const formatted = data.map(item => ({
-            ...item,
-            Precio_Unitario: parseFloat(item.Precio_Unitario || 0),
-            Costo: parseFloat(item.Costo || 0),
-            Stock_Actual: parseFloat(item.Stock_Actual || 0),
-            Peso_Promedio: parseFloat(item.Peso_Promedio || 1),
-            Unidades_Bulto: parseInt(item.Unidades_Bulto || 1),
-            Es_Oferta: item.Es_Oferta === "true" || item.Es_Oferta === true
-        }));
+        const formatted = data.map(item => {
+            const cleanItem: any = {};
+            // Solo incluimos campos que tengan valor para no sobreescribir con vacíos
+            Object.keys(item).forEach(key => {
+                if (item[key] !== "" && item[key] !== undefined && item[key] !== null) {
+                    let value = item[key];
+                    // Conversiones de tipos
+                    if (["Precio_Unitario", "Costo", "Stock_Actual", "Peso_Promedio"].includes(key)) {
+                        value = parseFloat(value.toString().replace(",", "."));
+                    } else if (key === "Unidades_Bulto") {
+                        value = parseInt(value);
+                    } else if (key === "Es_Oferta") {
+                        value = value === "true" || value === "TRUE" || value === "1";
+                    }
+                    cleanItem[key] = value;
+                }
+            });
+            return cleanItem;
+        });
 
         await wandaApi.bulkUpdateProducts(formatted);
         return { success: true, count: formatted.length };
@@ -123,10 +133,19 @@ export const sheetsSync = {
         const data = sheetsSync.parseCSV(csvText);
         if (data.length === 0) return { success: false, message: "No se encontraron datos" };
 
-        const formatted = data.map(item => ({
-            ...item,
-            Saldo: parseFloat(item.Saldo || 0)
-        }));
+        const formatted = data.map(item => {
+            const cleanItem: any = {};
+            Object.keys(item).forEach(key => {
+                if (item[key] !== "" && item[key] !== undefined && item[key] !== null) {
+                    let value = item[key];
+                    if (key === "Saldo") {
+                        value = parseFloat(value.toString().replace(",", "."));
+                    }
+                    cleanItem[key] = value;
+                }
+            });
+            return cleanItem;
+        });
 
         await wandaApi.bulkUpdateClients(formatted);
         return { success: true, count: formatted.length };

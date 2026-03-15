@@ -128,9 +128,16 @@ export const wandaApi: Record<string, any> = {
         const batch = writeBatch(db);
         changes.forEach(change => {
             const id = change.ID_Producto || change.id;
-            if (id) {
-                batch.update(doc(db, "products", String(id)), change);
+            const docRef = id ? doc(db, "products", String(id)) : doc(collection(db, "products"));
+            
+            const finalData = { ...change };
+            if (!id) {
+                finalData.ID_Producto = docRef.id;
             }
+            // Limpiamos campos temporales
+            delete finalData.id;
+            
+            batch.set(docRef, finalData, { merge: true });
         });
         await batch.commit();
         return { result: "OK" };
@@ -139,9 +146,15 @@ export const wandaApi: Record<string, any> = {
         const batch = writeBatch(db);
         changes.forEach(change => {
             const id = change.ID_Cliente || change.id;
-            if (id) {
-                batch.update(doc(db, "clients", String(id)), change);
+            const docRef = id ? doc(db, "clients", String(id)) : doc(collection(db, "clients"));
+            
+            const finalData = { ...change };
+            if (!id) {
+                finalData.ID_Cliente = docRef.id;
             }
+            delete finalData.id;
+            
+            batch.set(docRef, finalData, { merge: true });
         });
         await batch.commit();
         return { result: "OK" };
