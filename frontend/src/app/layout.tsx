@@ -41,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="antialiased h-full">
+    <html lang="es" suppressHydrationWarning className="antialiased h-full">
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#6366f1" />
@@ -50,7 +50,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Wanda" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
-      <body suppressHydrationWarning className={`${inter.className} min-h-screen bg-[var(--background)] flex`}>
+      <body className={`${inter.className} min-h-screen bg-[var(--background)] flex`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <DataProvider>
             <LayoutContent>{children}</LayoutContent>

@@ -1208,38 +1208,43 @@ export default function PreventaPage() {
 
             <header className="bg-white dark:bg-slate-900 pt-4 px-4 pb-0">
                 <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="relative group/logo">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <div className="relative group/logo shrink-0">
                             <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-40 group-hover:opacity-100 transition-opacity" />
-                            <div className="relative w-10 h-10 rounded-xl bg-slate-900 border border-indigo-500/50 flex items-center justify-center text-indigo-400 font-black shadow-2xl">
-                                <span className="text-lg tracking-tighter drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]">&lt;/&gt;</span>
+                            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900 border border-indigo-500/50 flex items-center justify-center text-indigo-400 font-black shadow-2xl">
+                                <span className="text-base sm:text-lg tracking-tighter drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]">&lt;/&gt;</span>
                             </div>
                         </div>
-                        <div>
-                            <h1 className="font-black text-lg leading-none uppercase italic">Wanda <span className="text-indigo-500">Cloud</span></h1>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{vendedorName || 'Sin Vendedor'}</span>
+                        <div className="min-w-0 overflow-hidden">
+                            <h1 className="font-black text-base sm:text-lg leading-none uppercase italic truncate">Wanda <span className="text-indigo-500">Cloud</span></h1>
+                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate block">{vendedorName || 'Sin Vendedor'}</span>
                         </div>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center shrink-0">
                         <ThemeToggle />
                         <button onClick={() => setIsCartOpen(true)} className="p-2 rounded-full hover:bg-black/5 relative text-indigo-500">
                             <ShoppingCart size={20} />
                             {totalItems > 0 && (
-                                <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
                                     {totalItems}
                                 </span>
                             )}
                         </button>
-                        <button
-                            onClick={generatePDFCatalog}
-                            disabled={isGeneratingPDF}
-                            className={`p-2 rounded-full hover:bg-black/5 ${isGeneratingPDF ? 'animate-pulse text-indigo-400' : 'text-indigo-500'}`}
-                            title="Descargar Catálogo PDF"
-                        >
-                            {isGeneratingPDF ? <FileText className="animate-bounce" size={20} /> : <FileText size={20} />}
-                        </button>
-                        <button onClick={() => setIsHistoryOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Clock size={20} /></button>
-                        <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
+                        <div className="hidden sm:flex gap-1">
+                            <button
+                                onClick={generatePDFCatalog}
+                                disabled={isGeneratingPDF}
+                                className={`p-2 rounded-full hover:bg-black/5 ${isGeneratingPDF ? 'animate-pulse text-indigo-400' : 'text-indigo-500'}`}
+                                title="Descargar Catálogo PDF"
+                            >
+                                {isGeneratingPDF ? <FileText className="animate-bounce" size={20} /> : <FileText size={20} />}
+                            </button>
+                            <button onClick={() => setIsHistoryOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Clock size={20} /></button>
+                            <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
+                        </div>
+                        <div className="sm:hidden flex gap-1">
+                             <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
+                        </div>
                         <button
                             onClick={() => {
                                 if (confirm("¿Estás seguro de que deseas cerrar sesión? Al salir deberás ingresar las credenciales de perfil y vendedor nuevamente.")) {

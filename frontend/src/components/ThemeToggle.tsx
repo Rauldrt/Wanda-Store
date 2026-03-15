@@ -15,45 +15,38 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="w-8 h-8 rounded-lg bg-[var(--card)] border border-[var(--border)] animate-pulse" />
+      <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse border border-transparent" />
     );
   }
 
+  // Obtenemos el tema "activo" (si es system, resolvedTheme nos dice si es light o dark)
+  const isDark = resolvedTheme === "dark";
+
+  const toggleTheme = () => {
+    // Si estamos en system, pasamos a light
+    if (theme === "system") {
+      setTheme("light");
+    } else if (theme === "light") {
+      setTheme("dark");
+    } else {
+      setTheme("system");
+    }
+  };
+
+  const Icon = theme === "system" ? Monitor : isDark ? Moon : Sun;
+
   return (
-    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-      <button
-        onClick={() => setTheme("light")}
-        className={`p-1.5 rounded-lg transition-all ${
-          theme === "light"
-            ? "bg-white dark:bg-transparent shadow-sm text-amber-500"
-            : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-        }`}
-        title="Modo Claro"
-      >
-        <Sun size={16} />
-      </button>
-      <button
-        onClick={() => setTheme("system")}
-        className={`p-1.5 rounded-lg transition-all ${
-          theme === "system"
-            ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-500"
-            : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-        }`}
-        title="Modo Automático"
-      >
-        <Monitor size={16} />
-      </button>
-      <button
-        onClick={() => setTheme("dark")}
-        className={`p-1.5 rounded-lg transition-all ${
-          theme === "dark"
-            ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-400"
-            : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-        }`}
-        title="Modo Oscuro"
-      >
-        <Moon size={16} />
-      </button>
-    </div>
+    <button
+      onClick={toggleTheme}
+      className={`p-2 rounded-xl transition-all flex items-center justify-center border active:scale-95 shadow-sm
+        ${isDark 
+          ? "bg-slate-800 border-white/10 text-indigo-400 hover:bg-slate-700" 
+          : "bg-slate-100 border-black/5 text-amber-500 hover:bg-slate-200"
+        }
+      `}
+      title={`Tema: ${theme === 'system' ? 'Automático' : theme === 'dark' ? 'Oscuro' : 'Claro'}`}
+    >
+      <Icon size={18} />
+    </button>
   );
 }

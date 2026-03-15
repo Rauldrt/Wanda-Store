@@ -430,16 +430,16 @@ export default function TiendaOnlinePage() {
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tienda Online</span>
                     </div>
                 </div>
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-1.5 items-center">
                     <ThemeToggle />
-                    <button onClick={() => setIsProfileOpen(true)} className="w-11 h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-500 transition-colors">
-                        <Settings size={20} />
+                    <button onClick={() => setIsProfileOpen(true)} className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-500 transition-colors">
+                        <Settings size={18} />
                     </button>
-                    <button onClick={() => setIsHistoryOpen(true)} className="w-11 h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
-                        <Clock size={20} />
+                    <button onClick={() => setIsHistoryOpen(true)} className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+                        <Clock size={18} />
                     </button>
-                    <button onClick={logout} className="w-11 h-11 rounded-full bg-rose-50 dark:bg-rose-900/10 flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-colors">
-                        <LogOut size={20} />
+                    <button onClick={logout} className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-rose-50 dark:bg-rose-900/10 flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-colors">
+                        <LogOut size={18} />
                     </button>
                 </div>
             </div>
