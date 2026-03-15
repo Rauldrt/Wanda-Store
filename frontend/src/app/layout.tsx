@@ -22,7 +22,8 @@ import {
   DatabaseBackup,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  FileSpreadsheet
 } from "lucide-react";
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -125,6 +126,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
     { href: "/vendedores", icon: <Users size={18} />, label: "Vendedores" },
     { href: "/informes", icon: <BarChart3 size={18} />, label: "Informes" },
+    { href: "/datos", icon: <FileSpreadsheet size={18} />, label: "Centro de Datos" },
     { href: "/landing", icon: <Layout size={18} />, label: "Presentación" },
     { href: "/migracion", icon: <DatabaseBackup size={18} />, label: "Migración" },
     { href: "/settings", icon: <Settings size={18} />, label: "Ajustes" },

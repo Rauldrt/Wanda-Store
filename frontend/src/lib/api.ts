@@ -135,6 +135,17 @@ export const wandaApi: Record<string, any> = {
         await batch.commit();
         return { result: "OK" };
     },
+    bulkUpdateClients: async (changes: any[]) => {
+        const batch = writeBatch(db);
+        changes.forEach(change => {
+            const id = change.ID_Cliente || change.id;
+            if (id) {
+                batch.update(doc(db, "clients", String(id)), change);
+            }
+        });
+        await batch.commit();
+        return { result: "OK" };
+    },
 
     // ---------------- LOGÍSTICA Y PEDIDOS (RÁPIDOS CON BATCH) ----------------
 
