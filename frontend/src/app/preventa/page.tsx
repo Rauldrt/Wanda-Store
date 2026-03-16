@@ -13,6 +13,7 @@ import {
     X,
     ChevronUp,
     ChevronDown,
+    MoreHorizontal,
     CheckCircle2,
     Package,
     Store,
@@ -148,6 +149,7 @@ export default function PreventaPage() {
     const [localClients, setLocalClients] = useState<Client[]>([]);
     const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
     const [isClientDetailOpen, setIsClientDetailOpen] = useState(false);
+    const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
     const [orderNotes, setOrderNotes] = useState("");
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [lastOrderData, setLastOrderData] = useState<any>(null);
@@ -1243,7 +1245,12 @@ export default function PreventaPage() {
                             <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
                         </div>
                         <div className="sm:hidden flex gap-1">
-                             <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
+                             <button 
+                                onClick={() => setIsQuickMenuOpen(!isQuickMenuOpen)} 
+                                className={`p-2 rounded-full transition-all duration-300 ${isQuickMenuOpen ? 'bg-indigo-500 text-white' : 'hover:bg-black/5 text-slate-400'}`}
+                             >
+                                {isQuickMenuOpen ? <X size={20} className="rotate-90" /> : <MoreHorizontal size={20} />}
+                             </button>
                         </div>
                         <button
                             onClick={() => {
@@ -1269,6 +1276,47 @@ export default function PreventaPage() {
                         </button>
                     </div>
                 </div>
+
+                <AnimatePresence>
+                    {isQuickMenuOpen && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden sm:hidden"
+                        >
+                            <div className="grid grid-cols-3 gap-3 py-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl mb-4 border border-black/5">
+                                <button
+                                    onClick={() => { generatePDFCatalog(); setIsQuickMenuOpen(false); }}
+                                    className="flex flex-col items-center gap-1.5"
+                                >
+                                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-black/5 text-indigo-500 active:scale-95 transition-transform">
+                                        <FileText size={20} />
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-tighter">Catálogo</span>
+                                </button>
+                                <button
+                                    onClick={() => { setIsHistoryOpen(true); setIsQuickMenuOpen(false); }}
+                                    className="flex flex-col items-center gap-1.5"
+                                >
+                                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-black/5 text-emerald-500 active:scale-95 transition-transform">
+                                        <Clock size={20} />
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-tighter">Historia</span>
+                                </button>
+                                <button
+                                    onClick={() => { setIsConfigOpen(true); setIsQuickMenuOpen(false); }}
+                                    className="flex flex-col items-center gap-1.5"
+                                >
+                                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-black/5 text-slate-500 active:scale-95 transition-transform">
+                                        <Settings size={20} />
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-tighter">Ajustes</span>
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </header>
 
             <div className="sticky top-0 z-40 bg-white dark:bg-slate-900 px-4 pt-4 pb-4 border-b border-black/5 shadow-sm">
