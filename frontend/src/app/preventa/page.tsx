@@ -150,6 +150,7 @@ export default function PreventaPage() {
     const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
     const [isClientDetailOpen, setIsClientDetailOpen] = useState(false);
     const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
+    const [quickNotice, setQuickNotice] = useState<{ message: string, color: string } | null>(null);
     const [orderNotes, setOrderNotes] = useState("");
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [lastOrderData, setLastOrderData] = useState<any>(null);
@@ -298,6 +299,48 @@ export default function PreventaPage() {
             .filter(p => terms.every(t => p.searchKey.includes(t)))
             .map(p => p.item);
     }, [searchableProducts, deferredSearchTerm, searchOnlyByCode, products]);
+
+    // --- LÓGICA DE BÚSQUEDA AVANZADA [CANTIDAD]*[ID] ---
+    useEffect(() => {
+        if (!searchOnlyByCode || !searchTerm.includes('*')) return;
+
+        // Patrón: [cantidad][b|u?]*[id]  e.g. 4*1.1, 4b*1.1, 4u*1.1
+        const match = searchTerm.match(/^(\d+)([bBuU])?\*([\w\.]+)$/);
+        if (match) {
+            const qty = parseInt(match[1]);
+            const specifier = (match[2] || "").toLowerCase();
+            const isBulto = specifier === 'b';
+            const productCode = match[3];
+
+            const product = products.find(p => 
+                normalizeText(p.ID_Producto) === normalizeText(productCode)
+            );
+
+            if (product) {
+                const id = product.ID_Producto;
+                
+                // Si especificó 'b' o 'u', forzamos ese modo. Si no, mantenemos el actual o default a unid.
+                if (specifier === 'b') {
+                    setModoBulto(prev => ({ ...prev, [id]: true }));
+                } else if (specifier === 'u') {
+                    setModoBulto(prev => ({ ...prev, [id]: false }));
+                } else if (modoBulto[id] === undefined) {
+                    setModoBulto(prev => ({ ...prev, [id]: false }));
+                }
+                
+                updateQty(id, qty);
+                setSearchTerm("");
+                
+                // Feedback visual
+                const unitLabel = isBulto ? 'Bulto' : 'Unid';
+                setQuickNotice({ 
+                    message: `+${qty} ${unitLabel}${qty > 1 ? (unitLabel === 'Unid' ? 'ades' : 's') : ''} de ${product.Nombre}`, 
+                    color: isBulto ? 'bg-amber-500' : 'bg-indigo-500' 
+                });
+                setTimeout(() => setQuickNotice(null), 2500);
+            }
+        }
+    }, [searchTerm, searchOnlyByCode, products, modoBulto]);
 
     const searchableClients = useMemo(() => {
         return allClients.map(c => ({
@@ -1321,6 +1364,21 @@ export default function PreventaPage() {
 
             <div className="sticky top-0 z-40 bg-white dark:bg-slate-900 px-4 pt-4 pb-4 border-b border-black/5 shadow-sm">
                 <div className="flex items-center gap-2">
+                    {/* Floating Toast Notice */}
+                    <AnimatePresence>
+                        {quickNotice && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -20, scale: 0.9 }}
+                                className={`absolute left-1/2 -translate-x-1/2 top-full mt-4 px-6 py-3 rounded-2xl text-white font-bold shadow-xl z-[60] flex items-center gap-2 whitespace-nowrap ${quickNotice.color}`}
+                            >
+                                <CheckCircle2 size={18} />
+                                {quickNotice.message}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
                     <motion.div
                         layout
                         initial={false}
