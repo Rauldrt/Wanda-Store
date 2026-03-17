@@ -683,31 +683,42 @@ export default function LogisticaPage() {
 
         const totals = selectedLiqs.reduce((acc, l) => {
             let efecReal = l.EFECTIVO || 0;
+            let chqReal = 0;
             try {
                 if (l.DRAFT_JSON) {
                     const draft = JSON.parse(l.DRAFT_JSON);
                     if (draft.billetes) {
-                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => subAcc + (den === 'CHEQUES' ? Number(qty) : Number(den) * (qty as number)), 0);
+                        chqReal = Number(draft.billetes.CHEQUES || 0);
+                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => {
+                            if (den === 'CHEQUES') return subAcc;
+                            return subAcc + (Number(den) * (qty as number));
+                        }, 0);
                     }
                 }
             } catch (e) { }
 
             return {
                 efectivo: acc.efectivo + efecReal,
+                cheques: acc.cheques + chqReal,
                 transf: acc.transf + (l.TRANSF || 0),
                 cc: acc.cc + (l.CUENTAS_CORRIENTES || 0),
                 gastos: acc.gastos + (l.GASTOS || 0),
                 devoluciones: acc.devoluciones + (l.DEVOLUCIONES || 0)
             };
-        }, { efectivo: 0, transf: 0, cc: 0, gastos: 0, devoluciones: 0 });
+        }, { efectivo: 0, cheques: 0, transf: 0, cc: 0, gastos: 0, devoluciones: 0 });
 
         const rows = selectedLiqs.map(l => {
             let efecReal = l.EFECTIVO || 0;
+            let chqReal = 0;
             try {
                 if (l.DRAFT_JSON) {
                     const draft = JSON.parse(l.DRAFT_JSON);
                     if (draft.billetes) {
-                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => subAcc + (den === 'CHEQUES' ? Number(qty) : Number(den) * (qty as number)), 0);
+                        chqReal = Number(draft.billetes.CHEQUES || 0);
+                        efecReal = Object.entries(draft.billetes).reduce((subAcc, [den, qty]) => {
+                            if (den === 'CHEQUES') return subAcc;
+                            return subAcc + (Number(den) * (qty as number));
+                        }, 0);
                     }
                 }
             } catch (e) { }
@@ -716,6 +727,7 @@ export default function LogisticaPage() {
             <tr>
                 <td>${l.REPARTO}<br/><small>${new Date(l.FECHA).toLocaleDateString()}</small></td>
                 <td style="text-align:right">$${efecReal.toLocaleString()}</td>
+                <td style="text-align:right">$${chqReal.toLocaleString()}</td>
                 <td style="text-align:right">$${(l.TRANSF || 0).toLocaleString()}</td>
                 <td style="text-align:right">$${(l.CUENTAS_CORRIENTES || 0).toLocaleString()}</td>
                 <td style="text-align:right">$${(l.GASTOS || 0).toLocaleString()}</td>
@@ -745,6 +757,7 @@ export default function LogisticaPage() {
                             <tr>
                                 <th>Reparto / Fecha</th>
                                 <th>Efectivo</th>
+                                <th>Cheques</th>
                                 <th>Transferencia</th>
                                 <th>Cta. Cte.</th>
                                 <th>Gastos</th>
@@ -758,6 +771,7 @@ export default function LogisticaPage() {
                             <tr class="total-row">
                                 <td>TOTALES</td>
                                 <td style="text-align:right">$${totals.efectivo.toLocaleString()}</td>
+                                <td style="text-align:right">$${totals.cheques.toLocaleString()}</td>
                                 <td style="text-align:right">$${totals.transf.toLocaleString()}</td>
                                 <td style="text-align:right">$${totals.cc.toLocaleString()}</td>
                                 <td style="text-align:right">$${totals.gastos.toLocaleString()}</td>
@@ -2272,15 +2286,10 @@ export default function LogisticaPage() {
                                                         {selectedSettlementsSummary.includes(liq.id) && <Check size={10} strokeWidth={4} />}
                                                     </div>
                                                     <div>
-                                                        <div className="text-[10px] font-black uppercase truncate max-w-[120px]">{liq.REPARTO}</div>
-                                                        <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
-                                                            {new Date(liq.FECHA).toLocaleDateString()} • {liq.CHOFER || 'N/A'}
-                                                        </div>
+                                                        <div className="text-[10px] font-black uppercase">{liq.REPARTO}</div>
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <div className="text-[9px] font-black text-amber-600">${(liq.TOTAL_NETO || 0).toLocaleString()}</div>
-                                                </div>
+
                                             </div>
                                         ))}
                                 </div>
@@ -2303,6 +2312,7 @@ export default function LogisticaPage() {
                                                     <tr>
                                                         <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px]">Reparto / Fecha</th>
                                                         <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Efectivo</th>
+                                                        <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Cheques</th>
                                                         <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">MP / Transf</th>
                                                         <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Cta Cte</th>
                                                         <th className="p-3 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Gastos</th>
@@ -2312,35 +2322,84 @@ export default function LogisticaPage() {
                                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                                     {liquidaciones
                                                         .filter(l => selectedSettlementsSummary.includes(l.id))
-                                                        .map(l => (
-                                                            <tr key={l.id} className="hover:bg-amber-500/5 transition-colors">
-                                                                <td className="p-3">
-                                                                    <div className="font-extrabold text-slate-900 dark:text-slate-100">{l.REPARTO}</div>
-                                                                    <div className="text-[9px] text-slate-400 font-bold uppercase">{new Date(l.FECHA).toLocaleDateString()}</div>
-                                                                </td>
-                                                                <td className="p-3 text-right font-black text-slate-700 dark:text-slate-300">
-                                                                    ${(l.EFECTIVO || 0).toLocaleString()}
-                                                                </td>
-                                                                <td className="p-3 text-right font-black text-indigo-600">
-                                                                    ${(l.TRANSF || 0).toLocaleString()}
-                                                                </td>
-                                                                <td className="p-3 text-right font-black text-amber-600">
-                                                                    ${(l.CUENTAS_CORRIENTES || 0).toLocaleString()}
-                                                                </td>
-                                                                <td className="p-3 text-right font-black text-orange-600">
-                                                                    ${(l.GASTOS || 0).toLocaleString()}
-                                                                </td>
-                                                                <td className="p-3 text-right font-black text-rose-600">
-                                                                    ${(l.DEVOLUCIONES || 0).toLocaleString()}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
+                                                        .map(l => {
+                                                            const breakdown = (() => {
+                                                                let efec = l.EFECTIVO || 0;
+                                                                let chq = 0;
+                                                                try {
+                                                                    if (l.DRAFT_JSON) {
+                                                                        const draft = JSON.parse(l.DRAFT_JSON);
+                                                                        if (draft.billetes) {
+                                                                            chq = Number(draft.billetes.CHEQUES || 0);
+                                                                            efec = Object.entries(draft.billetes).reduce((acc, [den, qty]) => {
+                                                                                if (den === 'CHEQUES') return acc;
+                                                                                return acc + (Number(den) * (qty as number));
+                                                                            }, 0);
+                                                                        }
+                                                                    }
+                                                                } catch (e) { }
+                                                                return { efec, chq };
+                                                            })();
+
+                                                            return (
+                                                                <tr key={l.id} className="hover:bg-amber-500/5 transition-colors">
+                                                                    <td className="p-3">
+                                                                        <div className="font-extrabold text-slate-900 dark:text-slate-100">{l.REPARTO}</div>
+                                                                        <div className="text-[9px] text-slate-400 font-bold uppercase">{new Date(l.FECHA).toLocaleDateString()}</div>
+                                                                    </td>
+                                                                    <td className="p-3 text-right font-black text-slate-700 dark:text-slate-300">
+                                                                        ${breakdown.efec.toLocaleString()}
+                                                                    </td>
+                                                                    <td className="p-3 text-right font-black text-emerald-600">
+                                                                        ${breakdown.chq.toLocaleString()}
+                                                                    </td>
+                                                                    <td className="p-3 text-right font-black text-indigo-600">
+                                                                        ${(l.TRANSF || 0).toLocaleString()}
+                                                                    </td>
+                                                                    <td className="p-3 text-right font-black text-amber-600">
+                                                                        ${(l.CUENTAS_CORRIENTES || 0).toLocaleString()}
+                                                                    </td>
+                                                                    <td className="p-3 text-right font-black text-orange-600">
+                                                                        ${(l.GASTOS || 0).toLocaleString()}
+                                                                    </td>
+                                                                    <td className="p-3 text-right font-black text-rose-600">
+                                                                        ${(l.DEVOLUCIONES || 0).toLocaleString()}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
                                                 </tbody>
                                                 <tfoot className="bg-slate-900 text-white font-black uppercase tracking-widest text-[10px]">
                                                     <tr>
                                                         <td className="p-4">Totales Consolidados</td>
                                                         <td className="p-4 text-right">
-                                                            ${liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)).reduce((acc, l) => acc + (l.EFECTIVO || 0), 0).toLocaleString()}
+                                                            ${liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)).reduce((acc, l) => {
+                                                                let val = l.EFECTIVO || 0;
+                                                                try {
+                                                                    if (l.DRAFT_JSON) {
+                                                                        const draft = JSON.parse(l.DRAFT_JSON);
+                                                                        if (draft.billetes) {
+                                                                            val = Object.entries(draft.billetes).reduce((sub, [den, qty]) => {
+                                                                                if (den === 'CHEQUES') return sub;
+                                                                                return sub + (Number(den) * (qty as number));
+                                                                            }, 0);
+                                                                        }
+                                                                    }
+                                                                } catch(e) {}
+                                                                return acc + val;
+                                                            }, 0).toLocaleString()}
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            ${liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)).reduce((acc, l) => {
+                                                                let val = 0;
+                                                                try {
+                                                                    if (l.DRAFT_JSON) {
+                                                                        const draft = JSON.parse(l.DRAFT_JSON);
+                                                                        if (draft.billetes) val = Number(draft.billetes.CHEQUES || 0);
+                                                                    }
+                                                                } catch(e) {}
+                                                                return acc + val;
+                                                            }, 0).toLocaleString()}
                                                         </td>
                                                         <td className="p-4 text-right">
                                                             ${liquidaciones.filter(l => selectedSettlementsSummary.includes(l.id)).reduce((acc, l) => acc + (l.TRANSF || 0), 0).toLocaleString()}
