@@ -117,6 +117,7 @@ export default function PreventaPage() {
     const [seenBannerIds, setSeenBannerIds] = useState<Set<string>>(new Set());
     const [openHistoryDates, setOpenHistoryDates] = useState<Set<string>>(new Set());
     const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
     const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(() => {
         if (typeof window !== 'undefined') {
@@ -1032,9 +1033,9 @@ export default function PreventaPage() {
         return (
             <div
                 key={pid}
-                className={`p-4 rounded-[28px] bg-white dark:bg-slate-900 border transition-all duration-300 ${qty > 0
-                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 dark:border-indigo-500 ring-2 ring-indigo-500/10 shadow-lg shadow-indigo-500/5'
-                    : 'border-slate-100 dark:border-slate-800'
+                className={`p-4 rounded-[32px] bg-white dark:bg-slate-900 border transition-all duration-500 ${qty > 0
+                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 dark:border-indigo-500 ring-4 ring-indigo-500/10 shadow-2xl shadow-indigo-500/20 scale-[1.02] z-10'
+                    : 'border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-300/40 dark:shadow-none hover:shadow-2xl hover:shadow-slate-400/30'
                     }`}
             >
                 <div className="flex gap-3">
@@ -1135,38 +1136,25 @@ export default function PreventaPage() {
     const contentToRender = viewMode === 'list'
         ? filteredProducts.map(renderProductCard)
         : Object.entries(groupedProducts).map(([cat, prods]) => {
-            const isExpanded = expandedCategories.includes(cat);
             return (
-                <div key={cat} className="mb-4">
+                <div key={cat} className="mb-3">
                     <button
-                        onClick={() => toggleCategory(cat)}
-                        className="w-full bg-white dark:bg-slate-900 py-3 px-4 mb-2 text-[12px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-[0.2em] border border-indigo-100 dark:border-indigo-900/30 shadow-sm rounded-[20px] flex justify-between items-center transition-all active:scale-95"
+                        onClick={() => setSelectedCategory(cat)}
+                        className="w-full bg-white dark:bg-slate-900/40 backdrop-blur-md py-5 px-6 text-[13px] font-black uppercase text-indigo-500 dark:text-indigo-400 tracking-[0.25em] border border-white/20 dark:border-indigo-500/10 shadow-xl shadow-indigo-500/5 rounded-[32px] flex justify-between items-center transition-all active:scale-[0.97] hover:bg-white hover:shadow-2xl hover:shadow-indigo-500/10 group"
                     >
-                        <div className="flex items-center gap-2">
-                            <FolderTree size={16} className="text-indigo-400" />
-                            {cat}
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500 group-hover:scale-110 transition-transform">
+                                <FolderTree size={18} />
+                            </div>
+                            <span className="truncate max-w-[180px] xs:max-w-none">{cat}</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <span className="opacity-80 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full text-[10px] tracking-widest">{prods.length}</span>
-                            <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                        <div className="flex items-center gap-4">
+                            <span className="bg-indigo-500 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest shadow-lg shadow-indigo-500/20">{prods.length}</span>
+                            <ArrowRight size={18} className="text-indigo-300 group-hover:text-indigo-500 transition-colors" />
                         </div>
                     </button>
-                    <AnimatePresence>
-                        {isExpanded && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                            >
-                                <div className="grid grid-cols-1 gap-4 pt-2 pb-4">
-                                    {prods.map(renderProductCard)}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
                 </div>
-            )
+            );
         });
 
     const cartItemList = Object.entries(carrito).map(([id, qty], cartIdx) => {
@@ -2033,6 +2021,53 @@ export default function PreventaPage() {
                         <button className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
                             <X size={24} />
                         </button>
+                    </motion.div>
+                )}
+
+                {/* MODAL DE CATEGORÍA SELECCIONADA */}
+                {selectedCategory && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }} 
+                        className="fixed inset-0 z-[65] bg-slate-900/40 dark:bg-black/60 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-6"
+                    >
+                        {/* Overlay para cerrar al hacer click fuera en desktop */}
+                        <div className="absolute inset-0" onClick={() => setSelectedCategory(null)} />
+                        
+                        <motion.div 
+                            initial={{ y: "100%", opacity: 0 }} 
+                            animate={{ y: 0, opacity: 1 }} 
+                            exit={{ y: "100%", opacity: 0 }} 
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            className="bg-[#F8FAFC] dark:bg-[#0F172A] w-full max-w-2xl rounded-t-[48px] sm:rounded-[48px] shadow-2xl flex flex-col max-h-[92vh] relative z-10 border-t border-white/20 dark:border-slate-800"
+                        >
+                            {/* Handle para mobile */}
+                            <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mt-4 mb-2 sm:hidden" />
+                            
+                            <div className="p-6 pb-4 flex items-center justify-between sticky top-0 bg-[#F8FAFC]/80 dark:bg-[#0F172A]/80 backdrop-blur-md z-20 rounded-t-[48px]">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-[20px] bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                        <FolderTree size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-black tracking-tight text-slate-800 dark:text-white uppercase truncate max-w-[180px] xs:max-w-none">{selectedCategory}</h2>
+                                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{groupedProducts[selectedCategory]?.length || 0} Productos</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setSelectedCategory(null)} 
+                                    className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all active:scale-90"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 no-scrollbar">
+                                {groupedProducts[selectedCategory]?.map((p, idx) => renderProductCard(p, idx))}
+                                <div className="h-20 sm:h-4 w-full" /> {/* Spacer extra para el botón del carrito en mobile */}
+                            </div>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
