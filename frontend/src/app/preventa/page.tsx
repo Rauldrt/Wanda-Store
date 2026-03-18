@@ -119,6 +119,13 @@ export default function PreventaPage() {
     const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+    const [navLayout, setNavLayout] = useState<'header' | 'fab'>(() => {
+        if (typeof window !== 'undefined') {
+            return (localStorage.getItem("nav_layout") as 'header' | 'fab') || 'header';
+        }
+        return 'header';
+    });
+    const [isFABOpen, setIsFABOpen] = useState(false);
     const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem("hidden_orders");
@@ -1216,6 +1223,58 @@ export default function PreventaPage() {
         );
     });
 
+    const renderFAB = () => {
+        if (navLayout !== 'fab') return null;
+
+        const fabActions = [
+            { id: 'cart', icon: <ShoppingCart size={20} />, color: 'bg-indigo-600', label: 'Carrito', onClick: () => setIsCartOpen(true), badge: totalItems },
+            { id: 'history', icon: <Clock size={20} />, color: 'bg-emerald-600', label: 'Historial', onClick: () => setIsHistoryOpen(true) },
+            { id: 'catalog', icon: <FileText size={20} />, color: 'bg-amber-600', label: 'Catálogo', onClick: generatePDFCatalog },
+        ];
+
+        return (
+            <div className="fixed bottom-8 right-8 z-[100] flex flex-col items-end gap-3 sm:hidden">
+                <AnimatePresence>
+                    {isFABOpen && (
+                        <div className="flex flex-col items-end gap-3 mb-3">
+                            {fabActions.map((action, idx) => (
+                                <motion.div
+                                    key={action.id}
+                                    initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.5, y: 20 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                    className="flex items-center gap-3"
+                                >
+                                    <span className="bg-white dark:bg-slate-800 px-3 py-1 rounded-xl shadow-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
+                                        {action.label}
+                                    </span>
+                                    <button
+                                        onClick={() => { action.onClick(); setIsFABOpen(false); }}
+                                        className={`w-12 h-12 rounded-2xl ${action.color} text-white shadow-xl flex items-center justify-center relative active:scale-90 transition-transform`}
+                                    >
+                                        {action.icon}
+                                        {action.badge ? (
+                                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                                                {action.badge}
+                                            </span>
+                                        ) : null}
+                                    </button>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
+                </AnimatePresence>
+                <button
+                    onClick={() => setIsFABOpen(!isFABOpen)}
+                    className={`w-14 h-14 rounded-[24px] shadow-2xl flex items-center justify-center transition-all duration-300 z-50 ${isFABOpen ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 rotate-45' : 'bg-indigo-600 text-white'}`}
+                >
+                    <Plus size={32} />
+                </button>
+            </div>
+        );
+    };
+
     return (
         <div className="min-h-screen bg-[#F4FBF9] dark:bg-[#101413] flex flex-col text-[#191C1B] dark:text-[#E1E3DF]">
             <style jsx global>{`
@@ -1255,34 +1314,41 @@ export default function PreventaPage() {
                     </div>
                     <div className="flex gap-1 items-center shrink-0">
                         <ThemeToggle />
-                        <button onClick={() => setIsCartOpen(true)} className="p-2 rounded-full hover:bg-black/5 relative text-indigo-500">
-                            <ShoppingCart size={20} />
-                            {totalItems > 0 && (
-                                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
-                                    {totalItems}
-                                </span>
-                            )}
-                        </button>
-                        <div className="hidden sm:flex gap-1">
-                            <button
-                                onClick={generatePDFCatalog}
-                                disabled={isGeneratingPDF}
-                                className={`p-2 rounded-full hover:bg-black/5 ${isGeneratingPDF ? 'animate-pulse text-indigo-400' : 'text-indigo-500'}`}
-                                title="Descargar Catálogo PDF"
-                            >
-                                {isGeneratingPDF ? <FileText className="animate-bounce" size={20} /> : <FileText size={20} />}
-                            </button>
-                            <button onClick={() => setIsHistoryOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Clock size={20} /></button>
-                            <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
-                        </div>
-                        <div className="sm:hidden flex gap-1">
-                             <button 
-                                onClick={() => setIsQuickMenuOpen(!isQuickMenuOpen)} 
-                                className={`p-2 rounded-full transition-all duration-300 ${isQuickMenuOpen ? 'bg-indigo-500 text-white' : 'hover:bg-black/5 text-slate-400'}`}
-                             >
-                                {isQuickMenuOpen ? <X size={20} className="rotate-90" /> : <MoreHorizontal size={20} />}
-                             </button>
-                        </div>
+                        {navLayout === 'header' && (
+                            <>
+                                <button onClick={() => setIsCartOpen(true)} className="p-2 rounded-full hover:bg-black/5 relative text-indigo-500">
+                                    <ShoppingCart size={20} />
+                                    {totalItems > 0 && (
+                                        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                                            {totalItems}
+                                        </span>
+                                    )}
+                                </button>
+                                <div className="hidden sm:flex gap-1">
+                                    <button
+                                        onClick={generatePDFCatalog}
+                                        disabled={isGeneratingPDF}
+                                        className={`p-2 rounded-full hover:bg-black/5 ${isGeneratingPDF ? 'animate-pulse text-indigo-400' : 'text-indigo-500'}`}
+                                        title="Descargar Catálogo PDF"
+                                    >
+                                        {isGeneratingPDF ? <FileText className="animate-bounce" size={20} /> : <FileText size={20} />}
+                                    </button>
+                                    <button onClick={() => setIsHistoryOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Clock size={20} /></button>
+                                    <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
+                                </div>
+                                <div className="sm:hidden flex gap-1">
+                                    <button 
+                                        onClick={() => setIsQuickMenuOpen(!isQuickMenuOpen)} 
+                                        className={`p-2 rounded-full transition-all duration-300 ${isQuickMenuOpen ? 'bg-indigo-500 text-white' : 'hover:bg-black/5 text-slate-400'}`}
+                                    >
+                                        {isQuickMenuOpen ? <X size={20} className="rotate-90" /> : <MoreHorizontal size={20} />}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                        {navLayout === 'fab' && (
+                             <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
+                        )}
                         <button
                             onClick={() => {
                                 if (confirm("¿Estás seguro de que deseas cerrar sesión? Al salir deberás ingresar las credenciales de perfil y vendedor nuevamente.")) {
@@ -1819,10 +1885,10 @@ export default function PreventaPage() {
                                         return parse(b) - parse(a); // desc
                                     });
 
-                                    // Abrir el grupo más reciente por defecto
-                                    if (openHistoryDates.size === 0 && sortedDates.length > 0) {
+                                    // Accordions closed by default by removing auto-open logic
+                                    /* if (openHistoryDates.size === 0 && sortedDates.length > 0) {
                                         setTimeout(() => setOpenHistoryDates(new Set([sortedDates[0]])), 0);
-                                    }
+                                    } */
 
                                     const toggleDate = (date: string) => {
                                         setOpenHistoryDates(prev => {
@@ -1887,30 +1953,46 @@ export default function PreventaPage() {
                                                                                 <div
                                                                                     key={`${hId}-${idx}`}
                                                                                     onClick={() => setViewingOrder(h)}
-                                                                                    className="bg-slate-50 dark:bg-slate-800 p-4 rounded-[24px] border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-indigo-500/30 active:scale-[0.98] transition-all"
+                                                                                    className="bg-white dark:bg-slate-900 rounded-[20px] border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-indigo-500/30 active:scale-[0.99] transition-all overflow-x-auto no-scrollbar"
                                                                                 >
-                                                                                    <div className="flex justify-between items-start mb-2">
-                                                                                        <div>
-                                                                                            <p className="font-black text-sm">{h.cliente?.Nombre_Negocio || 'Cliente Desconocido'}</p>
-                                                                                            <p className="text-[9px] font-bold text-slate-400 uppercase">
-                                                                                                {h.fechaLocal?.split(' ').slice(1).join(' ') || ''}
-                                                                                            </p>
+                                                                                    <div className="flex items-center justify-between gap-6 p-3 min-w-max">
+                                                                                        {/* Cliente e Info Principal */}
+                                                                                        <div className="flex items-center gap-3 shrink-0">
+                                                                                            <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                                                                                <User size={18} />
+                                                                                            </div>
+                                                                                            <div className="flex flex-col">
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <p className="font-black text-[13px] tracking-tight text-slate-700 dark:text-slate-200">{h.cliente?.Nombre_Negocio || 'Cliente Desconocido'}</p>
+                                                                                                    <span className="bg-emerald-500/10 text-emerald-600 text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest whitespace-nowrap">Enviado</span>
+                                                                                                </div>
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <p className="text-[9px] font-bold text-slate-400 uppercase">
+                                                                                                        {h.fechaLocal?.split(' ').slice(1).join(' ') || ''}
+                                                                                                    </p>
+                                                                                                    <span className="text-[9px] text-slate-300 dark:text-slate-600">•</span>
+                                                                                                    <p className="text-[9px] font-medium text-slate-400 italic">
+                                                                                                        {h.items.length} prod.
+                                                                                                    </p>
+                                                                                                </div>
+                                                                                            </div>
                                                                                         </div>
-                                                                                        <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Enviado</span>
-                                                                                    </div>
-                                                                                    <div className="text-[10px] text-slate-500 line-clamp-1 mb-3 italic">
-                                                                                        Haz clic para ver {h.items.length} producto{h.items.length > 1 ? 's' : ''}
-                                                                                    </div>
-                                                                                    <div className="flex items-center justify-between pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
-                                                                                        <span className="text-lg font-black text-indigo-600">${h.total.toLocaleString()}</span>
-                                                                                        <div className="flex gap-2">
-                                                                                            <button onClick={(e) => { e.stopPropagation(); toggleHideOrder(String(hId)); }} className="p-2.5 rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-500 transition-all border border-slate-200 dark:border-slate-700" title="Ocultar de mi vista"><EyeOff size={16} /></button>
+
+                                                                                        {/* Controles de Acción */}
+                                                                                        <div className="flex items-center gap-1.5 px-4 border-x border-slate-50 dark:border-slate-800 shrink-0">
+                                                                                            <button onClick={(e) => { e.stopPropagation(); toggleHideOrder(String(hId)); }} className="h-9 w-9 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-500 transition-all flex items-center justify-center" title="Ocultar"><EyeOff size={14} /></button>
                                                                                             {(!h.reparto || String(h.reparto) === "null" || String(h.reparto).trim() === "") && (
-                                                                                                <button onClick={(e) => { e.stopPropagation(); handleEditOrder(h); }} className="p-2.5 rounded-xl bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white transition-all border border-blue-100 dark:bg-blue-900/20 dark:border-blue-900/30" title="Editar Pedido"><Edit3 size={16} /></button>
+                                                                                                <button onClick={(e) => { e.stopPropagation(); handleEditOrder(h); }} className="h-9 w-9 rounded-xl bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center" title="Editar"><Edit3 size={14} /></button>
                                                                                             )}
-                                                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteOrder(String(hId)); }} className="p-2.5 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white transition-all border border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/30" title="Eliminar Permanentemente"><Trash2 size={16} /></button>
-                                                                                            <button onClick={(e) => { e.stopPropagation(); shareToWhatsApp(h); }} className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20"><MessageCircle size={16} /></button>
-                                                                                            <button onClick={(e) => { e.stopPropagation(); repeatOrder(h); }} className="px-4 py-2.5 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-indigo-500/20 flex items-center gap-2 pr-5">Repetir <Clock size={12} /></button>
+                                                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteOrder(String(hId)); }} className="h-9 w-9 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center" title="Eliminar"><Trash2 size={14} /></button>
+                                                                                            <button onClick={(e) => { e.stopPropagation(); shareToWhatsApp(h); }} className="h-9 w-9 rounded-xl bg-emerald-500 text-white shadow-sm flex items-center justify-center" title="Compartir"><MessageCircle size={14} /></button>
+                                                                                            <button onClick={(e) => { e.stopPropagation(); repeatOrder(h); }} className="h-9 px-3 rounded-xl bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest shadow-sm flex items-center gap-1.5">Repetir <Clock size={11} /></button>
+                                                                                        </div>
+
+                                                                                        {/* Importe Total */}
+                                                                                        <div className="shrink-0 text-right pr-2">
+                                                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter leading-none mb-0.5">Total</p>
+                                                                                            <span className="text-base font-black text-indigo-600 dark:text-indigo-400">${h.total.toLocaleString()}</span>
                                                                                         </div>
                                                                                     </div>
                                                                                 </div>
@@ -1987,6 +2069,23 @@ export default function PreventaPage() {
                                 <div className="text-left">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Nombre del Vendedor</label>
                                     <input type="text" value={vendedorName} onChange={(e) => { setVendedorName(e.target.value); localStorage.setItem("vendedor_name", e.target.value); }} className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" placeholder="Ej: Juan Pérez" />
+                                </div>
+                                <div className="text-left">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Disposición de Menú</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button 
+                                            onClick={() => { setNavLayout('header'); localStorage.setItem("nav_layout", 'header'); }}
+                                            className={`py-3 rounded-2xl text-[10px] font-black uppercase transition-all border-2 ${navLayout === 'header' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-transparent'}`}
+                                        >
+                                            Encabezado
+                                        </button>
+                                        <button 
+                                            onClick={() => { setNavLayout('fab'); localStorage.setItem("nav_layout", 'fab'); }}
+                                            className={`py-3 rounded-2xl text-[10px] font-black uppercase transition-all border-2 ${navLayout === 'fab' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-transparent'}`}
+                                        >
+                                            Flotante (FAB)
+                                        </button>
+                                    </div>
                                 </div>
                                 <button onClick={() => {
                                     localStorage.removeItem("user_role");
@@ -2099,6 +2198,9 @@ export default function PreventaPage() {
                         </motion.div>
                     </motion.div>
                 )}
+
+                {/* FAB Menu */}
+                {renderFAB()}
 
                 {!vendedorName && (
                     <div className="fixed inset-0 z-[300] bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-6 backdrop-blur-md bg-opacity-80">
