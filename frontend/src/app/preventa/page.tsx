@@ -1233,45 +1233,58 @@ export default function PreventaPage() {
         ];
 
         return (
-            <div className="fixed bottom-8 right-8 z-[100] flex flex-col items-end gap-3 sm:hidden">
+            <>
                 <AnimatePresence>
                     {isFABOpen && (
-                        <div className="flex flex-col items-end gap-3 mb-3">
-                            {fabActions.map((action, idx) => (
-                                <motion.div
-                                    key={action.id}
-                                    initial={{ opacity: 0, scale: 0.5, y: 20 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.5, y: 20 }}
-                                    transition={{ delay: idx * 0.05 }}
-                                    className="flex items-center gap-3"
-                                >
-                                    <span className="bg-white dark:bg-slate-800 px-3 py-1 rounded-xl shadow-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
-                                        {action.label}
-                                    </span>
-                                    <button
-                                        onClick={() => { action.onClick(); setIsFABOpen(false); }}
-                                        className={`w-12 h-12 rounded-2xl ${action.color} text-white shadow-xl flex items-center justify-center relative active:scale-90 transition-transform`}
-                                    >
-                                        {action.icon}
-                                        {action.badge ? (
-                                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
-                                                {action.badge}
-                                            </span>
-                                        ) : null}
-                                    </button>
-                                </motion.div>
-                            ))}
-                        </div>
+                        <motion.div 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsFABOpen(false)}
+                            className="fixed inset-0 z-[95] bg-slate-900/10 dark:bg-black/20 backdrop-blur-md sm:hidden"
+                        />
                     )}
                 </AnimatePresence>
-                <button
-                    onClick={() => setIsFABOpen(!isFABOpen)}
-                    className={`w-14 h-14 rounded-[24px] shadow-2xl flex items-center justify-center transition-all duration-300 z-50 ${isFABOpen ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 rotate-45' : 'bg-indigo-600 text-white'}`}
-                >
-                    <Plus size={32} />
-                </button>
-            </div>
+                <div className="fixed bottom-8 right-8 z-[100] flex flex-col items-end gap-3 sm:hidden">
+                    <AnimatePresence>
+                        {isFABOpen && (
+                            <div className="flex flex-col items-end gap-3 mb-3">
+                                {fabActions.map((action, idx) => (
+                                    <motion.div
+                                        key={action.id}
+                                        initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.5, y: 20 }}
+                                        transition={{ delay: idx * 0.05 }}
+                                        className="flex items-center gap-3"
+                                    >
+                                        <span className="bg-white dark:bg-slate-800 px-3 py-1 rounded-xl shadow-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
+                                            {action.label}
+                                        </span>
+                                        <button
+                                            onClick={() => { action.onClick(); setIsFABOpen(false); }}
+                                            className={`w-12 h-12 rounded-2xl ${action.color} text-white shadow-xl flex items-center justify-center relative active:scale-90 transition-transform`}
+                                        >
+                                            {action.icon}
+                                            {action.badge ? (
+                                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                                                    {action.badge}
+                                                </span>
+                                            ) : null}
+                                        </button>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
+                    </AnimatePresence>
+                    <button
+                        onClick={() => setIsFABOpen(!isFABOpen)}
+                        className={`w-14 h-14 rounded-[24px] shadow-2xl flex items-center justify-center transition-all duration-300 z-50 ${isFABOpen ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 rotate-45' : 'bg-indigo-600 text-white'}`}
+                    >
+                        <Plus size={32} />
+                    </button>
+                </div>
+            </>
         );
     };
 
