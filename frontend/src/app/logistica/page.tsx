@@ -937,30 +937,52 @@ export default function LogisticaPage() {
                     const prod = (data?.products || []).find((p: any) => String(p.ID_Producto) === String(pId));
                     const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
                     const unitLabel = isKg ? 'kg' : 'un';
-                    const format = (item.formato || item._formato || (String(item.nombre || '').toUpperCase().includes('BULTO') ? 'BULTO' : 'UNIDAD')).toUpperCase();
+                    
+                    const itemIsBulto = item.esBulto === true || 
+                                        String(item.detalle || '').toUpperCase() === 'BULTO' || 
+                                        String(item.formato || item._formato || '').toUpperCase() === 'BULTO' || 
+                                        String(item.nombre || '').toUpperCase().includes('BULTO');
 
                     let qtyDisplay = '';
                     if (isKg) {
-                        qtyDisplay = `${qty.toFixed(3)} Kg`;
+                        qtyDisplay = `${parseFloat(String(qty)).toFixed(3)} Kg`;
                     } else if (bul > 0 || uni > 0) {
                         if (bul > 0 && uni > 0) qtyDisplay = `${bul} B / ${uni} ${unitLabel}`;
                         else if (bul > 0) qtyDisplay = `${bul} BUL`;
                         else qtyDisplay = `${uni} ${unitLabel}`;
                     } else {
-                        qtyDisplay = format === 'BULTO' ? `${qty} BUL` : `${qty} ${unitLabel}`;
+                        qtyDisplay = itemIsBulto ? `${qty} BUL` : `${qty} ${unitLabel}`;
                     }
 
                     const factor = prod?.UB || prod?.Unidades_Bulto || 1;
-                    const factorDisplay = format === 'BULTO' ? `x${factor}` : '-';
+                    const factorDisplay = itemIsBulto ? `x${factor}` : '-';
+
+                    // Si es bulto, asegurarse que el precio mostrado sea el del bulto (si es que no venía ya así desde origen)
+                    let displayedPrice = parseFloat(String(item.precio).replace(',', '.')) || 0;
+                    // En "preventa", item.precio ya es el precio por bulto. 
+                    // Si encontramos una discrepancia flagrante (precio unitario * bultos = subtotal, pero precio es unitario), lo ajustamos visualmente:
+                    const _subtotal = parseFloat(String(item.subtotal).replace(',', '.')) || 0;
+                    const _descuento = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
+                    const expectedSubT = displayedPrice * qty * (1 - _descuento / 100);
+                    
+                    // Si el subtotal esperado con el precio actual multiplicando por qty no se acerca al real subtotal (está lejos, ej: es factor veces más),
+                    // significa que item.precio es el precio unitario, entonces lo multiplicamos por el factor para mostrar el precio unitario del bulto.
+                    if (itemIsBulto && factor > 1 && qty > 0) {
+                        const priceIfWasUnit = (displayedPrice * factor) * qty * (1 - _descuento / 100);
+                        if (Math.abs(_subtotal - priceIfWasUnit) < Math.abs(_subtotal - expectedSubT)) {
+                             // Si multiplicarlo por el factor tiene más sentido para llegar al subtotal, el precio almacenado es el unitario, lo corregimos a bulto:
+                             displayedPrice = displayedPrice * factor;
+                        }
+                    }
 
                     return `
                                                             <tr class="item-row">
                                                                 <td class="cen">${qtyDisplay}</td>
                                                                 <td class="cen" style="color: #666; font-size: 9px;">${factorDisplay}</td>
                                                                 <td>${item.nombre}</td>
-                                                                <td class="num">$${(parseFloat(String(item.precio).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                                <td class="cen">${(parseFloat(String(item.descuento || 0).replace(',', '.')) || 0) > 0 ? `${(parseFloat(String(item.descuento || 0).replace(',', '.')) || 0)}%` : '-'}</td>
-                                                                <td class="num">$${(parseFloat(String(item.subtotal).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                <td class="num">$${displayedPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                <td class="cen">${_descuento > 0 ? `${_descuento}%` : '-'}</td>
+                                                                <td class="num">$${_subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                                             </tr>
                                                         `;
                 }).join('')}
