@@ -362,46 +362,49 @@ export default function PreventaPage() {
             .map(p => p.item);
     }, [searchableProducts, deferredSearchTerm, searchOnlyByCode, products]);
 
-    // --- LÓGICA DE BÚSQUEDA AVANZADA [CANTIDAD]*[ID] ---
+    // --- LÓGICA DE BÚSQUEDA AVANZADA [CANTIDAD]*[ID] con Debounce ---
     useEffect(() => {
         if (!searchOnlyByCode || !searchTerm.includes('*')) return;
 
-        // Patrón: [cantidad][b|u?]*[id]  e.g. 4*1.1, 4b*1.1, 4u*1.1
-        const match = searchTerm.match(/^(\d+)([bBuU])?\*([\w\.]+)$/);
-        if (match) {
-            const qty = parseInt(match[1]);
-            const specifier = (match[2] || "").toLowerCase();
-            const isBulto = specifier === 'b';
-            const productCode = match[3];
+        // Esperar 800ms de inactividad antes de procesar para evitar triggers prematuros en IDs largos
+        const timer = setTimeout(() => {
+            const match = searchTerm.match(/^(\d+)([bBuU])?\*([\w\.]+)$/);
+            if (match) {
+                const qty = parseInt(match[1]);
+                const specifier = (match[2] || "").toLowerCase();
+                const isBulto = specifier === 'b';
+                const productCode = match[3];
 
-            const product = products.find(p => 
-                normalizeText(p.ID_Producto) === normalizeText(productCode)
-            );
+                const product = products.find(p => 
+                    normalizeText(p.ID_Producto) === normalizeText(productCode)
+                );
 
-            if (product) {
-                const id = product.ID_Producto;
-                
-                // Si especificó 'b' o 'u', forzamos ese modo. Si no, mantenemos el actual o default a unid.
-                if (specifier === 'b') {
-                    setModoBulto(prev => ({ ...prev, [id]: true }));
-                } else if (specifier === 'u') {
-                    setModoBulto(prev => ({ ...prev, [id]: false }));
-                } else if (modoBulto[id] === undefined) {
-                    setModoBulto(prev => ({ ...prev, [id]: false }));
+                if (product) {
+                    const id = product.ID_Producto;
+                    
+                    if (specifier === 'b') {
+                        setModoBulto(prev => ({ ...prev, [id]: true }));
+                    } else if (specifier === 'u') {
+                        setModoBulto(prev => ({ ...prev, [id]: false }));
+                    } else if (modoBulto[id] === undefined) {
+                        setModoBulto(prev => ({ ...prev, [id]: false }));
+                    }
+                    
+                    updateQty(id, qty);
+                    setSearchTerm("");
+                    
+                    // Feedback visual
+                    const unitLabel = isBulto ? 'Bulto' : 'Unid';
+                    setQuickNotice({ 
+                        message: `+${qty} ${unitLabel}${qty > 1 ? (unitLabel === 'Unid' ? 'ades' : 's') : ''} de ${product.Nombre}`, 
+                        color: isBulto ? 'bg-amber-500' : 'bg-indigo-500' 
+                    });
+                    setTimeout(() => setQuickNotice(null), 2500);
                 }
-                
-                updateQty(id, qty);
-                setSearchTerm("");
-                
-                // Feedback visual
-                const unitLabel = isBulto ? 'Bulto' : 'Unid';
-                setQuickNotice({ 
-                    message: `+${qty} ${unitLabel}${qty > 1 ? (unitLabel === 'Unid' ? 'ades' : 's') : ''} de ${product.Nombre}`, 
-                    color: isBulto ? 'bg-amber-500' : 'bg-indigo-500' 
-                });
-                setTimeout(() => setQuickNotice(null), 2500);
             }
-        }
+        }, 800);
+
+        return () => clearTimeout(timer);
     }, [searchTerm, searchOnlyByCode, products, modoBulto]);
 
     const searchableClients = useMemo(() => {
@@ -1990,12 +1993,12 @@ export default function PreventaPage() {
                                                         {/* Cabecera del acordeon */}
                                                         <button
                                                             onClick={() => toggleDate(date)}
-                                                            className="w-full flex items-center justify-between px-2 py-2.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                                                            className={`w-full flex items-center justify-between px-3 py-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group relative z-10 ${isOpen ? 'bg-slate-50/50 dark:bg-slate-800/30' : 'bg-transparent'}`}
                                                         >
                                                             <div className="flex items-center gap-2">
                                                                 <ChevronDown
                                                                     size={14}
-                                                                    className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                                                                    className={`text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
                                                                 />
                                                                 <span className={`text-[11px] font-black uppercase tracking-widest ${label === 'Hoy' ? 'text-indigo-500'
                                                                     : label === 'Ayer' ? 'text-emerald-600'
@@ -2018,9 +2021,9 @@ export default function PreventaPage() {
                                                                     animate={{ height: 'auto', opacity: 1 }}
                                                                     exit={{ height: 0, opacity: 0 }}
                                                                     transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                                                                    className="overflow-hidden"
+                                                                    className="overflow-hidden relative z-0"
                                                                 >
-                                                                    <div className="space-y-2 pl-2 pt-1 pb-2">
+                                                                    <div className="space-y-2 px-2 pt-6 pb-4 bg-slate-50/40 dark:bg-slate-800/10 shadow-inner rounded-b-[32px] -mt-5">
                                                                         {orders.map((h: any, idx: number) => {
                                                                             const hId = h.id || h.id_interno || h.id_pedido || `temp-${idx}`;
                                                                             return (
