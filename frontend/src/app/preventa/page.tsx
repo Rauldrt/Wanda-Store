@@ -1033,96 +1033,96 @@ export default function PreventaPage() {
         return (
             <div
                 key={pid}
-                className={`p-4 rounded-[32px] bg-white dark:bg-slate-900 border transition-all duration-500 ${qty > 0
-                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 dark:border-indigo-500 ring-4 ring-indigo-500/10 shadow-2xl shadow-indigo-500/20 scale-[1.02] z-10'
-                    : 'border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-300/40 dark:shadow-none hover:shadow-2xl hover:shadow-slate-400/30'
+                className={`p-2.5 rounded-[24px] bg-white dark:bg-slate-900 border transition-all duration-500 ${qty > 0
+                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 dark:border-indigo-500 ring-4 ring-indigo-500/10 shadow-2xl shadow-indigo-500/20 scale-[1.01] z-10'
+                    : 'border-slate-100 dark:border-slate-800 shadow-lg shadow-slate-300/30 dark:shadow-none hover:shadow-xl hover:shadow-slate-400/20'
                     }`}
             >
-                <div className="flex gap-3">
+                <div className="flex gap-2.5">
                     {/* Imagen del producto */}
                     <div
-                        className="w-[72px] h-[72px] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex-shrink-0 cursor-pointer"
+                        className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex-shrink-0 cursor-pointer"
                         onClick={() => p.Imagen_URL && setSelectedImage(getImageUrl(p.Imagen_URL))}
                     >
                         {p.Imagen_URL ? (
                             <img src={getImageUrl(p.Imagen_URL) || ""} alt={p.Nombre} className="w-full h-full object-cover" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
-                                <Package size={28} />
+                                <Package size={24} />
                             </div>
                         )}
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
-                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 uppercase tracking-wider">ID: {p.ID_Producto}</span>
-                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase tracking-wider">{p.Categoria || 'S/C'}</span>
-                                {isKg && <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 uppercase">Pesable</span>}
+                            <div className="flex items-center gap-1 mb-1 flex-wrap">
+                                <span className="text-[8px] font-black px-1.5 py-0 rounded-full bg-indigo-500/10 text-indigo-600 uppercase tracking-wider">ID: {p.ID_Producto}</span>
+                                <span className="text-[8px] font-black px-1.5 py-0 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase tracking-wider">{p.Categoria || 'S/C'}</span>
+                                {isKg && <span className="text-[8px] font-black px-1.5 py-0 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 uppercase">Pesable</span>}
                                 {parseFloat(p.Stock_Actual || "0") < 1 ? (
-                                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 uppercase">Sin Stock</span>
+                                    <span className="text-[8px] font-black px-1.5 py-0 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 uppercase">Sin Stock</span>
                                 ) : (
-                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${parseFloat(p.Stock_Actual || "0") <= 10 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
+                                    <span className={`text-[8px] font-black px-1.5 py-0 rounded-full uppercase ${parseFloat(p.Stock_Actual || "0") <= 10 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
                                         Stock: {p.Stock_Actual}
                                     </span>
                                 )}
                                 {getPromoDiscount(pid, qty, isBulto) > 0 && (
-                                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-500 text-white uppercase animate-pulse">
+                                    <span className="text-[8px] font-black px-1.5 py-0 rounded-full bg-rose-500 text-white uppercase animate-pulse">
                                         PROMO -{getPromoDiscount(pid, qty, isBulto)}%
                                     </span>
                                 )}
                             </div>
-                            <h3 className="font-bold text-[15px] leading-tight text-slate-800 dark:text-slate-100 line-clamp-2">{p.Nombre}</h3>
+                            <h3 className="font-bold text-[13px] leading-tight text-slate-800 dark:text-slate-100 line-clamp-2">{p.Nombre}</h3>
                             {isKg && (
-                                <p className="text-[10px] font-medium text-slate-500 mt-1 uppercase tracking-tighter">
+                                <p className="text-[9px] font-medium text-slate-500 mt-0.5 uppercase tracking-tighter">
                                     ${pureUnitPrice.toLocaleString()}/kg • {avgWeight}kg prom
                                 </p>
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between mt-3 gap-2">
-                            <div className="flex flex-col min-w-0 max-w-[40%]">
+                        <div className="flex items-center justify-between mt-2 gap-1.5">
+                            <div className="flex flex-col min-w-0 max-w-[45%]">
                                 {getPromoDiscount(pid, qty, isBulto) > 0 ? (
                                     <>
-                                        <span className="text-[17px] xs:text-xl font-black text-rose-500 dark:text-rose-400 truncate">
+                                        <span className="text-sm xs:text-base font-black text-rose-500 dark:text-rose-400 truncate">
                                             ${(finalPrice * (1 - getPromoDiscount(pid, qty, isBulto) / 100)).toLocaleString()}
                                         </span>
-                                        <span className="text-[9px] xs:text-[10px] font-bold text-slate-400 line-through decoration-rose-500/50">
+                                        <span className="text-[8px] xs:text-[9px] font-bold text-slate-400 line-through decoration-rose-500/50">
                                             ${finalPrice.toLocaleString()}
                                         </span>
                                     </>
                                 ) : (
-                                    <span className="text-[17px] xs:text-xl font-black text-indigo-600 dark:text-indigo-400 truncate">${finalPrice.toLocaleString()}</span>
+                                    <span className="text-sm xs:text-base font-black text-indigo-600 dark:text-indigo-400 truncate">${finalPrice.toLocaleString()}</span>
                                 )}
-                                <span className="text-[9px] font-bold text-slate-400 uppercase truncate">{isBulto ? `Bulto (${unitsPerBulk}u)` : unitLabel}</span>
+                                <span className="text-[8px] font-bold text-slate-400 uppercase truncate">{isBulto ? `Bulto (${unitsPerBulk}u)` : unitLabel}</span>
                             </div>
 
-                            <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-800 p-1 rounded-2xl shrink-0">
+                            <div className="flex items-center gap-0.5 bg-slate-100/50 dark:bg-slate-800 p-0.5 rounded-xl shrink-0">
                                 {qty > 0 ? (
                                     <>
-                                        <button onClick={() => updateQty(pid, -1)} className="w-9 h-9 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                                        <input id={`qty-input-${pid}`} type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(pid, v); else setQtyExact(pid, 0) }} className="w-10 text-center text-sm font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg" onFocus={(e) => e.target.select()} />
-                                        <button onClick={() => updateQty(pid, 1)} className="w-8 h-8 xs:w-9 xs:h-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"><Plus size={16} /></button>
+                                        <button onClick={() => updateQty(pid, -1)} className="w-7 h-7 rounded-lg bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
+                                        <input id={`qty-input-${pid}`} type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(pid, v); else setQtyExact(pid, 0) }} className="w-8 text-center text-[11px] font-black bg-transparent border-none outline-none focus:ring-0 rounded-md" onFocus={(e) => e.target.select()} />
+                                        <button onClick={() => updateQty(pid, 1)} className="w-7 h-7 rounded-lg bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"><Plus size={14} /></button>
                                     </>
                                 ) : (
-                                    <button onClick={() => handleInitialAdd(pid)} className="px-3 xs:px-5 py-2 xs:py-2.5 rounded-2xl bg-indigo-600 text-white text-[9px] xs:text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-indigo-500/10 whitespace-nowrap">Agregar</button>
+                                    <button onClick={() => handleInitialAdd(pid)} className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-[8px] xs:text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-indigo-500/10 whitespace-nowrap">Agregar</button>
                                 )}
                             </div>
                         </div>
                     </div>
                 </div>
                 {unitsPerBulk > 1 && (
-                    <div className="mt-4 pt-3 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Modalidad</span>
-                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-[16px] gap-1 shadow-inner">
+                    <div className="mt-2.5 pt-2 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Modalidad</span>
+                        <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-[12px] gap-0.5 shadow-inner">
                             <button
                                 onClick={() => isBulto && toggleBulto(pid)}
-                                className={`px-4 py-1.5 rounded-[12px] text-[9px] font-black uppercase transition-all ${!isBulto ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                className={`px-2.5 py-1 rounded-[10px] text-[8px] font-black uppercase transition-all ${!isBulto ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
                             >
                                 {unitLabel}
                             </button>
                             <button
                                 onClick={() => !isBulto && toggleBulto(pid)}
-                                className={`px-4 py-1.5 rounded-[12px] text-[9px] font-black uppercase transition-all ${isBulto ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
+                                className={`px-2.5 py-1 rounded-[10px] text-[8px] font-black uppercase transition-all ${isBulto ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
                             >
                                 Bulto
                             </button>
