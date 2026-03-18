@@ -83,9 +83,21 @@ export default function PreventaPage() {
     const deferredSearchTerm = useDeferredValue(searchTerm);
     const [clientSearch, setClientSearch] = useState("");
     const deferredClientSearch = useDeferredValue(clientSearch);
-    const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+    const [selectedClient, setSelectedClient] = useState<Client | null>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem("selected_client");
+            return saved ? JSON.parse(saved) : null;
+        }
+        return null;
+    });
     const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
-    const [carrito, setCarrito] = useState<{ [key: string]: number }>({});
+    const [carrito, setCarrito] = useState<{ [key: string]: number }>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem("carrito");
+            return saved ? JSON.parse(saved) : {};
+        }
+        return {};
+    });
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
@@ -104,13 +116,30 @@ export default function PreventaPage() {
     const [selectedSellerToVerify, setSelectedSellerToVerify] = useState<any>(null);
     const [tempPassword, setTempPassword] = useState("");
     const [loginError, setLoginError] = useState("");
-    const [modoBulto, setModoBulto] = useState<{ [key: string]: boolean }>({});
+    const [modoBulto, setModoBulto] = useState<{ [key: string]: boolean }>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem("modo_bulto");
+            return saved ? JSON.parse(saved) : {};
+        }
+        return {};
+    });
     const [isListening, setIsListening] = useState<'client' | null | 'product'>(null);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
     const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
     const [viewingOrder, setViewingOrder] = useState<any>(null);
-    const [editingOrder, setEditingOrder] = useState<any>(null);
+    const [editingOrder, setEditingOrder] = useState<any>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem("editing_order");
+            return saved ? JSON.parse(saved) : null;
+        }
+        return null;
+    });
+
+    useEffect(() => {
+        localStorage.setItem("editing_order", JSON.stringify(editingOrder));
+    }, [editingOrder]);
+
     const [activeSearch, setActiveSearch] = useState<'client' | 'product' | null>(null);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
@@ -135,8 +164,20 @@ export default function PreventaPage() {
     });
 
     useEffect(() => {
-        localStorage.setItem("hidden_orders", JSON.stringify(Array.from(hiddenOrderIds)));
-    }, [hiddenOrderIds]);
+        localStorage.setItem("selected_client", JSON.stringify(selectedClient));
+        if (selectedClient && !clientSearch) {
+            setClientSearch(selectedClient.Nombre_Negocio);
+        }
+    }, [selectedClient, clientSearch]);
+
+    useEffect(() => {
+        localStorage.setItem("carrito", JSON.stringify(carrito));
+    }, [carrito]);
+
+    useEffect(() => {
+        localStorage.setItem("modo_bulto", JSON.stringify(modoBulto));
+    }, [modoBulto]);
+
     const clientInputRef = useRef<HTMLInputElement>(null);
     const productInputRef = useRef<HTMLInputElement>(null);
     const clientDropdownRef = useRef<HTMLDivElement>(null);
@@ -159,7 +200,20 @@ export default function PreventaPage() {
     const [isClientDetailOpen, setIsClientDetailOpen] = useState(false);
     const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
     const [quickNotice, setQuickNotice] = useState<{ message: string, color: string } | null>(null);
-    const [orderNotes, setOrderNotes] = useState("");
+    const [orderNotes, setOrderNotes] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem("order_notes") || "";
+        }
+        return "";
+    });
+
+    useEffect(() => {
+        localStorage.setItem("order_notes", orderNotes);
+    }, [orderNotes]);
+
+    useEffect(() => {
+        localStorage.setItem("hidden_orders", JSON.stringify(Array.from(hiddenOrderIds)));
+    }, [hiddenOrderIds]);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [lastOrderData, setLastOrderData] = useState<any>(null);
 
@@ -1376,6 +1430,13 @@ export default function PreventaPage() {
                                     localStorage.removeItem("is_logged_in");
                                     localStorage.removeItem("user_name");
 
+                                    // Limpiar datos de pedido en curso
+                                    localStorage.removeItem("selected_client");
+                                    localStorage.removeItem("carrito");
+                                    localStorage.removeItem("modo_bulto");
+                                    localStorage.removeItem("order_notes");
+                                    localStorage.removeItem("editing_order");
+
                                     // Redirigir al inicio total
                                     window.location.href = '/login';
                                 }
@@ -2105,6 +2166,14 @@ export default function PreventaPage() {
                                     localStorage.removeItem("is_logged_in");
                                     // No limpiamos vendedor_name aquí para que si el preventista vuelve, siga logueado
                                     localStorage.removeItem("vendedor_id");
+                                    
+                                    // Limpiar datos de pedido en curso al cerrar sesión completa
+                                    localStorage.removeItem("selected_client");
+                                    localStorage.removeItem("carrito");
+                                    localStorage.removeItem("modo_bulto");
+                                    localStorage.removeItem("order_notes");
+                                    localStorage.removeItem("editing_order");
+
                                     window.location.href = '/login';
                                 }} className="w-full bg-rose-50 text-rose-500 py-4 rounded-2xl font-black uppercase text-xs tracking-widest mb-2">Cerrar Sesión</button>
                                 <button onClick={() => setIsConfigOpen(false)} className="w-full bg-indigo-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest">Aceptar</button>
