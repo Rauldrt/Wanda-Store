@@ -3506,15 +3506,18 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
 function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh }: any) {
     const { setIsSyncing, isSyncing } = useData();
     const [localOrders, setLocalOrders] = useState(
-        orders.map((o: any) => ({
-            ...o,
-            estado_rendicion: 'Entregado', // 'Entregado', 'Rechazado', 'Parcial'
-            total_original: parseFloat(o.total),
-            total_final: parseFloat(o.total),
-            items_originales: JSON.parse(JSON.stringify(o.items || [])),
-            pago_efectivo: parseFloat(o.total),
-            pago_transferencia: 0
-        }))
+        orders.map((o: any) => {
+            const parsedTotal = parseFloat(String(o.total).replace(',', '.')) || parseFloat(o.total) || 0;
+            return {
+                ...o,
+                estado_rendicion: 'Entregado', // 'Entregado', 'Rechazado', 'Parcial'
+                total_original: parsedTotal,
+                total_final: parsedTotal,
+                items_originales: JSON.parse(JSON.stringify(o.items || [])),
+                pago_efectivo: parsedTotal,
+                pago_transferencia: 0
+            };
+        })
     );
     const [pagos, setPagos] = useState({ efectivo: 0, transferencia: 0 });
     const [gastos, setGastos] = useState<{ desc: string, monto: number }[]>([]);
@@ -3572,18 +3575,33 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
 
             if (data) {
                 if (data.localOrders) {
-                    // Sincronizar borrador con pedidos reales de la ruta por si se agregaron nuevos
+                    // Sincronizar borrador con pedidos reales de la ruta por si se agregaron nuevos o si se modificó su total en backend
                     const mergedOrders = orders.map((o: any) => {
                         const existingDraft = data.localOrders.find((d: any) => d.id === o.id);
-                        if (existingDraft) return existingDraft;
+                        const currTotal = parseFloat(String(o.total).replace(',', '.')) || parseFloat(o.total) || 0;
+                        
+                        if (existingDraft) {
+                            // Si el monto original registrado en el borrador difiere del total en el backend actual, significa que el pedido fue modificado
+                            if (Math.abs(existingDraft.total_original - currTotal) > 1) {
+                                return {
+                                    ...existingDraft,
+                                    total_original: currTotal,
+                                    total_final: currTotal,
+                                    pago_efectivo: currTotal,
+                                    pago_transferencia: 0,
+                                    estado_rendicion: 'Entregado' // Reset porque los precios e items cambiaron
+                                };
+                            }
+                            return existingDraft;
+                        }
                         
                         return {
                             ...o,
                             estado_rendicion: 'Entregado',
-                            total_original: parseFloat(o.total) || 0,
-                            total_final: parseFloat(o.total) || 0,
+                            total_original: currTotal,
+                            total_final: currTotal,
                             items_originales: JSON.parse(JSON.stringify(o.items || [])),
-                            pago_efectivo: parseFloat(o.total) || 0,
+                            pago_efectivo: currTotal,
                             pago_transferencia: 0
                         };
                     });
@@ -3666,7 +3684,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
         return acc + o.total_final;
     }, 0);
 
-    const totalCargaRuta = orders.reduce((acc: number, o: any) => acc + (parseFloat(o.total) || 0), 0);
+    const totalCargaRuta = orders.reduce((acc: number, o: any) => acc + (parseFloat(String(o.total).replace(',', '.')) || parseFloat(o.total) || 0), 0);
     const totalDevolucionesVal = devoluciones.reduce((acc, d) => acc + d.subtotal, 0);
     const totalPagosPedidos = localOrders.reduce((acc: number, o: any) => acc + (o.pago_efectivo || 0) + (o.pago_transferencia || 0), 0);
 
