@@ -3571,7 +3571,24 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             } catch (e) { }
 
             if (data) {
-                if (data.localOrders) setLocalOrders(data.localOrders);
+                if (data.localOrders) {
+                    // Sincronizar borrador con pedidos reales de la ruta por si se agregaron nuevos
+                    const mergedOrders = orders.map((o: any) => {
+                        const existingDraft = data.localOrders.find((d: any) => d.id === o.id);
+                        if (existingDraft) return existingDraft;
+                        
+                        return {
+                            ...o,
+                            estado_rendicion: 'Entregado',
+                            total_original: parseFloat(o.total) || 0,
+                            total_final: parseFloat(o.total) || 0,
+                            items_originales: JSON.parse(JSON.stringify(o.items || [])),
+                            pago_efectivo: parseFloat(o.total) || 0,
+                            pago_transferencia: 0
+                        };
+                    });
+                    setLocalOrders(mergedOrders);
+                }
                 if (data.pagos) setPagos(data.pagos);
                 if (data.gastos) setGastos(data.gastos);
                 if (data.chofer) setChofer(data.chofer);
@@ -3584,7 +3601,7 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
             }
         };
         loadDraft();
-    }, [routeName]);
+    }, [routeName]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // --- PERSISTENCIA: Guardar borrador autom. ---
     useEffect(() => {
