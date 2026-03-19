@@ -42,16 +42,18 @@ const Marker = ({ text, number, isLast, lat, lng, title }: any) => {
                 <span className="text-[10px] text-white font-black">{number}</span>
             </div>
 
-            {/* Tooltip on hover */}
-            <div className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto absolute bottom-full mb-2 bg-white px-3 py-3 rounded-2xl shadow-2xl w-max transition-all z-[100] text-left border border-slate-100 flex flex-col gap-2">
-                <div>{text}</div>
-                <div className="flex gap-2 border-t border-slate-100 pt-2 mt-1">
-                     <button onClick={handleLocationClick} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors">
-                         <ExternalLink size={12} /> Abrir
-                     </button>
-                     <button onClick={handleShare} className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors">
-                         <Share2 size={12} /> Compartir
-                     </button>
+            {/* Tooltip on hover with invisible bridge */}
+            <div className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto absolute bottom-full pb-2 z-[100] transition-all flex flex-col items-center">
+                <div className="bg-white px-3 py-3 rounded-2xl shadow-2xl w-max text-left border border-slate-100 flex flex-col gap-2">
+                    <div>{text}</div>
+                    <div className="flex gap-2 border-t border-slate-100 pt-2 mt-1">
+                         <button onClick={handleLocationClick} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors">
+                             <ExternalLink size={12} /> Abrir
+                         </button>
+                         <button onClick={handleShare} className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors">
+                             <Share2 size={12} /> Compartir
+                         </button>
+                    </div>
                 </div>
             </div>
         </div>
