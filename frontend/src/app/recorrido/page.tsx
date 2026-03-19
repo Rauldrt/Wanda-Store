@@ -127,9 +127,32 @@ export default function RecorridoPage() {
             </div>
 
             <div className="flex-1 bg-white dark:bg-slate-900 rounded-[32px] p-2 sm:p-4 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-800 flex flex-col relative z-0 overflow-hidden">
-                <div className="absolute top-8 left-8 z-[400] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-5 py-3 rounded-[20px] shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col pointer-events-none">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Puntos Registrados</span>
-                    <span className="text-3xl font-black text-indigo-500 leading-none">{mapPoints.length}</span>
+                <div className="absolute top-8 left-8 z-[400] flex flex-col gap-3">
+                    <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-5 py-3 rounded-[20px] shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col">
+                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Puntos Registrados</span>
+                        <span className="text-3xl font-black text-indigo-500 leading-none">{mapPoints.length}</span>
+                    </div>
+
+                    {mapPoints.length > 0 && (
+                        <button
+                            onClick={() => {
+                                // Limit to 25 points because Google Maps URLs break if too long
+                                const limitedPoints = mapPoints.slice(0, 25);
+                                const routeUrl = `https://www.google.com/maps/dir/${limitedPoints.map(p => p.lat + ',' + p.lng).join('/')}`;
+                                if (navigator.share) {
+                                    navigator.share({
+                                        title: 'Recorrido para ' + (selectedVendedor !== 'Todos' ? selectedVendedor : 'Todos'),
+                                        url: routeUrl
+                                    }).catch(console.error);
+                                } else {
+                                    window.open(routeUrl, '_blank');
+                                }
+                            }}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-[20px] shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all font-black text-[10px] uppercase tracking-widest"
+                        >
+                            <Route size={14} /> Abrir Ruta GPS
+                        </button>
+                    )}
                 </div>
                 {typeof window !== "undefined" && <MapView points={mapPoints} />}
             </div>

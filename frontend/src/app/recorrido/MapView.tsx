@@ -1,31 +1,62 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import GoogleMapReact from 'google-map-react';
+import { Share2, ExternalLink } from 'lucide-react';
 
 // You don't actually need an API key for development/demo if you accept the watermark
 // But for production, you would add an API_KEY here.
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-const Marker = ({ text, number, isLast }: any) => (
-    <div style={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        cursor: 'pointer',
-        transform: 'translate(-50%, -100%)'
-    }}>
-        <div className={`w-8 h-8 rounded-full border-4 border-white shadow-lg overflow-hidden flex items-center justify-center ${isLast ? 'bg-rose-500 z-50 scale-125' : 'bg-indigo-500'}`}>
-            <span className="text-[10px] text-white font-black">{number}</span>
-        </div>
+const Marker = ({ text, number, isLast, lat, lng, title }: any) => {
+    const handleLocationClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+        window.open(url, '_blank');
+    };
 
-        {/* Tooltip on hover */}
-        <div className="opacity-0 hover:opacity-100 absolute bottom-full mb-2 bg-white px-3 py-2 rounded-xl shadow-xl w-max transition-opacity z-[100] text-left border border-slate-100">
-            {text}
+    const handleShare = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+        if (navigator.share) {
+            navigator.share({
+                title: 'Ubicación: ' + title,
+                url: url
+            }).catch(console.error);
+        } else {
+            navigator.clipboard.writeText(url);
+            alert("Enlace copiado al portapapeles");
+        }
+    };
+
+    return (
+        <div style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            cursor: 'pointer',
+            transform: 'translate(-50%, -100%)'
+        }} className="group">
+            <div className={`w-8 h-8 rounded-full border-4 border-white shadow-lg overflow-hidden flex items-center justify-center ${isLast ? 'bg-rose-500 z-50 scale-125' : 'bg-indigo-500'}`}>
+                <span className="text-[10px] text-white font-black">{number}</span>
+            </div>
+
+            {/* Tooltip on hover */}
+            <div className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto absolute bottom-full mb-2 bg-white px-3 py-3 rounded-2xl shadow-2xl w-max transition-all z-[100] text-left border border-slate-100 flex flex-col gap-2">
+                <div>{text}</div>
+                <div className="flex gap-2 border-t border-slate-100 pt-2 mt-1">
+                     <button onClick={handleLocationClick} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors">
+                         <ExternalLink size={12} /> Abrir
+                     </button>
+                     <button onClick={handleShare} className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors">
+                         <Share2 size={12} /> Compartir
+                     </button>
+                </div>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export default function MapView({ points }: { points: any[] }) {
     if (points.length === 0) {
@@ -52,6 +83,7 @@ export default function MapView({ points }: { points: any[] }) {
                         lng={p.lng}
                         number={i + 1}
                         isLast={i === points.length - 1}
+                        title={p.cliente}
                         text={
                             <>
                                 <span className="text-[9px] font-black uppercase text-indigo-400 tracking-widest block">{p.hora}</span>
