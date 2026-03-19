@@ -360,20 +360,33 @@ export default function LogisticaPage() {
                 const detectedFormat = (it._formato || it.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
 
                 // Normalización base del item para que el resto del código no falle
-                const normalized = {
+                let finalItem = {
                     ...it,
                     id_prod: id,
                     _formato: detectedFormat || 'UNID'
                 };
 
-                if (!product) return normalized;
+                if (finalItem._visual_bulto && product) {
+                    const rawUb = product.UB || product.Unidades_Bulto || "1";
+                    const ub = parseFloat(String(rawUb).replace(',', '.')) || 1;
+                    if (ub > 1) {
+                        finalItem = {
+                            ...finalItem,
+                            cantidad: (parseFloat(finalItem.cantidad) || 0) / ub,
+                            precio: (parseFloat(finalItem.precio) || 0) * ub,
+                            _formato: 'BULTO'
+                        };
+                    }
+                }
+
+                if (!product) return finalItem;
 
                 const isKg = (product.Unidad || '').toLowerCase() === 'kg';
-                if (!isKg) return normalized;
+                if (!isKg) return finalItem;
 
                 const weightAvg = parseFloat(String(product.Peso || product.Peso_Promedio || "1").replace(',', '.'));
                 const priceKg = parseFloat(String(product.Precio_Unitario || "0").replace(',', '.'));
-                const itemPrice = parseFloat(String(it.precio || "0").replace(',', '.')) || 0;
+                const itemPrice = parseFloat(String(finalItem.precio || "0").replace(',', '.')) || 0;
 
                 // Si el precio del item se parece más al precio por pieza (kg * peso) que al precio por kg,
                 // entonces es porque viene del preventista en modo "pieza" y debemos normalizarlo a Kg para logística.
@@ -383,14 +396,14 @@ export default function LogisticaPage() {
 
                 if (diffPiece < diffKg || (itemPrice > priceKg * 1.5 && weightAvg > 1.1)) {
                     return {
-                        ...normalized,
-                        cantidad: (parseFloat(it.cantidad) || 0) * weightAvg,
+                        ...finalItem,
+                        cantidad: (parseFloat(finalItem.cantidad) || 0) * weightAvg,
                         precio: priceKg,
                         _formato: 'KG', // En logística trabajamos siempre sobre la unidad base (Kg)
                         _pesableTratado: true
                     };
                 }
-                return normalized;
+                return finalItem;
             })
         }));
     }, [rawOrders, products]);
@@ -657,7 +670,8 @@ export default function LogisticaPage() {
                                 ...it,
                                 cantidad: (parseFloat(it.cantidad) || 0) * ub,
                                 precio: (parseFloat(it.precio) || 0) / ub,
-                                _formato: (product?.Unidad || 'UNID').toUpperCase()
+                                _formato: (product?.Unidad || 'UNID').toUpperCase(),
+                                _visual_bulto: true
                             };
                         }
                     }
