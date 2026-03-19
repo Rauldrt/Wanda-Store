@@ -37,13 +37,18 @@ const Marker = ({ text, number, isLast, lat, lng, title }: any) => {
             alignItems: 'center',
             cursor: 'pointer',
             transform: 'translate(-50%, -100%)'
-        }} className="group">
+        }} 
+        className="group outline-none focus:outline-none" 
+        tabIndex={0}
+        // This blank onClick is required to trick iOS Safari into firing hover/focus pseudoclasses
+        onClick={(e) => { e.currentTarget.focus(); }}
+        >
             <div className={`w-8 h-8 rounded-full border-4 border-white shadow-lg overflow-hidden flex items-center justify-center ${isLast ? 'bg-rose-500 z-50 scale-125' : 'bg-indigo-500'}`}>
                 <span className="text-[10px] text-white font-black">{number}</span>
             </div>
 
-            {/* Tooltip on hover with invisible bridge */}
-            <div className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto absolute bottom-full pb-2 z-[100] transition-all flex flex-col items-center">
+            {/* Tooltip on hover/focus with invisible bridge */}
+            <div className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus:opacity-100 group-focus:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto absolute bottom-full pb-2 z-[100] transition-all flex flex-col items-center">
                 <div className="bg-white px-3 py-3 rounded-2xl shadow-2xl w-max text-left border border-slate-100 flex flex-col gap-2">
                     <div>{text}</div>
                     <div className="flex gap-2 border-t border-slate-100 pt-2 mt-1">
