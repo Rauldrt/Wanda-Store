@@ -52,13 +52,23 @@ const Marker = ({ text, number, isLast, lat, lng, title }: any) => {
                 <div className="bg-white px-3 py-3 rounded-2xl shadow-2xl w-max text-left border border-slate-100 flex flex-col gap-2">
                     <div>{text}</div>
                     <div className="flex gap-2 border-t border-slate-100 pt-2 mt-1">
-                         <button onClick={handleLocationClick} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors">
-                             <ExternalLink size={12} /> Abrir
-                         </button>
-                         <button onClick={handleShare} className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors">
-                             <Share2 size={12} /> Compartir
-                         </button>
-                    </div>
+                     <button 
+                        onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); handleLocationClick(e as any); }}
+                        onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); handleLocationClick(e as any); }}
+                        onClick={(e) => { e.stopPropagation(); handleLocationClick(e as any); }}
+                        className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
+                     >
+                         <ExternalLink size={12} /> Abrir
+                     </button>
+                     <button 
+                        onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); handleShare(e as any); }}
+                        onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); handleShare(e as any); }}
+                        onClick={(e) => { e.stopPropagation(); handleShare(e as any); }}
+                        className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
+                     >
+                         <Share2 size={12} /> Compartir
+                     </button>
+                </div>
                 </div>
             </div>
         </div>
