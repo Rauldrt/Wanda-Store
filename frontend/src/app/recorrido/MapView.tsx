@@ -5,7 +5,7 @@ import GoogleMapReact from 'google-map-react';
 
 // You don't actually need an API key for development/demo if you accept the watermark
 // But for production, you would add an API_KEY here.
-const API_KEY = '';
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 const Marker = ({ text, number, isLast }: any) => (
     <div style={{
