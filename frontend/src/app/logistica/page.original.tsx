@@ -3165,8 +3165,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                 ...it,
                                 cantidad: (parseFloat(it.cantidad) || 0) * ub,
                                 precio: (parseFloat(it.precio) || 0) / ub,
-                                _formato: 'UNID',
-                                _visual_bulto: true
+                                _formato: 'UNID'
                             };
                         }
                         return it;

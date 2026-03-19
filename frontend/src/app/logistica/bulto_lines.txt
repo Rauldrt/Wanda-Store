@@ -1,0 +1,83 @@
+359: const isDetalleBulto = String(it.detalle || it.nombre || '').toUpperCase().includes('BULTO');
+360: const detectedFormat = (it._formato || it.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+560: // 2. Reprocesar: Normalizar Bultos a Unidades
+570: const rawUb = p.UB || p.Unidades_Bulto || "1";
+573: const isDetalleBulto = String(it.detalle || it.nombre || '').toUpperCase().includes('BULTO');
+574: const formatVal = String(it._formato || it.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+576: if (formatVal === 'BULTO' && ub > 1) {
+647: // Normalización de BULTO a UNID para consistencia en la DB
+651: if (it._formato === 'BULTO') {
+653: const rawUb = product?.UB || product?.Unidades_Bulto || "1";
+892: return orderList.length > 1 ? `<div style="font-weight: bold; font-size: 9px; color: #555;">Bulto ${index + 1}/${orderList.length}</div>` : '';
+933: const bul = item.bultos || item.BULTOS || 0;
+941: const itemIsBulto = item.esBulto === true ||
+942: String(item.detalle || '').toUpperCase() === 'BULTO' ||
+943: String(item.formato || item._formato || '').toUpperCase() === 'BULTO' ||
+944: String(item.nombre || '').toUpperCase().includes('BULTO');
+954: qtyDisplay = itemIsBulto ? `${qty} BUL` : `${qty} ${unitLabel}`;
+957: const factor = prod?.UB || prod?.Unidades_Bulto || 1;
+958: const factorDisplay = itemIsBulto ? `x${factor}` : '-';
+960: // Si es bulto, asegurarse que el precio mostrado sea el del bulto (si es que no venía ya así desde origen)
+962: // En "preventa", item.precio ya es el precio por bulto.
+963: // Si encontramos una discrepancia flagrante (precio unitario * bultos = subtotal, pero precio es unitario), lo ajustamos visualmente:
+969: // significa que item.precio es el precio unitario, entonces lo multiplicamos por el factor para mostrar el precio unitario del bulto.
+970: if (itemIsBulto && factor > 1 && qty > 0) {
+973: // Si multiplicarlo por el factor tiene más sentido para llegar al subtotal, el precio almacenado es el unitario, lo corregimos a bulto:
+1067: const rawUb = prod?.UB ?? prod?.Unidades_Bulto;
+1083: const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
+1084: const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+1086: if (formatVal === 'BULTO' && ub > 1) {
+1288: <div class="summary-item">Bultos Totales: <b>${Math.round(orderList.reduce((acc, o) => {
+1291: const rawUb = p?.UB || p?.Unidades_Bulto || "1";
+2920: const rawUb = product?.UB ?? product?.Unidades_Bulto;
+2937: const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
+2938: const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+2939: // Si el item viene marcado como bulto en el objeto (aunque intentemos normalizar), multiplicamos
+2940: if (formatVal === 'BULTO' && ub > 1) qtyInUnits *= ub;
+2965: formato: item._formato || item.formato || (String(item.detalle || '').toUpperCase().includes('BULTO') ? 'BULTO' : 'UNID')
+2993: const formatQtyWithBultos = (qty: number, ub: number, isKg: boolean, baseUnit: string) => {
+3067: const rawUb = product.UB || product.Unidades_Bulto || "1";
+3072: const isDetalleBulto = String(it.detalle || it.nombre || '').toUpperCase().includes('BULTO');
+3073: const formatVal = String(it._formato || it.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+3074: const isBulto = formatVal === 'BULTO';
+3080: if (isBulto) {
+3085: nextItem._formato = 'BULTO';
+3108: const rawUb = newProduct.UB || newProduct.Unidades_Bulto || "1";
+3115: const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
+3116: const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+3117: const isBulto = formatVal === 'BULTO';
+3119: const finalPrice = isBulto && newUb > 1 ? newPrice * newUb : newPrice;
+3127: _formato: isBulto ? 'BULTO' : 'UNID'
+3142: // Esto evita que el stock se descuente mal si se guardó como BULTO
+3146: if (it._formato === 'BULTO') {
+3148: const rawUb = product?.UB || product?.Unidades_Bulto || "1";
+3289: {formatQtyWithBultos(prod.totalQty, prod.ub, prod.isKg, prod.baseUnit)}
+3349: className={`px-1 rounded text-[8px] font-black uppercase transition-all ${String(item?.formato || item?._formato || '').toUpperCase() === 'BULTO' ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-500'}`}
+3350: title="Cambiar entre Bulto y Unidad"
+3352: {(String(item?.formato || item?._formato || '').toUpperCase() === 'BULTO' && delivery.ub > 1) ? 'BUL' : (delivery.isKg ? 'KG' : delivery.baseUnit)}
+3780: const finalQty = d.formato === 'BULTO' ? cleanQty * ub : cleanQty;
+4118: setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
+4125: const nextFmt = dev.formato === 'UNID' ? 'BULTO' : 'UNID';
+4126: setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, formato: nextFmt, subtotal: d.qty * d.precio * (nextFmt === 'BULTO' ? (d.ub || 1) : 1) } : d));
+4128: className={`text-[10px] font-black uppercase px-2 py-1.5 rounded-lg transition-all text-center border ${dev.formato === 'BULTO' ? 'bg-amber-500 border-amber-500 text-white shadow-md' : 'bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'}`}
+4144: setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p * (d.formato === 'BULTO' ? d.ub : 1) } : d));
+4194: setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, qty: n, subtotal: n * d.precio * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d));
+4202: const nextFmt = dev.formato === 'UNID' ? 'BULTO' : 'UNID';
+4203: setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, formato: nextFmt, subtotal: d.qty * d.precio * (nextFmt === 'BULTO' ? (d.ub || 1) : 1) } : d));
+4205: className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all ${dev.formato === 'BULTO' ? 'bg-amber-500 border-amber-500 text-white' : 'border-indigo-200 text-indigo-500 hover:bg-indigo-50 dark:border-indigo-900/30'}`}
+4219: setDevoluciones((prev: any[]) => prev.map((d: any, i: number) => i === idx ? { ...d, precio: p, subtotal: d.qty * p * (d.formato === 'BULTO' ? d.ub : 1) } : d));
+4356: const rawUb = p.UB || p.Unidades_Bulto || "1";
+4362: return prev.map((d) => String(d.id_prod) === String(pid) ? { ...d, qty: d.qty + 1, subtotal: (d.qty + 1) * (d.precio || 0) * (d.formato === 'BULTO' ? (d.ub || 1) : 1) } : d);
+5138: const rawUb = product.UB || product.Unidades_Bulto || "1";
+5142: const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+5143: const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+5144: const iB = formatVal === 'BULTO';
+5151: // Cambiar de BULTO a UNID (multiplicamos cantidad, dividimos precio)
+5159: // Cambiar de UNID a BULTO (dividimos cantidad, multiplicamos precio)
+5162: _formato: 'BULTO',
+5194: if (p.type === 'BOX' && item._formato === 'BULTO' && item.cantidad >= p.threshold) {
+5346: const rawUb = p?.UB ?? p?.Unidades_Bulto;
+5351: const isDetalleBulto = String(item.detalle || '').toUpperCase().includes('BULTO');
+5352: const currentFormat = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
+5375: className={`text-[8px] font-black px-1 rounded ${(currentFormat === 'BULTO' && ub > 1) ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}
+5378: {(currentFormat === 'BULTO' && ub > 1) ? 'BUL' : (isKg ? 'KG' : baseUnit)}
