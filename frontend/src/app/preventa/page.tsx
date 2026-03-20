@@ -259,6 +259,7 @@ export default function PreventaPage() {
         Longitud: ""
     });
     const [isLocating, setIsLocating] = useState(false);
+    const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
 
     const allClients = useMemo(() => {
         const baseClients = clients || [];
@@ -571,6 +572,53 @@ export default function PreventaPage() {
             (err) => {
                 alert("Error al obtener ubicación: " + err.message);
                 setIsLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
+
+    const handleUpdateClientLocation = () => {
+        if (!selectedClient) return;
+        if (!navigator.geolocation) {
+            alert("Tu dispositivo no soporta geolocalización");
+            return;
+        }
+        setIsUpdatingLocation(true);
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const lat = pos.coords.latitude.toString();
+                const lng = pos.coords.longitude.toString();
+                
+                try {
+                    const updatedClient = {
+                        ...selectedClient,
+                        Latitud: lat,
+                        Longitud: lng
+                    };
+                    
+                    if (selectedClient.EsLocal) {
+                         await wandaApi.saveClientRequest({
+                            ...updatedClient,
+                            id: updatedClient.ID_Cliente,
+                            origen: vendedorName || "Preventa",
+                            timestamp: new Date().toISOString()
+                        });
+                    } else {
+                        await wandaApi.saveClient(updatedClient);
+                    }
+                    
+                    setSelectedClient(updatedClient);
+                    refreshData(true);
+                    alert("Ubicación actualizada correctamente");
+                } catch (err: any) {
+                    alert("Error al actualizar cliente: " + err.message);
+                } finally {
+                    setIsUpdatingLocation(false);
+                }
+            },
+            (err) => {
+                alert("Error al obtener ubicación: " + err.message);
+                setIsUpdatingLocation(false);
             },
             { enableHighAccuracy: true, timeout: 10000 }
         );
@@ -1899,6 +1947,17 @@ export default function PreventaPage() {
                             </div>
 
                             <div className="w-full grid grid-cols-2 gap-3 mb-6">
+                                <button
+                                    onClick={handleUpdateClientLocation}
+                                    disabled={isUpdatingLocation}
+                                    className="col-span-2 w-full bg-slate-100 dark:bg-slate-800 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all outline-none"
+                                >
+                                    {isUpdatingLocation ? (
+                                        <><Plus className="animate-spin" size={16} /> Actualizando GPS...</>
+                                    ) : (
+                                        <><Store size={16} /> {selectedClient.Latitud ? 'Actualizar GPS' : 'Registrar GPS'}</>
+                                    )}
+                                </button>
                                 <button
                                     onClick={() => shareClientInfo(selectedClient)}
                                     className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 p-4 rounded-3xl flex flex-col items-center gap-2 text-[10px] font-black uppercase tracking-widest"
