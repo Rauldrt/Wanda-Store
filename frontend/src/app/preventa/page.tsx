@@ -260,6 +260,9 @@ export default function PreventaPage() {
     });
     const [isLocating, setIsLocating] = useState(false);
     const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
+    const [isEditingAddress, setIsEditingAddress] = useState(false);
+    const [tempAddress, setTempAddress] = useState("");
+    const [isSavingAddress, setIsSavingAddress] = useState(false);
 
     const allClients = useMemo(() => {
         const baseClients = clients || [];
@@ -622,6 +625,36 @@ export default function PreventaPage() {
             },
             { enableHighAccuracy: true, timeout: 10000 }
         );
+    };
+
+    const handleSaveAddress = async () => {
+        if (!selectedClient) return;
+        setIsSavingAddress(true);
+        try {
+            const updatedClient = {
+                ...selectedClient,
+                Direccion: tempAddress
+            };
+            if (updatedClient.EsLocal) {
+                 await wandaApi.saveClientRequest({
+                    ...updatedClient,
+                    id: updatedClient.ID_Cliente,
+                    origen: vendedorName || "Preventa",
+                    timestamp: new Date().toISOString()
+                });
+            } else {
+                await wandaApi.saveClient(updatedClient);
+            }
+            setSelectedClient(updatedClient);
+            refreshData(true);
+            setIsEditingAddress(false);
+            setQuickNotice({ message: "Dirección actualizada", color: "bg-emerald-500" });
+            setTimeout(() => setQuickNotice(null), 2500);
+        } catch (err: any) {
+            alert("Error al actualizar dirección: " + err.message);
+        } finally {
+            setIsSavingAddress(false);
+        }
     };
 
     const handleCreateClient = async (e: React.FormEvent) => {
@@ -1915,11 +1948,44 @@ export default function PreventaPage() {
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">{selectedClient.Dueño || 'Sin Dueño'}</p>
 
                             <div className="w-full space-y-4 mb-8">
-                                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-3xl flex items-center gap-4 text-left">
-                                    <User className="text-slate-400" size={18} />
+                                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-3xl flex items-center justify-between gap-4 text-left">
+                                    <div className="flex items-center gap-4 flex-1">
+                                        <User className="text-slate-400 shrink-0" size={18} />
+                                        <div className="flex-1">
+                                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Dirección</p>
+                                            {isEditingAddress ? (
+                                                <input
+                                                    type="text"
+                                                    value={tempAddress}
+                                                    onChange={(e) => setTempAddress(e.target.value)}
+                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-bold outline-none mt-1"
+                                                    autoFocus
+                                                />
+                                            ) : (
+                                                <p className="text-sm font-bold">{selectedClient.Direccion || 'No registrada'}</p>
+                                            )}
+                                        </div>
+                                    </div>
                                     <div>
-                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Dirección</p>
-                                        <p className="text-sm font-bold">{selectedClient.Direccion || 'No registrada'}</p>
+                                        {isEditingAddress ? (
+                                            <button 
+                                                onClick={handleSaveAddress}
+                                                disabled={isSavingAddress}
+                                                className="p-2 bg-emerald-100 text-emerald-600 rounded-xl hover:bg-emerald-200 transition-colors"
+                                            >
+                                                {isSavingAddress ? <Plus className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={() => {
+                                                    setTempAddress(selectedClient.Direccion || '');
+                                                    setIsEditingAddress(true);
+                                                }}
+                                                className="p-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                                            >
+                                                <Edit3 size={16} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-3xl flex items-center gap-4 text-left">
@@ -1974,7 +2040,7 @@ export default function PreventaPage() {
                                 </button>
                             </div>
 
-                            <button onClick={() => setIsClientDetailOpen(false)} className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-[24px] font-black uppercase text-xs tracking-widest outline-none">Cerrar</button>
+                            <button onClick={() => { setIsClientDetailOpen(false); setIsEditingAddress(false); }} className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-5 rounded-[24px] font-black uppercase text-xs tracking-widest outline-none">Cerrar</button>
                         </motion.div>
                     </motion.div>
                 )}
