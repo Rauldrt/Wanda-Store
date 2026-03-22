@@ -160,6 +160,58 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
+    backfillZonas: async (sellersObj: Record<string, string>, orders: any[], clients: any[]) => {
+        const batch = writeBatch(db);
+        let changes = 0;
+        
+        // 1. Deducir vendedor para cada cliente a partir de su historial de pedidos
+        const clientSellerMap: Record<string, string> = {};
+        for (const o of orders) {
+            const vNameStr = o.vendedor || o.Vendedor_Asignado;
+            const cId = String(o.cliente_id || o.cliente?.ID_Cliente || o.cliente?.id || "");
+            if (vNameStr && cId) {
+                // Siempre sobreescribimos con el último pedido, de esa forma vinculamos con su preventista actual
+                clientSellerMap[cId] = vNameStr.trim().toUpperCase();
+            }
+        }
+        
+        // 2. Actualizar Clientes usando el historial de pedidos
+        for (const c of clients) {
+            const cId = String(c.ID_Cliente || c.id);
+            // Tomar el asignado directo en DB o deducir del mapa
+            let rawVName = c.Vendedor_Asignado || c.vendedor;
+            let vName = rawVName ? rawVName.trim().toUpperCase() : (clientSellerMap[cId] || "GLOBAL");
+            
+            const correct = sellersObj[vName] || sellersObj["GLOBAL"] || "Global";
+            
+            if (c.Zona !== correct) {
+                if (cId && cId !== "undefined") {
+                    batch.update(doc(db, "clients", cId), { Zona: correct });
+                    changes++;
+                }
+            }
+        }
+        
+        // 3. Actualizar Pedidos
+        for (const o of orders) {
+            const vName = (o.vendedor || o.Vendedor_Asignado || "Global").trim().toUpperCase();
+            const correct = sellersObj[vName] || sellersObj["GLOBAL"] || "Global";
+            
+            if (o.zona !== correct) {
+                const oId = String(o.id);
+                if (oId && oId !== "undefined") {
+                    batch.update(doc(db, "orders", oId), { zona: correct });
+                    changes++;
+                }
+            }
+        }
+        
+        if (changes > 0) {
+            await batch.commit();
+        }
+        return { result: "OK", count: changes };
+    },
+
     // ---------------- LOGÍSTICA Y PEDIDOS (RÁPIDOS CON BATCH) ----------------
 
     createOrder: async (orderData: any) => {

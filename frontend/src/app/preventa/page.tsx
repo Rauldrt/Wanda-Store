@@ -776,14 +776,37 @@ export default function PreventaPage() {
                 const disc = getPromoDiscount(id, qty, isB);
                 const subtotal = (finalItemPrice * qty) * (1 - disc / 100);
 
+                // --- NUEVOS CAMPOS ENRICHIDOS PARA BULTOS/UNIDADES ---
+                const total_unidades = isB ? qty * ub : qty;
+                const total_bultos = ub > 0 ? (total_unidades / ub) : 0;
+                const stringBulto = (Math.floor(total_bultos * 100) / 100).toString().replace('.', ',');
+                
+                let rep_bultos = Math.floor(total_bultos);
+                let rep_unidades = Math.round((total_unidades % ub) * 100) / 100;
+
                 // Generación de descripción estilo original
                 let desc = "";
+                let picking_format = "";
                 if (isB) {
                     desc = `${qty} Bulto${qty > 1 ? 's' : ''} (${ub}u)`;
                 } else if (isKg) {
                     desc = `${qty} Pieza${qty > 1 ? 's' : ''} (~${pe}kg)`;
                 } else {
                     desc = `${qty} Unidad${qty > 1 ? 'es' : ''}`;
+                }
+
+                if (isKg) {
+                    picking_format = `${total_unidades} Pieza${total_unidades > 1 ? 's' : ''} (~${(total_unidades*pe).toFixed(2)}kg)`;
+                } else if (ub > 1) {
+                    if (rep_bultos > 0 && rep_unidades > 0) {
+                        picking_format = `${rep_bultos} Bulto${rep_bultos > 1 ? 's' : ''} y ${rep_unidades} Unid.`;
+                    } else if (rep_bultos > 0) {
+                        picking_format = `${rep_bultos} Bulto${rep_bultos > 1 ? 's' : ''}`;
+                    } else {
+                        picking_format = `${rep_unidades} Unid.`;
+                    }
+                } else {
+                     picking_format = desc;
                 }
 
                 return {
@@ -797,14 +820,19 @@ export default function PreventaPage() {
                     detalle: isB ? 'BULTO' : 'UNIDAD',
                     descripcion: desc,
                     descuento: disc,
-                    subtotal: subtotal
+                    subtotal: subtotal,
+                    picking_format: picking_format,
+                    total_unidades: total_unidades,
+                    total_bultos: total_bultos,
+                    fracciones_bulto: stringBulto
                 };
             }),
             total: calculateTotal(),
             notas: orderNotes,
             gps: silentGps,
             fecha: new Date().toISOString(),
-            fechaLocal: new Date().toLocaleString()
+            fechaLocal: new Date().toLocaleString(),
+            zona: (data?.sellers || []).find((s: any) => s.Nombre === vendedorName)?.Zona || "Global"
         };
 
         try {
@@ -1178,7 +1206,8 @@ export default function PreventaPage() {
         return (
             <div
                 key={pid}
-                className={`p-2.5 rounded-[24px] bg-white dark:bg-slate-900 border transition-all duration-500 ${qty > 0
+                onClick={() => { if (qty === 0) handleInitialAdd(pid) }}
+                className={`p-2.5 rounded-[24px] bg-white dark:bg-slate-900 border transition-all duration-500 ${qty === 0 ? 'cursor-pointer hover:-translate-y-0.5' : ''} ${qty > 0
                     ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 dark:border-indigo-500 ring-4 ring-indigo-500/10 shadow-2xl shadow-indigo-500/20 scale-[1.01] z-10'
                     : 'border-slate-100 dark:border-slate-800 shadow-lg shadow-slate-300/30 dark:shadow-none hover:shadow-xl hover:shadow-slate-400/20'
                     }`}
@@ -1186,8 +1215,11 @@ export default function PreventaPage() {
                 <div className="flex gap-2.5">
                     {/* Imagen del producto */}
                     <div
-                        className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex-shrink-0 cursor-pointer"
-                        onClick={() => p.Imagen_URL && setSelectedImage(getImageUrl(p.Imagen_URL))}
+                        className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex-shrink-0 cursor-pointer relative z-20"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (p.Imagen_URL) setSelectedImage(getImageUrl(p.Imagen_URL));
+                        }}
                     >
                         {p.Imagen_URL ? (
                             <img src={getImageUrl(p.Imagen_URL) || ""} alt={p.Nombre} className="w-full h-full object-cover" />
@@ -1260,14 +1292,14 @@ export default function PreventaPage() {
                         <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Modalidad</span>
                         <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-[12px] gap-0.5 shadow-inner">
                             <button
-                                onClick={() => isBulto && toggleBulto(pid)}
-                                className={`px-2.5 py-1 rounded-[10px] text-[8px] font-black uppercase transition-all ${!isBulto ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                onClick={(e) => { e.stopPropagation(); isBulto && toggleBulto(pid); }}
+                                className={`px-2.5 py-1 rounded-[10px] text-[8px] font-black uppercase transition-all relative z-20 ${!isBulto ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
                             >
                                 {unitLabel}
                             </button>
                             <button
-                                onClick={() => !isBulto && toggleBulto(pid)}
-                                className={`px-2.5 py-1 rounded-[10px] text-[8px] font-black uppercase transition-all ${isBulto ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
+                                onClick={(e) => { e.stopPropagation(); !isBulto && toggleBulto(pid); }}
+                                className={`px-2.5 py-1 rounded-[10px] text-[8px] font-black uppercase transition-all relative z-20 ${isBulto ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
                             >
                                 Bulto
                             </button>

@@ -47,27 +47,100 @@ export const sheetsSync = {
         sheetsSync.exportToCSV(clients, headers, "wanda_clientes");
     },
 
-    exportOrders: (orders: any[]) => {
+    exportOrders: (orders: any[], clients?: any[]) => {
+        const clientsArray = clients || [];
+        const clientDictionary = clientsArray.reduce((acc, client) => {
+            const id = client.ID_Cliente || client.id;
+            if (id) acc[String(id)] = client;
+            return acc;
+        }, {} as Record<string, any>);
+
+        const mappedOrders = orders.map(order => {
+            let fechaDate = "";
+            let horaDate = "";
+            
+            if (order.fecha) {
+                const cleanFecha = order.fecha.replace("Z", "");
+                if (cleanFecha.includes("T")) {
+                    const parts = cleanFecha.split("T");
+                    fechaDate = parts[0];
+                    horaDate = parts[1].split(".")[0]; 
+                } else if (cleanFecha.includes(" ")) {
+                    const parts = cleanFecha.split(" ");
+                    fechaDate = parts[0];
+                    horaDate = parts[1];
+                } else {
+                    fechaDate = cleanFecha;
+                }
+            }
+
+            let zona = "Sin zona";
+            if (order.cliente_id && clientDictionary[String(order.cliente_id)]) {
+                zona = clientDictionary[String(order.cliente_id)].Zona || "Sin zona";
+            }
+
+            return {
+                ...order,
+                fecha: fechaDate || order.fecha,
+                hora: horaDate,
+                zona: zona
+            };
+        });
+
         const headers = [
-            "id", "fecha", "cliente_id", "cliente_nombre", 
+            "id", "fecha", "hora", "zona", "cliente_id", "cliente_nombre", 
             "vendedor", "total", "estado", "reparto", "notas", "gps"
         ];
-        sheetsSync.exportToCSV(orders, headers, "wanda_pedidos");
+        sheetsSync.exportToCSV(mappedOrders, headers, "wanda_pedidos");
     },
 
-    exportOrderDetails: (orders: any[]) => {
+    exportOrderDetails: (orders: any[], clients?: any[]) => {
+        const clientsArray = clients || [];
+        const clientDictionary = clientsArray.reduce((acc, client) => {
+            const id = client.ID_Cliente || client.id;
+            if (id) acc[String(id)] = client;
+            return acc;
+        }, {} as Record<string, any>);
+
         const details: any[] = [];
         orders.forEach(order => {
+            let fechaDate = "";
+            let horaDate = "";
+            
+            if (order.fecha) {
+                const cleanFecha = order.fecha.replace("Z", "");
+                if (cleanFecha.includes("T")) {
+                    const parts = cleanFecha.split("T");
+                    fechaDate = parts[0];
+                    horaDate = parts[1].split(".")[0]; 
+                } else if (cleanFecha.includes(" ")) {
+                    const parts = cleanFecha.split(" ");
+                    fechaDate = parts[0];
+                    horaDate = parts[1];
+                } else {
+                    fechaDate = new Date(order.fecha).toLocaleDateString();
+                }
+            }
+
+            let zona = "Sin zona";
+            if (order.cliente_id && clientDictionary[String(order.cliente_id)]) {
+                zona = clientDictionary[String(order.cliente_id)].Zona || "Sin zona";
+            }
+
             if (order.items && Array.isArray(order.items)) {
                 order.items.forEach((item: any) => {
                     details.push({
                         Pedido_ID: order.id,
-                        Fecha: new Date(order.fecha).toLocaleDateString(),
+                        Fecha: fechaDate || order.fecha,
+                        Hora: horaDate,
+                        Zona: zona,
                         Cliente: order.cliente_nombre,
                         Vendedor: order.vendedor,
                         Producto_ID: item.id_producto || item.id || item.id_prod,
                         Producto_Nombre: item.nombre || item.producto,
                         Cantidad: item.cantidad,
+                        Tipo_Unidad: item.detalle || (item.esBulto ? 'BULTO' : 'UNIDAD'),
+                        Fracciones_Unidad: item.fracciones_bulto || (item.cantidad),
                         Precio: item.precio || item.precio_unitario,
                         Subtotal: (item.cantidad * (item.precio || item.precio_unitario || 0)).toFixed(2),
                         Estado: order.estado
@@ -77,8 +150,8 @@ export const sheetsSync = {
         });
 
         const headers = [
-            "Pedido_ID", "Fecha", "Cliente", "Vendedor", 
-            "Producto_ID", "Producto_Nombre", "Cantidad", 
+            "Pedido_ID", "Fecha", "Hora", "Zona", "Cliente", "Vendedor", 
+            "Producto_ID", "Producto_Nombre", "Cantidad", "Tipo_Unidad", "Fracciones_Unidad",
             "Precio", "Subtotal", "Estado"
         ];
         sheetsSync.exportToCSV(details, headers, "wanda_detalles_pedidos");

@@ -313,13 +313,36 @@ export default function TiendaOnlinePage() {
                 const finalItemPrice = isB ? piecePrice * ub : piecePrice;
                 const subtotal = finalItemPrice * qty;
 
+                // --- NUEVOS CAMPOS ENRICHIDOS PARA BULTOS/UNIDADES ---
+                const total_unidades = isB ? qty * ub : qty;
+                const total_bultos = ub > 0 ? (total_unidades / ub) : 0;
+                const stringBulto = (Math.floor(total_bultos * 100) / 100).toString().replace('.', ',');
+                
+                let rep_bultos = Math.floor(total_bultos);
+                let rep_unidades = Math.round((total_unidades % ub) * 100) / 100;
+
                 let desc = "";
+                let picking_format = "";
                 if (isB) {
                     desc = `${qty} Bulto${qty > 1 ? 's' : ''} (${ub}u)`;
                 } else if (isKg) {
                     desc = `${qty} Pieza${qty > 1 ? 's' : ''} (~${pe}kg)`;
                 } else {
                     desc = `${qty} Unidad${qty > 1 ? 'es' : ''}`;
+                }
+
+                if (isKg) {
+                    picking_format = `${total_unidades} Pieza${total_unidades > 1 ? 's' : ''} (~${(total_unidades*pe).toFixed(2)}kg)`;
+                } else if (ub > 1) {
+                    if (rep_bultos > 0 && rep_unidades > 0) {
+                        picking_format = `${rep_bultos} Bulto${rep_bultos > 1 ? 's' : ''} y ${rep_unidades} Unid.`;
+                    } else if (rep_bultos > 0) {
+                        picking_format = `${rep_bultos} Bulto${rep_bultos > 1 ? 's' : ''}`;
+                    } else {
+                        picking_format = `${rep_unidades} Unid.`;
+                    }
+                } else {
+                     picking_format = desc;
                 }
 
                 return {
@@ -329,7 +352,11 @@ export default function TiendaOnlinePage() {
                     precio: finalItemPrice,
                     subtotal: subtotal,
                     descripcion: desc,
-                    esBulto: isB
+                    esBulto: isB,
+                    picking_format: picking_format,
+                    total_unidades: total_unidades,
+                    total_bultos: total_bultos,
+                    fracciones_bulto: stringBulto
                 };
             }),
             total: cartTotal,
@@ -513,11 +540,15 @@ export default function TiendaOnlinePage() {
                             <motion.div
                                 key={pid}
                                 layout
-                                className={`bg-white dark:bg-slate-900 rounded-[32px] p-4 border transition-all duration-300 shadow-xl shadow-black/5 flex flex-col ${qty > 0 ? 'border-indigo-200 dark:border-indigo-500/30' : 'border-slate-100 dark:border-slate-800'}`}
+                                onClick={() => { if (qty === 0) handleInitialAdd(pid) }}
+                                className={`bg-white dark:bg-slate-900 rounded-[32px] p-4 border transition-all duration-300 shadow-xl shadow-black/5 flex flex-col ${qty === 0 ? 'cursor-pointer hover:shadow-2xl hover:-translate-y-1' : ''} ${qty > 0 ? 'border-indigo-200 dark:border-indigo-500/30' : 'border-slate-100 dark:border-slate-800'}`}
                             >
                                 <div
-                                    className="aspect-square bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-hidden cursor-pointer relative group"
-                                    onClick={() => p.Imagen_URL && setSelectedImage(p.Imagen_URL)}
+                                    className="aspect-square bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-hidden cursor-pointer relative group z-20"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (p.Imagen_URL) setSelectedImage(p.Imagen_URL);
+                                    }}
                                 >
                                     {p.Imagen_URL ? (
                                         <img src={getImageUrl(p.Imagen_URL) || ""} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={p.Nombre} />
@@ -546,14 +577,14 @@ export default function TiendaOnlinePage() {
                                 {unitsPerBulk > 1 && (
                                     <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl gap-0.5 my-2">
                                         <button
-                                            onClick={() => isBulto && toggleBulto(pid)}
-                                            className={`flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${!isBulto ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                            onClick={(e) => { e.stopPropagation(); isBulto && toggleBulto(pid); }}
+                                            className={`flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all relative z-20 ${!isBulto ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
                                         >
                                             {unitLabel}
                                         </button>
                                         <button
-                                            onClick={() => !isBulto && toggleBulto(pid)}
-                                            className={`flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${isBulto ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
+                                            onClick={(e) => { e.stopPropagation(); !isBulto && toggleBulto(pid); }}
+                                            className={`flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all relative z-20 ${isBulto ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
                                         >
                                             Bulto
                                         </button>
@@ -568,8 +599,11 @@ export default function TiendaOnlinePage() {
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={() => handleInitialAdd(pid)}
-                                        className="w-full py-3 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 mt-auto bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleInitialAdd(pid);
+                                        }}
+                                        className="w-full py-3 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 mt-auto bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 relative z-20"
                                     >
                                         <Plus size={16} />
                                         <span className="text-[10px] font-black uppercase tracking-widest">Comprar</span>

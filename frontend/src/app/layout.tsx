@@ -23,7 +23,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  FileSpreadsheet
+  FileSpreadsheet,
+  MapPinned
 } from "lucide-react";
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -125,6 +126,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/recorrido", icon: <Map size={18} />, label: "Recorrido" },
     { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
     { href: "/vendedores", icon: <Users size={18} />, label: "Vendedores" },
+    { href: "/zonas", icon: <MapPinned size={18} />, label: "Zonas de Cobertura" },
     { href: "/informes", icon: <BarChart3 size={18} />, label: "Informes" },
     { href: "/datos", icon: <FileSpreadsheet size={18} />, label: "Centro de Datos" },
     { href: "/landing", icon: <Layout size={18} />, label: "Presentación" },

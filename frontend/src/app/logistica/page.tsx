@@ -331,6 +331,7 @@ const smartSearch = (text: string, query: string) => {
 
 export default function LogisticaPage() {
     const { data, loading, refreshData, setIsSyncing } = useData();
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<'pendientes' | 'rutas' | 'historial' | 'comisiones' | 'resumenes' | 'ocultos'>('pendientes');
     const [selectedSettlementsSummary, setSelectedSettlementsSummary] = useState<string[]>([]);
     const [summarySearch, setSummarySearch] = useState("");
@@ -570,31 +571,10 @@ export default function LogisticaPage() {
             const idsToAssign = Array.from(selectedOrders);
             const ordersToProcess = orders.filter(o => idsToAssign.includes(o.id));
 
-            // 2. Reprocesar: Normalizar Bultos a Unidades
+            // 2. Asignar ruta manteniendo la estructura de items (Bultos enteros) enviada por Ventas
             const processedOrders = ordersToProcess.map(order => {
                 const normalizedItems = (order.items || []).map((it: any) => {
                     const id = it.id_prod || it.id_producto || it.id;
-                    let p = products.find(prod => String(prod.ID_Producto) === String(id));
-                    if (!p && it.nombre) {
-                        p = products.find(prod => String(prod.Nombre || '').trim().toLowerCase() === String(it.nombre).trim().toLowerCase());
-                    }
-                    if (!p) return { ...it, id_prod: id };
-
-                    const rawUb = p.UB || p.Unidades_Bulto || "1";
-                    const ub = parseFloat(String(rawUb).replace(',', '.'));
-                    const isKg = (p.Unidad || '').toLowerCase() === 'kg';
-                    const isDetalleBulto = String(it.detalle || it.nombre || '').toUpperCase().includes('BULTO');
-                    const formatVal = String(it._formato || it.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
-
-                    if (formatVal === 'BULTO' && ub > 1) {
-                        return {
-                            ...it,
-                            id_prod: id,
-                            cantidad: (parseFloat(String(it.cantidad || "0").replace(',', '.')) || 0) * ub,
-                            precio: (parseFloat(String(it.precio || "0").replace(',', '.')) || 0) / ub,
-                            _formato: isKg ? 'KG' : 'UNID'
-                        };
-                    }
                     return { ...it, id_prod: id };
                 });
 
@@ -958,7 +938,9 @@ export default function LogisticaPage() {
                                         String(item.nombre || '').toUpperCase().includes('BULTO');
 
                     let qtyDisplay = '';
-                    if (isKg) {
+                    if (item.picking_format) {
+                        qtyDisplay = item.picking_format;
+                    } else if (isKg) {
                         qtyDisplay = `${parseFloat(String(qty)).toFixed(3)} Kg`;
                     } else if (bul > 0 || uni > 0) {
                         if (bul > 0 && uni > 0) qtyDisplay = `${bul} B / ${uni} ${unitLabel}`;
@@ -1097,7 +1079,9 @@ export default function LogisticaPage() {
                 const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
                 const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
 
-                if (formatVal === 'BULTO' && ub > 1) {
+                if (item.total_unidades !== undefined) {
+                    itemQty = parseFloat(item.total_unidades);
+                } else if (formatVal === 'BULTO' && ub > 1) {
                     itemQty *= ub;
                 }
 
@@ -1105,6 +1089,7 @@ export default function LogisticaPage() {
                 aggregates[id].clientes.push({
                     nombre: order.cliente_nombre,
                     cantidad: itemQty,
+                    picking_format: item.picking_format,
                     ub: ub,
                     isKg: isKg
                 });
@@ -1207,7 +1192,7 @@ export default function LogisticaPage() {
                                                 ${item.clientes.map((c: any) => `
                                                     <div class="client-item">
                                                         <span>• ${c.nombre}</span>
-                                                        <span>${c.cantidad.toFixed(2)} KG</span>
+                                                        <span>${c.picking_format || (c.cantidad.toFixed(2) + ' KG')}</span>
                                                     </div>
                                                 `).join('')}
                                             </div>
@@ -1306,6 +1291,7 @@ export default function LogisticaPage() {
                 const ub = parseFloat(String(rawUb).replace(',', '.')) || 1;
                 const isKg = (p?.Unidad || '').toLowerCase() === 'kg';
                 if (isKg) return iAcc;
+                if (it.total_bultos !== undefined) return iAcc + parseFloat(it.total_bultos);
                 return iAcc + (parseFloat(String(it.cantidad).replace(',', '.')) / ub);
             }, 0) || 0);
         }, 0))}</b></div>
@@ -1352,15 +1338,43 @@ export default function LogisticaPage() {
     if (loading && !data) return <div className="h-[60vh] flex items-center justify-center">Sincronizando logística...</div>;
 
     return (
-        <div className="p-6 space-y-8 max-w-[1600px] mx-auto">
+        <div className="p-6 space-y-8 max-w-[1600px] mx-auto relative">
+            {isRefreshing && (
+                <div className="fixed top-0 left-0 w-full h-1 bg-emerald-500/20 z-[9999] overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-r-full" style={{ animation: 'progress-infinite 1.5s ease-in-out infinite' }}>
+                        <style>{`
+                            @keyframes progress-infinite {
+                                0% { transform: translateX(-100%); width: 10%; }
+                                50% { transform: translateX(50%); width: 50%; }
+                                100% { transform: translateX(200%); width: 10%; }
+                            }
+                        `}</style>
+                    </div>
+                </div>
+            )}
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shadow-inner">
                         <Truck size={24} />
                     </div>
-                    <div>
-                        <h2 className="text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">Logística</h2>
-                        <p className="text-slate-400 text-[11px] font-bold uppercase tracking-[0.2em] mt-0.5">Gestión de entregas y optimización</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+                        <div>
+                            <h2 className="text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">Logística</h2>
+                            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-[0.2em] mt-0.5">Gestión de entregas y optimización</p>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                setIsRefreshing(true);
+                                await refreshData(true);
+                                setTimeout(() => setIsRefreshing(false), 500); // Artificial delay to ensure visibility
+                            }}
+                            disabled={loading || isRefreshing}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all text-sm font-bold disabled:opacity-50 mt-1 sm:mt-0 ${(loading || isRefreshing) ? 'bg-slate-500/10 text-slate-500' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'}`}
+                            title="Forzar actualización de datos desde la nube"
+                        >
+                            <RotateCcw size={16} className={(loading || isRefreshing) ? "animate-spin" : ""} />
+                            <span className="hidden sm:inline">{(loading || isRefreshing) ? "Sincronizando..." : "Sincronizar"}</span>
+                        </button>
                     </div>
                 </div>
 
