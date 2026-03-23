@@ -848,12 +848,15 @@ export default function LogisticaPage() {
                 const parsedUb = parseFloat(String(rawUb || "1").replace(',', '.'));
                 const ub = (!rawUb || String(rawUb).trim() === '' || isNaN(parsedUb) || parsedUb === 0) ? 1 : parsedUb;
 
+                const weightAvg = parseFloat(String(prod?.Peso || prod?.Peso_Promedio || "1").replace(',', '.'));
+
                 if (!aggregates[id]) {
                     aggregates[id] = {
                         nombre: item.nombre,
                         cantidad: 0,
                         isKg: isKg,
                         ub: ub,
+                        weightAvg: weightAvg,
                         baseUnit: baseUnit,
                         clientes: []
                     };
@@ -863,9 +866,16 @@ export default function LogisticaPage() {
                 const isDetalleBulto = String(item.detalle || item.nombre || '').toUpperCase().includes('BULTO');
                 const formatVal = String(item._formato || item.formato || (isDetalleBulto ? 'BULTO' : '')).toUpperCase();
 
-                if (item.total_unidades !== undefined) {
+                // Para pesables, si no detectamos que ya está tratado como peso, 
+                // aseguramos que multiplicamos las piezas por el peso promedio
+                if (isKg && !item._pesableTratado && itemQty < 50 && weightAvg > 1.1) {
+                    // Heurística de seguridad: si es Kg, no está marcado como tratado, 
+                    // y la cantidad es pequeña (piezas) mientras el peso es significativo, estimamos.
+                    itemQty *= weightAvg;
+                } else if (!isKg && item.total_unidades !== undefined) {
+                    // Para productos por unidad, si tenemos el desglose de piezas totales, lo usamos.
                     itemQty = parseFloat(item.total_unidades);
-                } else if (formatVal === 'BULTO' && ub > 1) {
+                } else if (!isKg && formatVal === 'BULTO' && ub > 1) {
                     itemQty *= ub;
                 }
 
