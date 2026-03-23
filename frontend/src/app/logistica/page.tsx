@@ -1279,7 +1279,7 @@ export default function LogisticaPage() {
                                                 isSelected={selectedOrders.has(order.id)}
                                                 onSelect={() => toggleOrderSelection(order.id)}
                                                 onViewDetail={() => setViewingDetailId(order.id)}
-                                                onPrint={() => printOrders([order])}
+                                                onPrint={() => printOrders([order], data?.config, products, orders)}
                                             />
                                         ))
                                     )}
@@ -1520,7 +1520,7 @@ export default function LogisticaPage() {
                                                                                                                     </div>
                                                                                                                     <div className="mt-3 flex justify-end gap-2">
                                                                                                                         <button
-                                                                                                                            onClick={() => printOrders([order])}
+                                                                                                                            onClick={() => printOrders([order], data?.config, products, orders)}
                                                                                                                             className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-[9px] font-black uppercase rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1.5"
                                                                                                                         >
                                                                                                                             <Printer size={12} /> Imprimir
@@ -1610,7 +1610,7 @@ export default function LogisticaPage() {
                                             onManage={() => setEditingRoute(route.name)}
                                             onViewOrders={() => setViewingOrdersRoute(route.name)}
                                             onDelete={() => handleLiberarReparto(route.name)}
-                                            onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === route.name))}
+                                            onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === route.name), data?.config, products, orders)}
                                             onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)}
                                             onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)}
                                             onSettlement={() => setSettlingRoute(route.name)}
@@ -1668,7 +1668,7 @@ export default function LogisticaPage() {
                                                             <div className="flex items-center justify-end gap-1">
                                                                 <button onClick={() => setViewingOrdersRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Ver Pedidos"><Eye size={16} /></button>
                                                                 <button onClick={() => setEditingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Gestionar"><Edit2 size={16} /></button>
-                                                                <button onClick={() => printOrders(orders.filter(o => o.reparto === route.name))} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Imprimir Remitos"><Printer size={16} /></button>
+                                                                <button onClick={() => printOrders(orders.filter(o => o.reparto === route.name), data?.config, products, orders)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Imprimir Remitos"><Printer size={16} /></button>
                                                                 <button onClick={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-emerald-500 transition-colors" title="Picking"><Package size={16} /></button>
                                                                 <button onClick={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-amber-500 transition-colors" title="Hoja de Ruta"><MapPin size={16} /></button>
                                                                 <button onClick={() => setSettlingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Liquidar"><CheckCircle size={16} /></button>
@@ -1735,7 +1735,7 @@ export default function LogisticaPage() {
                                             onManage={() => setEditingRoute(route.name)}
                                             onViewOrders={() => setViewingOrdersRoute(route.name)}
                                             onDelete={() => handleLiberarReparto(route.name)}
-                                            onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === route.name))}
+                                            onPrintRemitos={() => printOrders(orders.filter(o => o.reparto === route.name), data?.config, products, orders)}
                                             onPrintRouteSheet={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)}
                                             onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)}
                                             onSettlement={() => setSettlingRoute(route.name)}
@@ -1787,7 +1787,7 @@ export default function LogisticaPage() {
                                                             <div className="flex items-center justify-end gap-1">
                                                                 <button onClick={() => setViewingOrdersRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Ver Pedidos"><Eye size={16} /></button>
                                                                 <button onClick={() => setEditingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Gestionar"><Edit2 size={16} /></button>
-                                                                <button onClick={() => printOrders(orders.filter(o => o.reparto === route.name))} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Imprimir Remitos"><Printer size={16} /></button>
+                                                                <button onClick={() => printOrders(orders.filter(o => o.reparto === route.name), data?.config, products, orders)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Imprimir Remitos"><Printer size={16} /></button>
                                                                 <button onClick={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-emerald-500 transition-colors" title="Picking"><Package size={16} /></button>
                                                                 <button onClick={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-amber-500 transition-colors" title="Hoja de Ruta"><MapPin size={16} /></button>
                                                                 <button onClick={() => setSettlingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Liquidar"><CheckCircle size={16} /></button>
@@ -2275,9 +2275,9 @@ export default function LogisticaPage() {
 
                         onPrintOrder={(id: string) => {
                             const orderToPrint = orders.find(o => o.id === id);
-                            if (orderToPrint) printOrders([orderToPrint]);
+                            if (orderToPrint) printOrders([orderToPrint], data?.config, products, orders);
                         }}
-                        onPrintRemitos={(ordersToPrint) => printOrders(ordersToPrint)}
+                        onPrintRemitos={(ordersToPrint) => printOrders(ordersToPrint, data?.config, products, orders)}
                         onPrintPickingList={(ordersToPrint, name) => printPickingList(ordersToPrint, name)}
                         onPrintRouteSheet={(ordersToPrint, name) => printRouteSheet(ordersToPrint, name)}
                     />
@@ -2308,7 +2308,7 @@ export default function LogisticaPage() {
                             clients={clients}
                             config={data?.config}
                             onClose={() => setViewingDetailId(null)}
-                            onPrint={() => printOrders([orders.find((o: any) => o.id === viewingDetailId)])}
+                            onPrint={() => printOrders([orders.find((o: any) => o.id === viewingDetailId)], data?.config, products, orders)}
                             onUpdateOrder={handleUpdatePendingOrder}
                             onNavigatePrev={hasPrev ? () => setViewingDetailId(filteredPendingOrders[currentIndex - 1].id) : undefined}
                             onNavigateNext={hasNext ? () => setViewingDetailId(filteredPendingOrders[currentIndex + 1].id) : undefined}
