@@ -139,7 +139,9 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                                     </thead>
                                     <tbody>
                                         ${activeItems.map((item: any) => {
-                                            const qty = item.cantidad || item.CANTIDAD || 0;
+                                            let qty = item.cantidad || item.CANTIDAD || 0;
+                                            let displayedPrice = parseFloat(String(item.precio || 0).replace(',', '.')) || 0;
+
                                             const bul = item.bultos || item.BULTOS || 0;
                                             const uni = item.unidades || item.UNIDADES || 0;
 
@@ -147,6 +149,21 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                                             const prod = (products || []).find((p: any) => String(p.ID_Producto) === String(pId));
                                             const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
                                             const unitLabel = isKg ? 'kg' : 'un';
+
+                                            // Normalización preventiva para pesables en Remito
+                                            // Si el precio indica piezas pero es pesable, convertimos a kilaje estimado para el remito
+                                            if (isKg && prod && !item._pesableTratado) {
+                                                const weightAvg = parseFloat(String(prod.Peso || prod.Peso_Promedio || "1").replace(',', '.'));
+                                                const priceKg = parseFloat(String(prod.Precio_Unitario || "0").replace(',', '.'));
+                                                const piecePrice = priceKg * weightAvg;
+                                                const diffKg = Math.abs(displayedPrice - priceKg);
+                                                const diffPiece = Math.abs(displayedPrice - piecePrice);
+
+                                                if (weightAvg > 0 && (diffPiece < diffKg || (displayedPrice > priceKg * 1.5 && weightAvg > 1.1))) {
+                                                    qty = qty * weightAvg;
+                                                    displayedPrice = priceKg;
+                                                }
+                                            }
                                             
                                             const itemIsBulto = item.esBulto === true || 
                                                                 String(item.detalle || '').toUpperCase() === 'BULTO' || 
@@ -169,7 +186,8 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                                             const factor = prod?.UB || prod?.Unidades_Bulto || 1;
                                             const factorDisplay = itemIsBulto ? `x${factor}` : '-';
 
-                                            let displayedPrice = parseFloat(String(item.precio).replace(',', '.')) || 0;
+                                            // El displayedPrice ya se calculó arriba contemplando normalización de pesables
+                                            // let displayedPrice = parseFloat(String(item.precio).replace(',', '.')) || 0;
                                             const _subtotal = parseFloat(String(item.subtotal).replace(',', '.')) || 0;
                                             const _descuento = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
                                             const expectedSubT = displayedPrice * qty * (1 - _descuento / 100);
