@@ -365,6 +365,8 @@ export default function LogisticaPage() {
                 let finalItem = {
                     ...it,
                     id_prod: id,
+                    cantidad: parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.')),
+                    precio: parseFloat(String(it.precio || it.PRECIO || 0).replace(',', '.')),
                     _formato: detectedFormat || 'UNID'
                 };
 

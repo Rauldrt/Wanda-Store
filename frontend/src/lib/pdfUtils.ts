@@ -139,8 +139,8 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                                     </thead>
                                     <tbody>
                                         ${activeItems.map((item: any) => {
-                                            let qty = item.cantidad || item.CANTIDAD || 0;
-                                            let displayedPrice = parseFloat(String(item.precio || 0).replace(',', '.')) || 0;
+                                            let qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
+                                            let displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
 
                                             const bul = item.bultos || item.BULTOS || 0;
                                             const uni = item.unidades || item.UNIDADES || 0;
@@ -159,7 +159,9 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                                                 const diffKg = Math.abs(displayedPrice - priceKg);
                                                 const diffPiece = Math.abs(displayedPrice - piecePrice);
 
-                                                if (weightAvg > 0 && (diffPiece < diffKg || (displayedPrice > priceKg * 1.5 && weightAvg > 1.1))) {
+                                                // Solo normalizamos si el precio actual está más cerca del precio por PIEZA que del precio por KG
+                                                // y si no parece estar ya en formato de peso real (comparado con priceKg)
+                                                if (weightAvg > 0 && diffKg > 0.1 && (diffPiece < diffKg || (displayedPrice > priceKg * 1.5 && weightAvg > 1.1))) {
                                                     qty = qty * weightAvg;
                                                     displayedPrice = priceKg;
                                                 }
@@ -171,10 +173,11 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                                                                 String(item.nombre || '').toUpperCase().includes('BULTO');
 
                                             let qtyDisplay = '';
-                                            if (item.picking_format) {
-                                                qtyDisplay = item.picking_format;
-                                            } else if (isKg) {
+                                            if (isKg) {
+                                                // Para productos pesables, priorizamos siempre mostrar el kilaje (estimado o corregido)
                                                 qtyDisplay = `${parseFloat(String(qty)).toFixed(3)} Kg`;
+                                            } else if (item.picking_format) {
+                                                qtyDisplay = item.picking_format;
                                             } else if (bul > 0 || uni > 0) {
                                                 if (bul > 0 && uni > 0) qtyDisplay = `${bul} B / ${uni} ${unitLabel}`;
                                                 else if (bul > 0) qtyDisplay = `${bul} BUL`;
