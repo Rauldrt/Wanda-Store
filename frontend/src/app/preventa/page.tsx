@@ -1284,7 +1284,9 @@ export default function PreventaPage() {
                                         <button onClick={() => updateQty(pid, 1)} className="w-7 h-7 rounded-lg bg-indigo-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"><Plus size={14} /></button>
                                     </>
                                 ) : (
-                                    <button onClick={() => handleInitialAdd(pid)} className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-[8px] xs:text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-indigo-500/10 whitespace-nowrap">Agregar</button>
+                                    <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-400 opacity-50">
+                                        <Plus size={16} />
+                                    </div>
                                 )}
                             </div>
                         </div>
