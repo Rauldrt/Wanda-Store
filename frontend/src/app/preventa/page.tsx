@@ -35,7 +35,8 @@ import {
     EyeOff,
     Trash,
     FileEdit,
-    Edit3
+    Edit3,
+    HelpCircle
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -217,6 +218,7 @@ export default function PreventaPage() {
     }, [hiddenOrderIds]);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [lastOrderData, setLastOrderData] = useState<any>(null);
+    const [isHelpOpen, setIsHelpOpen] = useState(false);
 
     const carouselBanners = useMemo(() => {
         const banners: any[] = [];
@@ -1527,6 +1529,13 @@ export default function PreventaPage() {
                         </div>
                     </div>
                     <div className="flex gap-1 items-center shrink-0">
+                        <button 
+                            onClick={() => setIsHelpOpen(true)}
+                            className="p-2 rounded-full hover:bg-black/5 text-indigo-500 transition-colors"
+                            title="Ayuda y Tutoriales"
+                        >
+                            <HelpCircle size={20} />
+                        </button>
                         <ThemeToggle />
                         {navLayout === 'header' && (
                             <>
@@ -2439,6 +2448,55 @@ export default function PreventaPage() {
                                 {groupedProducts[selectedCategory]?.map((p, idx) => renderProductCard(p, idx))}
                                 <div className="h-20 sm:h-4 w-full" /> {/* Spacer extra para el botón del carrito en mobile */}
                             </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+                {isHelpOpen && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto no-scrollbar">
+                            <button onClick={() => setIsHelpOpen(false)} className="absolute top-6 right-6 p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500"><X size={20} /></button>
+                            
+                            <div className="text-center mb-8">
+                                <div className="w-16 h-16 bg-indigo-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-500/20">
+                                    <HelpCircle size={32} />
+                                </div>
+                                <h2 className="text-2xl font-black tracking-tight">Centro de Ayuda</h2>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Guías de Uso Wanda Cloud</p>
+                            </div>
+
+                            <div className="space-y-8 text-left">
+                                <section>
+                                    <h3 className="text-indigo-500 font-black uppercase text-xs tracking-widest mb-4 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                        Guía de Relevamiento GPS
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {[
+                                            { t: 'Localización', d: 'Busca al cliente y toca el icono de tienda (Store) para abrir su ficha.', i: <Search size={14}/> },
+                                            { t: 'Dirección', d: 'Toca el icono del lápiz azul para corregir la dirección si es vieja o incompleta.', i: <Edit3 size={14}/> },
+                                            { t: 'Captura GPS', d: 'Párate frente al local y toca "REGISTRAR GPS". Acepta permisos si el celular los pide.', i: <Store size={14}/> },
+                                            { t: 'Verificación', d: 'Usa "Ver en Google Maps" para confirmar que el punto es exacto.', i: <CheckCircle2 size={14}/> }
+                                        ].map((step, i) => (
+                                            <div key={i} className="flex gap-4 group">
+                                                <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-indigo-500 font-black text-xs shrink-0 group-hover:bg-indigo-500 group-hover:text-white transition-colors border border-slate-100 dark:border-slate-800">
+                                                    {i + 1}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="font-bold text-sm text-slate-800 dark:text-white flex items-center gap-2">{step.t} {step.i}</p>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{step.d}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-[28px] border border-amber-100 dark:border-amber-900/30">
+                                    <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Bell size={12}/> Pro-Tip de Precisión</p>
+                                    <p className="text-[11px] font-bold text-amber-700 dark:text-amber-300 leading-relaxed">No captures el GPS desde el vehículo. Bájate y párate en la puerta del local para evitar errores de logística.</p>
+                                </div>
+                            </div>
+
+                            <button onClick={() => setIsHelpOpen(false)} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-5 rounded-[24px] font-black uppercase text-xs tracking-widest mt-10 shadow-lg active:scale-95 transition-all">Entendido</button>
                         </motion.div>
                     </motion.div>
                 )}
