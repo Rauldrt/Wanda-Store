@@ -24,11 +24,13 @@ import {
     ArrowUpRight,
     Info,
     ExternalLink,
-    MapPinned
+    MapPinned,
+    Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
+import { printOrders } from "@/lib/pdfUtils";
 import ClientMapView, { getClientCoordinates } from '@/components/ClientMapView';
 
 // --- UTIL: BÚSQUEDA FLEXIBLE ---
@@ -285,7 +287,11 @@ export default function ClientesPage() {
                         saving={isSyncing}
                         onDelete={() => handleDelete(formData.ID_Cliente)}
                         onEdit={() => setDrawerMode('edit')}
-                        clientOrders={orders.filter((o: any) => o.cliente_id === formData.ID_Cliente)}
+                        clientOrders={orders.filter((o: any) => String(o.cliente_id) === String(formData.ID_Cliente) || String(o.id_cliente) === String(formData.ID_Cliente))}
+                        products={data?.products}
+                        config={data?.config}
+                        sellers={data?.sellers}
+                        allOrders={orders}
                     />
                 )}
             </AnimatePresence>
@@ -486,9 +492,16 @@ function ClientCard({ client, onView, onEdit, onDelete, isList, isRequest, onApp
     );
 }
 
-function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, onEdit, clientOrders = [] }: any) {
+function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, onEdit, clientOrders = [], products = [], config = {}, sellers = [], allOrders = [] }: any) {
     const isEditing = mode === 'edit' || mode === 'create';
     const [showOrders, setShowOrders] = useState(false);
+    const [orderFilter, setOrderFilter] = useState('');
+
+    const filteredOrders = useMemo(() => {
+        if (!orderFilter) return clientOrders;
+        const q = orderFilter.toLowerCase();
+        return clientOrders.filter((o: any) => (o.fecha || '').includes(q) || (o.id || '').toLowerCase().includes(q));
+    }, [clientOrders, orderFilter]);
 
     return (
         <>
@@ -551,6 +564,31 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
                                     onChange={(v: any) => setData({ ...data, Zona: v })}
                                     readOnly={!isEditing}
                                 />
+                            </div>
+                            <div className="grid grid-cols-1 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                        Preventista Asignado
+                                    </label>
+                                    {!isEditing ? (
+                                        <div className="w-full bg-slate-50/50 dark:bg-slate-950 border border-transparent rounded-2xl py-3.5 px-5 text-sm font-bold text-slate-800 dark:text-slate-100">
+                                            {data.Vendedor_Asignado || data.vendedor || 'Sin asignar'}
+                                        </div>
+                                    ) : (
+                                        <select
+                                            value={data.Vendedor_Asignado || data.vendedor || ''}
+                                            onChange={(e) => setData({ ...data, Vendedor_Asignado: e.target.value })}
+                                            className="w-full bg-white dark:bg-slate-950 border border-[var(--border)] rounded-2xl py-3.5 px-5 text-sm font-bold outline-none hover:border-slate-300 transition-all focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 text-slate-800 dark:text-slate-100"
+                                        >
+                                            <option value="">Seleccionar preventista...</option>
+                                            {(sellers || []).map((s: any) => (
+                                                <option key={s.id || s.ID_Vendedor} value={s.Nombre || s.ID_Vendedor}>
+                                                    {s.Nombre}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <InputField
@@ -655,24 +693,45 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
 
                             {showOrders && (
                                 <div className="mt-6 space-y-3 animate-in fade-in slide-in-from-top-4">
-                                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mt-6 mb-4">Historial de Pedidos ({clientOrders.length})</h5>
-                                    {clientOrders.length === 0 ? (
-                                        <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-[var(--border)] text-center text-slate-400 text-xs">
-                                            No hay pedidos registrados para este cliente.
+                                    <div className="flex items-center justify-between mt-6 mb-4">
+                                        <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Historial de Pedidos ({clientOrders.length})</h5>
+                                        <div className="relative w-40">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                                            <input 
+                                                type="text" 
+                                                placeholder="Filtrar fecha..." 
+                                                value={orderFilter}
+                                                onChange={(e) => setOrderFilter(e.target.value)}
+                                                className="w-full pl-8 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-[10px] font-bold focus:ring-2 ring-indigo-500/10 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                    {filteredOrders.length === 0 ? (
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-[var(--border)] text-center text-slate-400 text-xs text-balance">
+                                            {orderFilter ? `No hay pedidos que coincidan con "${orderFilter}"` : "No hay pedidos registrados para este cliente."}
                                         </div>
                                     ) : (
                                         <div className="space-y-3">
-                                            {clientOrders.slice(0, 10).map((order: any) => (
+                                            {filteredOrders.slice(0, 10).map((order: any) => (
                                                 <div key={order.id} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-[var(--border)] flex justify-between items-center group hover:border-indigo-500/50 transition-all">
                                                     <div>
-                                                        <p className="font-bold text-sm text-slate-700 dark:text-slate-200">Pedido #{order.id}</p>
-                                                        <p className="text-[10px] text-slate-500 uppercase">{order.fecha}</p>
+                                                        <p className="font-bold text-sm text-slate-700 dark:text-slate-200">Pedido #{order.id?.slice(-6)}</p>
+                                                        <p className="text-[10px] text-slate-500 uppercase">{order.fecha || 'Fecha desconocida'}</p>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className="font-black text-indigo-600">${parseFloat(order.total).toLocaleString()}</p>
-                                                        <p className={`text-[10px] font-bold uppercase tracking-widest ${order.estado === 'Entregado' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                                            {order.estado || 'Pendiente'}
-                                                        </p>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="text-right">
+                                                            <p className="font-black text-indigo-600 text-sm">${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                                            <p className={`text-[9px] font-bold uppercase tracking-widest ${order.estado === 'Entregado' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                                {order.estado || 'Pendiente'}
+                                                            </p>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => printOrders([order], config, products, allOrders)}
+                                                            className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-indigo-500 transition-all active:scale-90"
+                                                            title="Imprimir Remito"
+                                                        >
+                                                            <Printer size={16} />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))}

@@ -190,9 +190,26 @@ export default function ProductosPage() {
     };
 
     const handleBulkFieldChange = (id: any, field: string, value: any) => {
-        setEditedProducts(prev => prev.map(p =>
-            String(p.ID_Producto) === String(id) ? { ...p, [field]: value } : p
-        ));
+        setEditedProducts(prev => prev.map(p => {
+            if (String(p.ID_Producto) === String(id)) {
+                let updated = { ...p, [field]: value };
+                
+                // Si cambia el costo, intentamos mantener el margen previo ajustando el precio
+                if (field === 'Costo') {
+                    const oldCost = parseFloat(p.Costo || 0);
+                    const oldPrice = parseFloat(p.Precio_Unitario || 0);
+                    const newCost = parseFloat(value || 0);
+                    
+                    if (oldCost > 0) {
+                        const margin = ((oldPrice - oldCost) / oldCost);
+                        updated.Precio_Unitario = (newCost * (1 + margin)).toFixed(2);
+                    }
+                }
+                
+                return updated;
+            }
+            return p;
+        }));
     };
 
     const applyMassAdjustment = () => {
@@ -868,7 +885,7 @@ function ProductCard({ product, idx, onEdit }: any) {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-[var(--border)]/50">
                             <p className="text-[7px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Precio</p>
-                            <p className="font-black text-xs text-indigo-600">${parseFloat(product.Precio_Unitario || 0).toLocaleString()}</p>
+                            <p className="font-black text-xs text-indigo-600">${parseFloat(product.Precio_Unitario || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-[var(--border)]/50">
                             <p className="text-[7px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Stock</p>
@@ -957,7 +974,7 @@ function ProductRow({ product, onEdit }: any) {
             </td>
             <td className="px-6 py-4 text-right">
                 <div className="space-y-0.5">
-                    <p className="font-black text-sm text-indigo-600">${parseFloat(product.Precio_Unitario || 0).toLocaleString()}</p>
+                    <p className="font-black text-sm text-indigo-600">${parseFloat(product.Precio_Unitario || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     <div className="flex items-center justify-end gap-1.5 transition-all text-slate-500">
                         <span className="text-[8px] font-bold uppercase tracking-tighter">Costo:</span>
                         <span className="text-[9px] font-black">${product.Costo || 0}</span>
@@ -1177,7 +1194,10 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                                     label="Precio de Venta ($)"
                                     value={formData.Precio_Unitario}
                                     type="number"
-                                    onChange={(v: any) => setFormData({ ...formData, Precio_Unitario: v })}
+                                    step="0.01"
+                                    onChange={(v: any) => {
+                                        setFormData({ ...formData, Precio_Unitario: v });
+                                    }}
                                     highlight
                                 />
                                 <InputField
@@ -1191,9 +1211,36 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                                     label="Costo Unitario ($)"
                                     value={formData.Costo}
                                     type="number"
-                                    onChange={(v: any) => setFormData({ ...formData, Costo: v })}
+                                    step="0.01"
+                                    onChange={(v: any) => {
+                                        const cost = parseFloat(v) || 0;
+                                        const margin = currentMargin / 100;
+                                        const newPrice = cost * (1 + margin);
+                                        setFormData({ 
+                                            ...formData, 
+                                            Costo: v, 
+                                            Precio_Unitario: cost > 0 ? newPrice.toFixed(2) : formData.Precio_Unitario 
+                                        });
+                                    }}
                                     highlight
                                 />
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Recargo (%)</label>
+                                    <div className="relative">
+                                        <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
+                                        <input
+                                            type="number"
+                                            value={currentMargin.toFixed(1)}
+                                            onChange={(e) => {
+                                                const newMargin = parseFloat(e.target.value) || 0;
+                                                const cost = parseFloat(formData.Costo || 0);
+                                                const newPrice = cost * (1 + newMargin / 100);
+                                                setFormData({ ...formData, Precio_Unitario: newPrice.toFixed(2) });
+                                            }}
+                                            className="w-full bg-indigo-500/5 border border-indigo-500/20 rounded-2xl py-3 px-12 text-sm font-black text-indigo-600 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                                        />
+                                    </div>
+                                </div>
                                 <InputField
                                     label="Cant. por Bulto (UB)"
                                     value={formData.Unidades_Bulto}
