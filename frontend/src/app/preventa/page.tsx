@@ -31,6 +31,7 @@ import {
     ArrowLeft,
     Bell,
     FileText,
+    BookHeart,
     EyeOff,
     Trash,
     FileEdit,
@@ -1398,8 +1399,8 @@ export default function PreventaPage() {
 
         const fabActions = [
             { id: 'cart', icon: <ShoppingCart size={20} />, color: 'bg-indigo-600', label: 'Carrito', onClick: () => setIsCartOpen(true), badge: totalItems },
-            { id: 'history', icon: <Clock size={20} />, color: 'bg-emerald-600', label: 'Historial', onClick: () => setIsHistoryOpen(true) },
-            { id: 'catalog', icon: <FileText size={20} />, color: 'bg-amber-600', label: 'Catálogo', onClick: generatePDFCatalog },
+            { id: 'history', icon: <FileText size={20} />, color: 'bg-emerald-600', label: 'Historial', onClick: () => setIsHistoryOpen(true) },
+            { id: 'catalog', icon: <BookHeart size={20} />, color: 'bg-amber-600', label: 'Catálogo', onClick: generatePDFCatalog },
         ];
 
         return (
@@ -1431,9 +1432,11 @@ export default function PreventaPage() {
                                         <span className="bg-white dark:bg-slate-800 px-3 py-1 rounded-xl shadow-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
                                             {action.label}
                                         </span>
-                                        <button
+                                        <motion.button
+                                            whileHover={{ scale: 1.1, x: -4 }}
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={() => { action.onClick(); setIsFABOpen(false); }}
-                                            className={`w-12 h-12 rounded-2xl ${action.color} text-white shadow-xl flex items-center justify-center relative active:scale-90 transition-transform`}
+                                            className={`w-12 h-12 rounded-2xl ${action.color} text-white shadow-xl flex items-center justify-center relative transition-transform`}
                                         >
                                             {action.icon}
                                             {action.badge ? (
@@ -1441,18 +1444,46 @@ export default function PreventaPage() {
                                                     {action.badge}
                                                 </span>
                                             ) : null}
-                                        </button>
+                                        </motion.button>
                                     </motion.div>
                                 ))}
                             </div>
                         )}
                     </AnimatePresence>
-                    <button
+                    <motion.button
+                        layout
+                        whileHover={{ scale: 1.05, y: -4 }}
+                        whileTap={{ scale: 0.9 }}
+                        animate={!isFABOpen ? {
+                            y: [0, -6, 0],
+                            transition: {
+                                duration: 3,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                            }
+                        } : { y: 0 }}
                         onClick={() => setIsFABOpen(!isFABOpen)}
-                        className={`w-14 h-14 rounded-[24px] shadow-2xl flex items-center justify-center transition-all duration-300 z-50 ${isFABOpen ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 rotate-45' : 'bg-indigo-600 text-white'}`}
+                        className={`w-16 h-16 rounded-[24px] shadow-[0_20px_50px_rgba(79,70,229,0.4)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-center transition-all duration-300 z-50 relative overflow-hidden ${isFABOpen ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : 'bg-indigo-600 text-white'}`}
                     >
-                        <Plus size={32} />
-                    </button>
+                        {/* Ripple Effect Background */}
+                        <AnimatePresence>
+                            {isFABOpen && (
+                                <motion.span
+                                    initial={{ scale: 0, opacity: 0 }}
+                                    animate={{ scale: 2.5, opacity: 0.2 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute inset-0 bg-white dark:bg-slate-900 rounded-full"
+                                />
+                            )}
+                        </AnimatePresence>
+
+                        <motion.div
+                            animate={{ rotate: isFABOpen ? 135 : 0 }}
+                            transition={{ type: "spring", stiffness: 200, damping: 12 }}
+                        >
+                            <Plus size={36} />
+                        </motion.div>
+                    </motion.button>
                 </div>
             </>
         );
@@ -1514,9 +1545,9 @@ export default function PreventaPage() {
                                         className={`p-2 rounded-full hover:bg-black/5 ${isGeneratingPDF ? 'animate-pulse text-indigo-400' : 'text-indigo-500'}`}
                                         title="Descargar Catálogo PDF"
                                     >
-                                        {isGeneratingPDF ? <FileText className="animate-bounce" size={20} /> : <FileText size={20} />}
+                                        {isGeneratingPDF ? <BookHeart className="animate-bounce" size={20} /> : <BookHeart size={20} />}
                                     </button>
-                                    <button onClick={() => setIsHistoryOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Clock size={20} /></button>
+                                    <button onClick={() => setIsHistoryOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><FileText size={20} /></button>
                                     <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full hover:bg-black/5 text-slate-400"><Settings size={20} /></button>
                                 </div>
                                 <div className="sm:hidden flex gap-1">
@@ -1578,7 +1609,7 @@ export default function PreventaPage() {
                                     className="flex flex-col items-center gap-1.5"
                                 >
                                     <div className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-black/5 text-indigo-500 active:scale-95 transition-transform">
-                                        <FileText size={20} />
+                                        <BookHeart size={20} />
                                     </div>
                                     <span className="text-[10px] font-black uppercase text-slate-500 tracking-tighter">Catálogo</span>
                                 </button>
@@ -1587,7 +1618,7 @@ export default function PreventaPage() {
                                     className="flex flex-col items-center gap-1.5"
                                 >
                                     <div className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-black/5 text-emerald-500 active:scale-95 transition-transform">
-                                        <Clock size={20} />
+                                        <FileText size={20} />
                                     </div>
                                     <span className="text-[10px] font-black uppercase text-slate-500 tracking-tighter">Historia</span>
                                 </button>
@@ -2243,7 +2274,7 @@ export default function PreventaPage() {
                                     );
                                 })() : (
                                     <div className="h-full flex flex-col items-center justify-center opacity-30 gap-4">
-                                        <Clock size={64} />
+                                        <FileText size={64} />
                                         <p className="text-sm font-black uppercase tracking-widest">Sin resultados</p>
                                     </div>
                                 )}
