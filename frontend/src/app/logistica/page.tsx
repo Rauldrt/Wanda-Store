@@ -602,6 +602,48 @@ export default function LogisticaPage() {
         }
     };
 
+    const handleMarkAsTestBulk = async () => {
+        if (selectedOrders.size === 0) return;
+        if (!confirm(`¿Deseas marcar ${selectedOrders.size} pedidos como PRUEBA?\n\n- No se eliminarán.\n- Se RESTAURARÁ el stock de los productos.\n- Se excluirán de todos los reportes.`)) return;
+        
+        try {
+            setIsSyncing(true);
+            const ids = Array.from(selectedOrders);
+            for (const id of ids) {
+                const fullOrder = orders.find(o => o.id === id);
+                if (fullOrder) {
+                    await wandaApi.markOrderAsTest(fullOrder);
+                }
+            }
+            setSelectedOrders(new Set());
+            await refreshData(true);
+            alert("Pedidos marcados como prueba correctamente.");
+        } catch (error: any) {
+            alert("Error: " + (error.message || error));
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleMarkAsTestRoute = async (routeName: string) => {
+        const routeOrders = orders.filter(o => o.reparto === routeName);
+        if (routeOrders.length === 0) return;
+        if (!confirm(`¿Marcar TODOS los pedidos de la ruta ${routeName} (${routeOrders.length} pedidos) como PRUEBA?\n\n- Se restaurará el stock.\n- Se excluirán de reportes.\n- La ruta quedará vacía.`)) return;
+
+        try {
+            setIsSyncing(true);
+            for (const order of routeOrders) {
+                await wandaApi.markOrderAsTest(order);
+            }
+            await refreshData(true);
+            alert("Ruta marcada como prueba correctamente.");
+        } catch (error: any) {
+            alert("Error: " + (error.message || error));
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     const handleLiberarReparto = async (routeName: string) => {
         if (!confirm(`¿Está seguro de liberar todos los pedidos de la ruta ${routeName}?`)) return;
 
@@ -1262,6 +1304,15 @@ export default function LogisticaPage() {
                                             <Plus size={14} /> Asignar a Ruta
                                         </button>
                                     )}
+                                    {selectedOrders.size > 0 && (
+                                        <button
+                                            onClick={handleMarkAsTestBulk}
+                                            className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-500 hover:text-white transition-all border border-rose-500/20"
+                                            title="Excluir de reportes y restaurar stock"
+                                        >
+                                            <Shield size={14} /> Marcar como Prueba ({selectedOrders.size})
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -1615,6 +1666,7 @@ export default function LogisticaPage() {
                                             onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)}
                                             onSettlement={() => setSettlingRoute(route.name)}
                                             onToggleHide={handleToggleHide}
+                                            onMarkAsTest={() => handleMarkAsTestRoute(route.name)}
                                         />
                                     ))}
                                 </div>
@@ -1672,6 +1724,7 @@ export default function LogisticaPage() {
                                                                 <button onClick={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-emerald-500 transition-colors" title="Picking"><Package size={16} /></button>
                                                                 <button onClick={() => printRouteSheet(orders.filter(o => o.reparto === route.name), route.name)} className="p-2 text-slate-400 hover:text-amber-500 transition-colors" title="Hoja de Ruta"><MapPin size={16} /></button>
                                                                 <button onClick={() => setSettlingRoute(route.name)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors" title="Liquidar"><CheckCircle size={16} /></button>
+                                                                <button onClick={() => handleMarkAsTestRoute(route.name)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors" title="Marcar toda la ruta como Prueba"><Shield size={16} /></button>
                                                                 <button onClick={() => handleLiberarReparto(route.name)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Liberar Ruta"><Trash2 size={16} /></button>
                                                                 <button onClick={() => handleToggleHide(route.name)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors" title="Ocultar Ruta"><EyeOff size={16} /></button>
                                                             </div>
@@ -1740,6 +1793,7 @@ export default function LogisticaPage() {
                                             onPrintPicking={() => printPickingList(orders.filter(o => o.reparto === route.name), route.name)}
                                             onSettlement={() => setSettlingRoute(route.name)}
                                             onToggleHide={handleToggleHide}
+                                            onMarkAsTest={() => handleMarkAsTestRoute(route.name)}
                                         />
                                     ))}
                                 </div>
@@ -2309,6 +2363,7 @@ export default function LogisticaPage() {
                             config={data?.config}
                             onClose={() => setViewingDetailId(null)}
                             onPrint={() => printOrders([orders.find((o: any) => o.id === viewingDetailId)], data?.config, products, orders)}
+                            onRefresh={() => refreshData(true)}
                             onUpdateOrder={handleUpdatePendingOrder}
                             onNavigatePrev={hasPrev ? () => setViewingDetailId(filteredPendingOrders[currentIndex - 1].id) : undefined}
                             onNavigateNext={hasNext ? () => setViewingDetailId(filteredPendingOrders[currentIndex + 1].id) : undefined}
@@ -3230,6 +3285,7 @@ function RouteManagerModal({ routeName, orders, clients, products, config, onClo
                                 clients={clients}
                                 config={config}
                                 onClose={() => setOrderDetailId(null)}
+                                onRefresh={onRefresh}
                                 onUpdateOrder={(updated: any) => {
                                     setLocalOrders((prev: any) => prev.map((o: any) => o.id === updated.id ? { ...updated, _editado: true } : o));
                                     setOrderDetailId(null);
@@ -3549,8 +3605,11 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                     const ub = parseFloat(String(d.ub || "1")) || 1;
                     const cleanQty = parseFloat(String(d.qty)) || 0;
                     const finalQty = d.formato === 'BULTO' ? cleanQty * ub : cleanQty;
-                    if (finalQty > 0 || finalQty < 0) { // Evita NaNs o ceros absolutos si se desea conservar historico
-                        stockAdjustments.push({ id: d.id_prod, Stock: finalQty });
+                    const pid = String(d.id_prod || "");
+                    
+                    // SEGURIDAD: Validar que el ID no sea una fecha accidental ni indefinido
+                    if ((finalQty > 0 || finalQty < 0) && pid && pid !== "undefined" && !/^\d{4}-\d{2}-\d{2}T/.test(pid)) {
+                        stockAdjustments.push({ id: pid, Stock: finalQty });
                     }
                 });
             } else {
@@ -3560,10 +3619,14 @@ function RouteSettlementModal({ routeName, orders, products, onClose, onRefresh 
                         (ord.items || []).forEach((item: any) => {
                             const original = (ord.items_originales || []).find((oi: any) => String(oi.id_prod) === String(item.id_prod));
                             if (original && original.cantidad > item.cantidad) {
-                                stockAdjustments.push({
-                                    id: item.id_prod,
-                                    Stock: original.cantidad - item.cantidad
-                                });
+                                const pid = String(item.id_prod || "");
+                                // SEGURIDAD: Validar que el ID no sea una fecha accidental ni indefinido
+                                if (pid && pid !== "undefined" && !/^\d{4}-\d{2}-\d{2}T/.test(pid)) {
+                                    stockAdjustments.push({
+                                        id: pid,
+                                        Stock: original.cantidad - item.cantidad
+                                    });
+                                }
                             }
                         });
                     }
@@ -4856,7 +4919,7 @@ function PartialDeliveryEditor({ order, products, onClose, onSave }: any) {
     );
 }
 
-function OrderDetailModal({ order, products, clients, config, onClose, onPrint, onUpdateOrder, onNavigatePrev, onNavigateNext }: any) {
+function OrderDetailModal({ order, products, clients, config, onClose, onPrint, onRefresh, onUpdateOrder, onNavigatePrev, onNavigateNext }: any) {
     const [localOrder, setLocalOrder] = useState<any>(null);
     const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
     const [clientSearch, setClientSearch] = useState("");
@@ -5375,12 +5438,30 @@ function OrderDetailModal({ order, products, clients, config, onClose, onPrint, 
                                 <Save size={18} /> Guardar Cambios
                             </button>
                         ) : (
-                            <button
-                                onClick={onPrint}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95"
-                            >
-                                <Printer size={18} /> Remito
-                            </button>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <button
+                                    onClick={onPrint}
+                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                                >
+                                    <Printer size={18} /> Remito
+                                </button>
+                                {localOrder.estado !== 'PRUEBA' && (
+                                    <button
+                                        onClick={async () => {
+                                            if (confirm("¿Marcar este pedido como PRUEBA?\nSe restaurará el stock y se ocultará de reportes.")) {
+                                                await wandaApi.markOrderAsTest(localOrder);
+                                                onClose();
+                                                alert("Pedido marcado como prueba.");
+                                                onRefresh && onRefresh();
+                                            }
+                                        }}
+                                        className="p-3 bg-rose-500/10 text-rose-600 rounded-2xl hover:bg-rose-500 hover:text-white transition-all border border-rose-500/20"
+                                        title="Marcar como Prueba"
+                                    >
+                                        <Shield size={18} />
+                                    </button>
+                                )}
+                            </div>
                         )}
                         <button
                             onClick={onClose}
@@ -5456,7 +5537,7 @@ function OrderCard({ order, isSelected, onSelect, onViewDetail, onPrint }: any) 
     );
 }
 
-function RouteCard({ name, orderCount, index, isReopened, isHidden, onManage, onViewOrders, onDelete, onPrintRemitos, onPrintRouteSheet, onPrintPicking, onSettlement, onToggleHide }: any) {
+function RouteCard({ name, orderCount, index, isReopened, isHidden, onManage, onViewOrders, onDelete, onPrintRemitos, onPrintRouteSheet, onPrintPicking, onSettlement, onToggleHide, onMarkAsTest }: any) {
     const [showPrintOptions, setShowPrintOptions] = useState(false);
 
     return (
@@ -5563,6 +5644,13 @@ function RouteCard({ name, orderCount, index, isReopened, isHidden, onManage, on
                         )}
                     </AnimatePresence>
 
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onMarkAsTest(); }}
+                        className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-500 hover:text-white transition-all text-rose-500"
+                        title="Marcar toda la ruta como Prueba"
+                    >
+                        <Shield size={16} />
+                    </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
                         className="p-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 hover:bg-red-500 hover:text-white transition-all text-red-500"

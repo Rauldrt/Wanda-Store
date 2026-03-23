@@ -358,6 +358,30 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
+    markOrderAsTest: async (order: any) => {
+        const batch = writeBatch(db);
+        const orderRef = doc(db, "orders", String(order.id));
+        
+        // 1. Marcar como prueba
+        batch.update(orderRef, { 
+            estado: "PRUEBA",
+            notas: `[PEDIDO DE PRUEBA] ${order.notas || ""}`.trim()
+        });
+
+        // 2. Revertir stock
+        if (order.items && order.items.length > 0) {
+            order.items.forEach((item: any) => {
+                const idProd = String(item.id_producto || item.id || item.id_prod).replace(/\//g, "-").trim();
+                batch.update(doc(db, "products", idProd), {
+                    Stock: increment(item.cantidad)
+                });
+            });
+        }
+
+        await batch.commit();
+        return { result: "OK" };
+    },
+
     deleteSettlementDraft: async (routeName: string) => {
         const id = `DRAFT-${routeName}`.replace(/\//g, "-").trim();
         await deleteDoc(doc(db, "settlement_drafts", id));
@@ -395,7 +419,10 @@ export const wandaApi: Record<string, any> = {
                 // Sumar al stock
                 (ord.items || []).forEach((item: any) => {
                     const idProd = String(item.id_producto || item.id || item.id_prod);
-                    batch.update(doc(db, "products", idProd), { Stock: increment(item.cantidad) });
+                    // Seguridad: Solo actualizar stock si el ID es válido y no es una fecha accidental
+                    if (idProd && idProd !== "undefined" && !/^\d{4}-\d{2}-\d{2}T/.test(idProd)) {
+                        batch.set(doc(db, "products", idProd), { Stock: increment(item.cantidad) }, { merge: true });
+                    }
                 });
             } else if (ord.estado === 'Parcial') {
                 batch.update(orderRef, {
@@ -409,11 +436,12 @@ export const wandaApi: Record<string, any> = {
         // Procesar ajustes de stock explícitos (devoluciones manuales o deltas de parciales)
         if (data.stockAdjustments && Array.isArray(data.stockAdjustments)) {
             data.stockAdjustments.forEach((adj: any) => {
-                const id = adj.id || adj.id_prod;
-                if (id) {
-                    batch.update(doc(db, "products", String(id)), {
+                const id = String(adj.id || adj.id_prod || "");
+                // Seguridad: Validar ID de producto antes de actualizar stock
+                if (id && id !== "undefined" && !/^\d{4}-\d{2}-\d{2}T/.test(id)) {
+                    batch.set(doc(db, "products", id), {
                         Stock: increment(adj.Stock || 0)
-                    });
+                    }, { merge: true });
                 }
             });
         }

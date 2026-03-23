@@ -104,7 +104,7 @@ export default function DataCenterPage() {
         const filteredOrders = data.orders.filter((o: any) => {
             if (!o.fecha) return false;
             const date = parseISO(o.fecha);
-            return (date >= start && date <= end) && o.estado !== "CANCELADO";
+            return (date >= start && date <= end) && o.estado !== "CANCELADO" && o.estado !== "PRUEBA";
         });
 
         if (reportType === 'productos') {
