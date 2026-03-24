@@ -160,6 +160,12 @@ export default function Home() {
                           <p className="text-[10px] text-slate-500 font-mono tracking-tighter">ID: {p.id}</p>
                           <span className="text-[8px] text-slate-400">•</span>
                           <p className="text-[10px] text-slate-400 font-bold uppercase">{p.vendedor || 'App'}</p>
+                          {p.reparto && (
+                            <>
+                              <span className="text-[8px] text-slate-400">•</span>
+                              <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest">{p.reparto}</p>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

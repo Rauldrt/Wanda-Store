@@ -1095,10 +1095,15 @@ export default function PreventaPage() {
         });
     };
 
-    const handleDeleteOrder = async (id: string) => {
-        console.log("Attempting to delete order:", id);
+    const handleDeleteOrder = async (id: string, reparto?: string) => {
+        console.log("Attempting to delete order:", id, "Reparto:", reparto);
         if (!id) {
             alert("No se pudo eliminar: ID faltante");
+            return;
+        }
+
+        if (reparto && String(reparto) !== "null" && String(reparto).trim() !== "") {
+            alert("❌ No se puede eliminar un pedido que ya fue asignado a un reparto.");
             return;
         }
 
@@ -2240,7 +2245,14 @@ export default function PreventaPage() {
                                                                                             <div className="flex flex-col">
                                                                                                 <div className="flex items-center gap-2">
                                                                                                     <p className="font-black text-[13px] tracking-tight text-slate-700 dark:text-slate-200">{h.cliente?.Nombre_Negocio || 'Cliente Desconocido'}</p>
-                                                                                                    <span className="bg-emerald-500/10 text-emerald-600 text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest whitespace-nowrap">Enviado</span>
+                                                                                                    <div className="flex items-center gap-1">
+                                                                                                        <span className="bg-emerald-500/10 text-emerald-600 text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest whitespace-nowrap">Enviado</span>
+                                                                                                        {h.reparto && (
+                                                                                                            <span className="bg-indigo-500/10 text-indigo-600 text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest whitespace-nowrap">
+                                                                                                                Reparto: {h.reparto}
+                                                                                                            </span>
+                                                                                                        )}
+                                                                                                    </div>
                                                                                                 </div>
                                                                                                 <div className="flex items-center gap-2">
                                                                                                     <p className="text-[9px] font-bold text-slate-400 uppercase">
@@ -2260,7 +2272,9 @@ export default function PreventaPage() {
                                                                                             {(!h.reparto || String(h.reparto) === "null" || String(h.reparto).trim() === "") && (
                                                                                                 <button onClick={(e) => { e.stopPropagation(); handleEditOrder(h); }} className="h-9 w-9 rounded-xl bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center" title="Editar"><Edit3 size={14} /></button>
                                                                                             )}
-                                                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteOrder(String(hId)); }} className="h-9 w-9 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center" title="Eliminar"><Trash2 size={14} /></button>
+                                                                                            {(!h.reparto || String(h.reparto) === "null" || String(h.reparto).trim() === "") && (
+                                                                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteOrder(String(hId), h.reparto); }} className="h-9 w-9 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center" title="Eliminar"><Trash2 size={14} /></button>
+                                                                                            )}
                                                                                             <button onClick={(e) => { e.stopPropagation(); shareToWhatsApp(h); }} className="h-9 w-9 rounded-xl bg-emerald-500 text-white shadow-sm flex items-center justify-center" title="Compartir"><MessageCircle size={14} /></button>
                                                                                             <button onClick={(e) => { e.stopPropagation(); repeatOrder(h); }} className="h-9 px-3 rounded-xl bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest shadow-sm flex items-center gap-1.5">Repetir <Clock size={11} /></button>
                                                                                         </div>
@@ -2300,7 +2314,14 @@ export default function PreventaPage() {
                             <div className="flex items-center justify-between mb-6">
                                 <div>
                                     <h2 className="text-xl font-black">{viewingOrder.cliente?.Nombre_Negocio}</h2>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{viewingOrder.fechaLocal}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{viewingOrder.fechaLocal}</p>
+                                        {viewingOrder.reparto && (
+                                            <span className="bg-indigo-500/10 text-indigo-600 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest whitespace-nowrap">
+                                                Reparto: {viewingOrder.reparto}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <button onClick={() => setViewingOrder(null)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500"><X size={20} /></button>
                             </div>

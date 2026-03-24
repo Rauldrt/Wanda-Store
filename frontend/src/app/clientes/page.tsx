@@ -714,10 +714,17 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
                                         <div className="space-y-3">
                                             {filteredOrders.slice(0, 10).map((order: any) => (
                                                 <div key={order.id} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-[var(--border)] flex justify-between items-center group hover:border-indigo-500/50 transition-all">
-                                                    <div>
-                                                        <p className="font-bold text-sm text-slate-700 dark:text-slate-200">Pedido #{order.id?.slice(-6)}</p>
-                                                        <p className="text-[10px] text-slate-500 uppercase">{order.fecha || 'Fecha desconocida'}</p>
-                                                    </div>
+                                                     <div className="flex-1">
+                                                         <div className="flex items-center gap-2 mb-1">
+                                                             <p className="font-bold text-sm text-slate-700 dark:text-slate-200">Pedido #{order.id?.slice(-6)}</p>
+                                                             {order.reparto && (
+                                                                 <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded text-[8px] font-black uppercase">
+                                                                     Reparto: {order.reparto}
+                                                                 </span>
+                                                             )}
+                                                         </div>
+                                                         <p className="text-[10px] text-slate-500 uppercase">{order.fecha || 'Fecha desconocida'}</p>
+                                                     </div>
                                                     <div className="flex items-center gap-4">
                                                         <div className="text-right">
                                                             <p className="font-black text-indigo-600 text-sm">${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
