@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV !== "production";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: isDev,
+  disable: true,
   register: true,
 });
 

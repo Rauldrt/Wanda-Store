@@ -44,7 +44,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Wanda" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
-      <body className={`${inter.className} min-h-screen bg-[var(--background)] flex`}>
+      <body suppressHydrationWarning className={`${inter.className} min-h-screen bg-[var(--background)] flex`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <DataProvider>
             <LayoutContent>{children}</LayoutContent>
@@ -204,8 +204,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
             <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center flex-col gap-4' : 'justify-between px-2'}`}>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 shrink-0 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-indigo-500 uppercase" title={(pathname !== '/login' && typeof window !== 'undefined') ? localStorage.getItem('user_role') || 'Usuario' : 'WA'}>
-                  {(pathname !== '/login' && typeof window !== 'undefined') ? (localStorage.getItem('user_role')?.slice(0, 2) || 'WA') : 'WA'}
+                <div className="w-8 h-8 shrink-0 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-indigo-500 uppercase" title={mounted ? (localStorage.getItem('user_role') || 'Usuario') : 'WA'}>
+                  {mounted ? (localStorage.getItem('user_role')?.slice(0, 2) || 'WA') : 'WA'}
                 </div>
                 {!isSidebarCollapsed && (
                   <div className="flex-1 min-w-0">
