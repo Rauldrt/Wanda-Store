@@ -8,13 +8,13 @@ import ClientLayout from "@/components/ClientLayout";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Wanda Store Admin Pro",
+  title: "Wanda Store",
   description: "Sistema de gestión inteligente para Wanda Lácteos",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Wanda App",
+    title: "Wanda Store",
   },
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
 };

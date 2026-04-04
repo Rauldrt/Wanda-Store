@@ -100,7 +100,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
         <div className="text-center mt-4">
-          <p className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Wanda <span className="text-indigo-500">Cloud</span></p>
+          <p className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Wanda <span className="text-indigo-500">Store</span></p>
           <p className="text-[10px] text-slate-500 font-medium italic">Distribución Inteligente</p>
         </div>
       </div>
@@ -134,13 +134,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <div className="p-4 md:p-6 h-full flex flex-col overflow-y-auto custom-scroll overflow-x-hidden">
           <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} mb-10 relative`}>
             <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-              <div className="relative group/logo cursor-pointer shrink-0" onClick={() => router.push('/landing')} title="Wanda Cloud">
+              <div className="relative group/logo cursor-pointer shrink-0" onClick={() => router.push('/landing')} title="Wanda Store">
                 <div className="absolute inset-0 bg-indigo-500 blur opacity-10 group-hover:opacity-30 transition-opacity" />
                 <div className="relative w-8 h-8 rounded-lg bg-slate-900 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black text-xs">
                   <span>&lt;/&gt;</span>
                 </div>
               </div>
-              {!isSidebarCollapsed && <span className="font-black text-xl uppercase italic whitespace-nowrap">Wanda <span className="text-indigo-500">Cloud</span></span>}
+              {!isSidebarCollapsed && <span className="font-black text-xl uppercase italic whitespace-nowrap">Wanda <span className="text-indigo-500">Store</span></span>}
             </div>
             
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 shrink-0">

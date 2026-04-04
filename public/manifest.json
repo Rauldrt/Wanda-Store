@@ -1,6 +1,6 @@
 {
-    "name": "Wanda Distribuidora",
-    "short_name": "Wanda",
+    "name": "Wanda Store",
+    "short_name": "Wanda Store",
     "description": "Panel de Administración y Aplicación de Preventa",
     "start_url": "/login",
     "display": "standalone",
