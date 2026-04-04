@@ -117,16 +117,81 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   
   if (loading) {
     return (
-      <div className="flex-1 h-screen flex flex-col items-center justify-center gap-4 bg-[var(--background)] w-full">
-        <div className="relative group/logo">
-          <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
-          <div className="relative w-16 h-16 rounded-2xl bg-slate-900 border border-indigo-500/50 flex items-center justify-center text-indigo-400 font-black shadow-2xl">
-            <span className="text-2xl tracking-tighter drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]">&lt;/&gt;</span>
-          </div>
+      <div className="flex-1 h-screen flex flex-col items-center justify-center bg-slate-950 w-full overflow-hidden relative">
+        {/* --- AURA MULTICOLOR IA --- */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div
+            animate={{
+              scale: [1, 1.2, 1],
+              rotate: [0, 90, 180, 270, 360],
+              opacity: [0.15, 0.25, 0.15]
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[conic-gradient(from_0deg,#6366f1,#a855f7,#ec4899,#06b6d4,#6366f1)] blur-[100px]"
+          />
         </div>
-        <div className="text-center mt-4">
-          <p className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Wanda <span className="text-indigo-500">Store</span></p>
-          <p className="text-[10px] text-slate-500 font-medium italic">Distribución Inteligente</p>
+
+        {/* --- LOGO 3D CON REBOTE --- */}
+        <div className="relative z-10 flex flex-col items-center">
+          <motion.div
+            animate={{
+              scale: [0.95, 1.05, 0.95],
+              y: [0, -10, 0]
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="relative group cursor-wait"
+          >
+            {/* Resplandor dinámico detrás del logo */}
+            <div className="absolute inset-0 bg-indigo-500 blur-2xl opacity-40 group-hover:opacity-60 transition-opacity animate-pulse" />
+            
+            <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] bg-slate-900/80 backdrop-blur-xl border border-white/10 flex items-center justify-center p-6 shadow-[0_0_50px_rgba(99,102,241,0.3)] overflow-hidden">
+               <img 
+                 src="/wanda-3d-logo.png" 
+                 alt="Wanda Store Logo" 
+                 className="w-full h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
+               />
+               {/* Efecto de brillo barriendo */}
+               <motion.div
+                 animate={{ x: [-200, 200] }}
+                 transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
+                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12"
+               />
+            </div>
+          </motion.div>
+
+          {/* --- TEXTO Y SUBTITULO --- */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="text-center mt-10 space-y-2"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-2xl md:text-3xl font-black text-white tracking-widest uppercase italic">Wanda</span>
+              <span className="text-2xl md:text-3xl font-black text-indigo-500 tracking-widest uppercase italic">Store</span>
+            </div>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.4em] animate-pulse">
+              Distribución Inteligente
+            </p>
+          </motion.div>
+        </div>
+
+        {/* --- BARRA DE PROGRESO SUTIL --- */}
+        <div className="absolute bottom-12 w-48 h-1 bg-white/5 rounded-full overflow-hidden">
+          <motion.div
+            initial={{ x: "-100%" }}
+            animate={{ x: "100%" }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-full h-full bg-gradient-to-r from-transparent via-indigo-500 to-transparent"
+          />
         </div>
       </div>
     );
