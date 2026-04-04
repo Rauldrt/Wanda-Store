@@ -240,7 +240,7 @@ export default function SettingsPage() {
                 <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10">
                     <p className="text-[10px] text-amber-600/80 font-bold leading-relaxed flex items-center gap-2">
                         <AlertCircle size={12} />
-                        RECOMENDACIÓN: Cambia estas claves regularmente para mantener la seguridad de Wanda Cloud. Estas claves afectarán el inicio de sesión de todos los usuarios.
+                        RECOMENDACIÓN: Cambia estas claves regularmente para mantener la seguridad de Wanda Store. Estas claves afectarán el inicio de sesión de todos los usuarios.
                     </p>
                 </div>
             </div>
