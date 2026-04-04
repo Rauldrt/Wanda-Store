@@ -28,13 +28,18 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 const inter = Inter({ subsets: ["latin"] });
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
   const { loading, isSyncing, error } = useData();
 
@@ -78,9 +83,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
 
     // --- EVENTO DE INSTALACIÓN PWA ---
-    const handleBeforeInstallPrompt = (e: any) => {
+    const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
       setShowInstallBtn(true);
     };
 
@@ -355,7 +360,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   );
 }
 
-function NavItem({ label, href, icon, active, onClick, collapsed }: any) {
+function NavItem({ label, href, icon, active, onClick, collapsed }: { label: string, href: string, icon: React.ReactNode, active: boolean, onClick: () => void, collapsed: boolean }) {
   return (
     <Link href={href} onClick={onClick}>
       <div className={`
