@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Shield, User, Lock, ArrowRight, Store, ChevronRight, Globe, Loader2 } from "lucide-react";
+import { Shield, User, Lock, ArrowRight, Store, ChevronRight, Globe, Loader2, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { wandaApi } from "@/lib/api";
 import { auth, googleProvider } from "@/lib/firebase";
@@ -10,9 +10,10 @@ import { signInWithPopup } from "firebase/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function LoginPage() {
-    const [role, setRole] = useState<'admin' | 'preventista' | null>(null);
+    const [role, setRole] = useState<'admin' | null>(null);
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
     // No limpiamos el vendedor al entrar al login para permitir recargas y persistencia
@@ -24,6 +25,7 @@ export default function LoginPage() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError(null);
 
         try {
             if (!role) return;
@@ -34,22 +36,23 @@ export default function LoginPage() {
             if (res && res.success) {
                 localStorage.setItem("user_role", role);
                 localStorage.setItem("is_logged_in", "true");
-                localStorage.setItem("user_name", res.displayName || (role === 'admin' ? "Admin" : "Preventista"));
+                localStorage.setItem("user_name", res.displayName || "Admin");
 
-                if (role === 'admin') router.push('/productos');
-                else router.push('/preventa');
+                if (role === 'admin') router.push('/');
+                else router.push('/tienda');
             } else {
-                alert(res?.error || "Credenciales incorrectas");
+                setError(res?.error || "Credenciales incorrectas");
             }
         } catch (err) {
             console.error("Login error:", err);
-            alert("Error al conectar con el servidor de seguridad");
+            setError("Error al conectar con el servidor de seguridad");
         } finally {
             setLoading(false);
         }
     };
 
     const handleGoogleLogin = async () => {
+        setError(null);
         try {
             setLoading(true);
             const result = await signInWithPopup(auth, googleProvider);
@@ -64,7 +67,7 @@ export default function LoginPage() {
             router.push('/tienda');
         } catch (error) {
             console.error("Error en login Google:", error);
-            alert("No se pudo iniciar sesión con Google");
+            setError("No se pudo iniciar sesión con Google");
         } finally {
             setLoading(false);
         }
@@ -94,12 +97,22 @@ export default function LoginPage() {
                     <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-1">Sistemas de Distribución</p>
                 </div>
 
+                {error && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 rounded-2xl text-red-600 dark:text-red-400 text-xs font-bold text-center"
+                    >
+                        {error}
+                    </motion.div>
+                )}
+
                 {!role ? (
                     <div className="space-y-4">
                         <p className="text-center text-slate-500 font-medium mb-6">Selecciona tu perfil para ingresar</p>
 
                         <button
-                            onClick={() => setRole('admin')}
+                            onClick={() => { setRole('admin'); setError(null); }}
                             className="w-full flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-2 border-transparent hover:border-indigo-500/20 rounded-[28px] transition-all group"
                         >
                             <div className="flex items-center gap-4">
@@ -109,22 +122,6 @@ export default function LoginPage() {
                                 <div className="text-left">
                                     <h3 className="font-black text-slate-800 dark:text-white">Administrador</h3>
                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gestión Total</p>
-                                </div>
-                            </div>
-                            <ChevronRight className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-                        </button>
-
-                        <button
-                            onClick={() => setRole('preventista')}
-                            className="w-full flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border-2 border-transparent hover:border-emerald-500/20 rounded-[28px] transition-all group"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-emerald-500 shadow-sm transition-colors">
-                                    <User size={24} />
-                                </div>
-                                <div className="text-left">
-                                    <h3 className="font-black text-slate-800 dark:text-white">Preventista</h3>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Pedidos Móvil</p>
                                 </div>
                             </div>
                             <ChevronRight className="text-slate-300 group-hover:translate-x-1 transition-transform" />
@@ -165,7 +162,7 @@ export default function LoginPage() {
                         <div className="flex items-center gap-3 mb-6">
                             <button
                                 type="button"
-                                onClick={() => { setRole(null); setPassword(""); }}
+                                onClick={() => { setRole(null); setPassword(""); setError(null); }}
                                 className="p-2 -ml-2 text-slate-400 hover:text-slate-600 transition-colors"
                             >
                                 <ArrowRight className="rotate-180" size={20} />
@@ -179,11 +176,22 @@ export default function LoginPage() {
                                 type="password"
                                 required
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => { setPassword(e.target.value); setError(null); }}
                                 placeholder="Introduce tu clave"
-                                className="w-full bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-indigo-500/20 focus:bg-white dark:focus:bg-slate-800 rounded-2xl py-4 pl-12 pr-4 outline-none transition-all font-bold text-slate-800 dark:text-white"
+                                className={`w-full bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800 border-2 ${error ? 'border-red-500/50' : 'border-slate-100 dark:border-slate-800'} focus:border-indigo-500/20 focus:bg-white dark:focus:bg-slate-800 rounded-2xl py-4 pl-12 pr-4 outline-none transition-all font-bold text-slate-800 dark:text-white`}
                             />
                         </div>
+
+                        {error && (
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 rounded-2xl flex items-center gap-3 text-rose-500"
+                            >
+                                <AlertCircle className="shrink-0" size={18} />
+                                <p className="text-xs font-black uppercase tracking-wider">{error}</p>
+                            </motion.div>
+                        )}
 
                         <button
                             disabled={loading}

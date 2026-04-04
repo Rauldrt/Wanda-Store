@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Package,
@@ -8,7 +8,11 @@ import {
     Filter,
     Edit3,
     Trash2,
+    Settings2,
+    ChevronDown,
     Plus,
+    Upload,
+    Download,
     Image as ImageIcon,
     ExternalLink,
     DollarSign,
@@ -33,17 +37,33 @@ import {
     Copy,
     FileSpreadsheet,
     Eye,
-    EyeOff
+    EyeOff,
+    Globe
 } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 import { getImageUrl, normalizeText, smartSearch } from "@/lib/utils";
 
-// --- UTIL: CÁLCULO DE RENTABILIDAD ---
+// --- HELPERS ---
 const calculateProfitability = (price: number, cost: number) => {
-    if (!cost || cost <= 0) return 0;
+    if (!cost || cost === 0) return 0;
     return ((price - cost) / cost) * 100;
 };
+
+// --- COMPONENTE: FILTER CHIP ---
+const FilterChip = ({ label, active, onClick, icon: Icon }: any) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all ${
+            active 
+            ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' 
+            : 'bg-white dark:bg-slate-900 text-slate-400 hover:text-slate-600 border border-slate-100 dark:border-slate-800'
+        }`}
+    >
+        {Icon && <Icon size={14} />}
+        {label}
+    </button>
+);
 
 
 export default function ProductosPage() {
@@ -53,6 +73,11 @@ export default function ProductosPage() {
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
     const [showMetrics, setShowMetrics] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importPreview, setImportPreview] = useState<any[]>([]);
+    const [isImporting, setIsImporting] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
 
     // Estados para Edición Masiva
@@ -311,19 +336,31 @@ export default function ProductosPage() {
             ...filteredProducts.map((p: any) => headers.map(h => `"${p[h] || ''}"`).join(";"))
         ].join("\n");
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const BOM = "\uFEFF";
+        const blob = new Blob([BOM, csvContent], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute("download", `wanda_inventario_${new Date().toISOString().slice(0, 10)}.csv`);
+        
+        // Formateo seguro de fecha para el nombre del archivo
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}_${(now.getMonth() + 1).toString().padStart(2, '0')}_${now.getDate().toString().padStart(2, '0')}`;
+        const fileName = `inventario_wanda_${dateStr}.csv`;
+
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName);
+        link.style.visibility = 'hidden';
+        
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     // Hacer disponible globalmente para subcomponentes si no se quiere pasar por n niveles de props
     useEffect(() => {
         (window as any).handleDeleteProduct = handleDeleteProduct;
         (window as any).handleDuplicateProduct = handleDuplicateProduct;
+        (window as any).triggerImportFile = () => fileInputRef.current?.click();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filteredProducts]);
 
@@ -349,96 +386,249 @@ export default function ProductosPage() {
         }
     };
 
+    const handleConfirmImport = async () => {
+        if (importPreview.length === 0) return;
+        
+        setIsImporting(true);
+        try {
+            await wandaApi.bulkUpdateProducts(importPreview);
+            await refreshData();
+            setShowImportModal(false);
+            setImportPreview([]);
+            alert(`Sincronización exitosa: ${importPreview.length} productos actualizados.`);
+        } catch (error) {
+            console.error(error);
+            alert("Error al sincronizar los productos.");
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            if (!text) return;
+
+            const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+            if (lines.length < 2) {
+                alert("El archivo parece estar vacío o mal formateado.");
+                return;
+            }
+
+            const headerLine = lines[0];
+            const sep = headerLine.includes(";") ? ";" : ",";
+            const headers = headerLine.split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
+            
+            const parsedData = lines.slice(1).map(line => {
+                const values = line.split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
+                const obj: any = {};
+                headers.forEach((header, index) => {
+                    if (values[index] !== undefined) {
+                        obj[header] = values[index];
+                    }
+                });
+                return obj;
+            });
+
+            // Normalización mínima (Convertir números)
+            const normalized = parsedData.map(item => ({
+                ...item,
+                ID_Producto: item.ID_Producto || item.SKU || item.id || `PROD-${Math.random().toString(36).substr(2, 9)}`,
+                Precio_Unitario: parseFloat(item.Precio_Unitario || item.Precio || 0),
+                Costo: parseFloat(item.Costo || 0),
+                Stock_Actual: parseFloat(item.Stock_Actual || item.Stock || 0),
+                Unidades_Bulto: parseInt(item.Unidades_Bulto || 1)
+            }));
+
+            setImportPreview(normalized);
+        };
+        reader.readAsText(file);
+    };
+
+    const deleteFromPreview = (idx: number) => {
+        setImportPreview(prev => prev.filter((_, i) => i !== idx));
+    };
+
     return (
         <div className="space-y-6 relative min-h-screen pb-20">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 text-slate-800 dark:text-slate-100">
-                <div>
-                    <h2 className="text-3xl font-black tracking-tight">Inventario de Productos</h2>
-                    <p className="text-slate-500 text-sm italic">Gestión inteligente de stock, logística y rentabilidad.</p>
+            {/* Input oculto para carga de archivos */}
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".csv"
+                onChange={handleFileChange}
+            />
+
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 pb-2 border-b border-slate-100 dark:border-slate-800/50">
+                <div className="space-y-1">
+                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                        <Package size={12} /> Gestión de Inventario Premium
+                    </span>
+                    <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">Catálogo Wanda</h1>
+                    <p className="text-slate-500 text-sm mt-1">Control de stock, logística y rentabilidad en tiempo real.</p>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-inner">
+                        <button 
+                            onClick={() => setViewMode('grid')}
+                            className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-md scale-105' : 'text-slate-400 hover:text-slate-500'}`}
+                            title="Vista Cuadrícula"
+                        >
+                            <LayoutGrid size={18} />
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('list')}
+                            className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-md scale-105' : 'text-slate-400 hover:text-slate-500'}`}
+                            title="Vista Lista"
+                        >
+                            <List size={18} />
+                        </button>
+                    </div>
+
+                    <div className="h-10 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
+
                     {!isMassEditing && (
                         <>
-                            <div className="flex bg-[var(--card)] border border-[var(--border)] p-1 rounded-xl shadow-sm">
+                            <div className="flex gap-2">
                                 <button
-                                    onClick={() => setViewMode('grid')}
-                                    className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                    onClick={handleExportCSV}
+                                    className="p-3 bg-white dark:bg-slate-900 text-slate-400 hover:text-emerald-500 border border-slate-100 dark:border-slate-800 rounded-2xl transition-all shadow-sm group"
+                                    title="Exportar CSV"
                                 >
-                                    <LayoutGrid size={18} />
+                                    <Download size={20} className="group-hover:scale-110 transition-transform" />
                                 </button>
                                 <button
-                                    onClick={() => setViewMode('list')}
-                                    className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                    onClick={() => setShowImportModal(true)}
+                                    className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-500 hover:border-indigo-500 transition-all shadow-sm group"
                                 >
-                                    <List size={18} />
+                                    <Upload size={16} className="group-hover:scale-110 transition-transform" />
+                                    Importar
                                 </button>
                             </div>
+
                             <button
-                                onClick={handleExportCSV}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-100 transition-all border border-emerald-200 dark:border-emerald-500/20"
+                                onClick={() => setShowAdvanced(!showAdvanced)}
+                                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                                    showAdvanced 
+                                    ? 'bg-slate-800 text-white border-slate-700' 
+                                    : 'bg-white dark:bg-slate-900 text-slate-400 hover:text-slate-600 border-slate-100 dark:border-slate-800'
+                                }`}
                             >
-                                <FileSpreadsheet size={16} /> Exportar
+                                <Settings2 size={16} className={showAdvanced ? 'rotate-90 transition-transform' : 'transition-transform'} />
+                                {showAdvanced ? 'Cerrar Filtros' : 'Filtros'}
                             </button>
-                            <button
-                                onClick={toggleMassEdit}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all border border-[var(--border)]"
-                            >
-                                <Edit3 size={16} /> Edición Masiva
-                            </button>
+
                             <button
                                 onClick={openCreateDrawer}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+                                className="flex items-center gap-3 px-7 py-3 bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-500/20 active:scale-95"
                             >
-                                <Plus size={16} /> Nuevo
+                                <Plus size={18} /> Nuevo Producto
                             </button>
                         </>
                     )}
 
                     {isMassEditing && (
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                             <button
                                 onClick={() => setIsAdjustOverlayOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20"
+                                className="flex items-center gap-2 px-5 py-3 bg-amber-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20"
                             >
                                 <Zap size={16} /> Ajustar Precios
                             </button>
                             <button
                                 onClick={toggleMassEdit}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all border border-[var(--border)]"
+                                className="flex items-center gap-2 px-5 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200 dark:border-slate-700"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleMassSave}
                                 disabled={isSyncing}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-600 transition-all disabled:opacity-50"
+                                className="flex items-center gap-3 px-7 py-3 bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 hover:bg-indigo-600 transition-all disabled:opacity-50"
                             >
                                 {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                                Guardar Cambios ({editedProducts.length})
+                                Guardar ({editedProducts.length})
                             </button>
                         </div>
                     )}
-
-                    <label className="flex items-center gap-2 cursor-pointer bg-[var(--card)] border border-[var(--border)] px-3 sm:px-4 py-2.5 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all group ml-auto sm:ml-0">
-                        <div className="relative">
-                            <input
-                                type="checkbox"
-                                className="sr-only"
-                                checked={showMetrics}
-                                onChange={(e) => setShowMetrics(e.target.checked)}
-                            />
-                            <div className={`block w-9 h-5 rounded-full transition-colors ${showMetrics ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
-                            <div className={`absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform ${showMetrics ? 'translate-x-4' : 'translate-x-0'}`}></div>
-                        </div>
-                        <span className="text-[10px] sm:text-xs font-black text-slate-500 group-hover:text-indigo-500 uppercase tracking-widest flex items-center gap-1.5 transition-colors">
-                            {showMetrics ? <EyeOff size={14} className="hidden sm:block" /> : <Eye size={14} className="hidden sm:block" />}
-                            <span className="hidden sm:inline">{showMetrics ? "Ocultar Métricas" : "Mostrar Métricas"}</span>
-                            <span className="sm:hidden">{showMetrics ? "Ocultar" : "Métricas"}</span>
-                        </span>
-                    </label>
                 </div>
             </div>
+
+            {/* Panel Avanzado / Collapsible */}
+            <AnimatePresence>
+                {showAdvanced && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                        animate={{ height: 'auto', opacity: 1, marginBottom: 24 }}
+                        exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] p-8">
+                            <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
+                                <div className="flex flex-wrap items-center gap-4">
+                                    <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                                        {[
+                                            { id: 'all', icon: Package, label: 'Todo' },
+                                            { id: 'no_stock', icon: Box, label: 'Sin Stock' },
+                                            { id: 'low_margin', icon: Percent, label: 'Bajo Margen' },
+                                            { id: 'weighable', icon: Weight, label: 'Pesables' }
+                                        ].map((btn) => (
+                                            <button
+                                                key={btn.id}
+                                                onClick={() => setQuickStatus(btn.id as any)}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+                                                    quickStatus === btn.id 
+                                                    ? 'bg-indigo-500 text-white shadow-md' 
+                                                    : 'text-slate-400 hover:text-slate-600'
+                                                }`}
+                                            >
+                                                <btn.icon size={16} />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">{btn.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex items-center gap-6 bg-white dark:bg-slate-900 px-6 py-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                                        <label className="flex items-center gap-3 cursor-pointer group">
+                                            <input type="checkbox" className="sr-only" checked={hideNoStock} onChange={(e) => handleToggleHideNoStock(e.target.checked)} />
+                                            <div className={`w-8 h-4.5 rounded-full relative transition-all ${hideNoStock ? 'bg-rose-500' : 'bg-slate-200'}`}>
+                                                <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all ${hideNoStock ? 'right-0.5' : 'left-0.5'}`} />
+                                            </div>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-rose-500 transition-colors">Ocultar Out Stock</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <label className="flex items-center gap-3 cursor-pointer p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:border-indigo-500/30 transition-all group">
+                                        <input type="checkbox" className="sr-only" checked={showMetrics} onChange={(e) => setShowMetrics(e.target.checked)} />
+                                        <div className={`p-1.5 rounded-lg transition-all ${showMetrics ? 'bg-indigo-500 text-white' : 'bg-slate-50 text-slate-400 dark:bg-slate-800'}`}>
+                                            <TrendingUp size={16} />
+                                        </div>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-indigo-500">Métricas</span>
+                                    </label>
+
+                                    {!isMassEditing && (
+                                        <button
+                                            onClick={toggleMassEdit}
+                                            className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm group"
+                                        >
+                                            <Edit3 size={16} className="group-hover:text-indigo-500 transition-colors" />
+                                            Modo Auditoría
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Panel de Estadísticas Rápidas */}
 
@@ -550,86 +740,44 @@ export default function ProductosPage() {
                 )}
             </AnimatePresence>
 
-            {/* Toolbar Principal y Filtros de Estado */}
-            <div className="flex flex-col xl:flex-row gap-4">
-                <div className="relative flex-[2] min-w-[280px]">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder={searchOnlyByCode ? "Ingresar código exacto..." : "Buscar por nombre, SKU o categoría..."}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-sm text-slate-800 dark:text-slate-100"
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                        <label className="flex items-center gap-2 cursor-pointer group">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">Solo Código</span>
-                            <div className="relative flex items-center">
-                                <input type="checkbox" className="sr-only" checked={searchOnlyByCode} onChange={(e) => setSearchOnlyByCode(e.target.checked)} />
-                                <div className={`block w-8 h-4.5 rounded-full transition-colors ${searchOnlyByCode ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
-                                <div className={`absolute left-0.5 w-3.5 h-3.5 bg-white rounded-full transition-transform ${searchOnlyByCode ? 'translate-x-[16px]' : 'translate-x-0'}`}></div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
+            {/* BARRA DE BÚSQUEDA PREMIUM */}
+            <div className="flex flex-col gap-4 mb-4 mt-6">
 
-                <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto xl:flex-1">
-                    {/* Filtros Rápidos */}
-                    <div className="flex flex-wrap w-full lg:w-auto p-1 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-sm">
-                        {[
-                            { id: 'all', label: 'Todos', icon: Package },
-                            { id: 'no_stock', label: 'Sin Stock', icon: Box },
-                            { id: 'no_image', label: 'Sin Imagen', icon: ImageIcon },
-                            { id: 'low_margin', label: 'Baja Rent.', icon: Percent },
-                            { id: 'weighable', label: 'Pesables', icon: Weight }
-                        ].map((btn) => (
-                            <button
-                                key={btn.id}
-                                onClick={() => setQuickStatus(btn.id as any)}
-                                className={`flex-1 sm:flex-none flex justify-center items-center gap-1.5 px-2 sm:px-4 py-2 sm:py-1.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${quickStatus === btn.id ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                <btn.icon size={12} className="hidden xs:block" /> {btn.label}
-                            </button>
+                <div className="flex flex-col lg:flex-row items-center gap-6">
+                    {/* Barra de Búsqueda Premium */}
+                    <div className="relative flex-1 group w-full">
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
+                        <input
+                            type="text"
+                            placeholder={searchOnlyByCode ? "Ingresar código exacto..." : "Buscar por nombre, SKU o categoría..."}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-14 pr-32 py-4 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 focus:border-indigo-500/30 rounded-[22px] text-sm font-bold shadow-xl shadow-slate-200/20 dark:shadow-black/20 outline-none transition-all placeholder:text-slate-400"
+                        />
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                            <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all">
+                                <input type="checkbox" className="sr-only" checked={searchOnlyByCode} onChange={(e) => setSearchOnlyByCode(e.target.checked)} />
+                                <div className={`w-8 h-4 rounded-full relative transition-all ${searchOnlyByCode ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                    <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${searchOnlyByCode ? 'right-0.5' : 'left-0.5'}`} />
+                                </div>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">SKU</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* Chips de Categoría */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 w-full lg:w-auto no-scrollbar scroll-smooth">
+                        {categories.slice(0, 5).map((cat: any) => (
+                            <FilterChip 
+                                key={cat} 
+                                label={cat === 'ALL' ? 'Todos' : cat} 
+                                active={categoryFilter === cat} 
+                                onClick={() => setCategoryFilter(cat)} 
+                            />
                         ))}
                     </div>
 
-                    {/* Toggles de Ocultamiento */}
-                    <div className="flex w-full lg:w-auto items-center gap-4 bg-[var(--card)] border border-[var(--border)] p-1.5 rounded-2xl shadow-sm px-4">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">Ocultar:</span>
 
-                        <label className="flex items-center gap-2 cursor-pointer group">
-                            <div className="relative flex items-center">
-                                <input type="checkbox" className="sr-only" checked={hideLowPrice} onChange={(e) => handleToggleHideLowPrice(e.target.checked)} />
-                                <div className={`block w-6 h-3.5 rounded-full transition-colors ${hideLowPrice ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
-                                <div className={`absolute left-0.5 w-2.5 h-2.5 bg-white rounded-full transition-transform ${hideLowPrice ? 'translate-x-[10px]' : 'translate-x-0'}`}></div>
-                            </div>
-                            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 group-hover:text-rose-500 transition-colors">Menor a $1</span>
-                        </label>
-
-                        <div className="w-[1px] h-3 bg-slate-200 dark:bg-slate-700 hidden sm:block" />
-
-                        <label className="flex items-center gap-2 cursor-pointer group">
-                            <div className="relative flex items-center">
-                                <input type="checkbox" className="sr-only" checked={hideNoStock} onChange={(e) => handleToggleHideNoStock(e.target.checked)} />
-                                <div className={`block w-6 h-3.5 rounded-full transition-colors ${hideNoStock ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
-                                <div className={`absolute left-0.5 w-2.5 h-2.5 bg-white rounded-full transition-transform ${hideNoStock ? 'translate-x-[10px]' : 'translate-x-0'}`}></div>
-                            </div>
-                            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 group-hover:text-rose-500 transition-colors">Sin Stock</span>
-                        </label>
-                    </div>
-
-                    <div className="flex w-full lg:w-auto items-center gap-2 bg-[var(--card)] border border-[var(--border)] p-1.5 rounded-2xl shadow-sm text-slate-800 dark:text-slate-100">
-                        <Filter size={14} className="ml-2 text-slate-400 shrink-0" />
-                        <select
-                            value={categoryFilter}
-                            onChange={(e) => setCategoryFilter(e.target.value)}
-                            className="bg-transparent text-xs font-bold px-4 py-1.5 outline-none cursor-pointer w-full sm:min-w-[150px]"
-                        >
-                            {categories.map((cat: any) => (
-                                <option key={cat} value={cat}>{cat === 'ALL' ? 'Todas las Categorías' : cat}</option>
-                            ))}
-                        </select>
-                    </div>
                 </div>
             </div>
 
@@ -638,37 +786,31 @@ export default function ProductosPage() {
                 <div className="tech-card p-0 overflow-hidden border border-[var(--border)] shadow-xl bg-[var(--card)]">
                     <div className="overflow-x-auto custom-scroll">
                         <table className="w-full text-left border-collapse min-w-[1400px]">
-                            <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-[var(--border)]">
-                                <tr className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                                    <th className="px-6 py-4 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-[2px_0_5px_rgba(0,0,0,0.05)]" onClick={() => handleSort('Nombre')}>
-                                        <div className="flex items-center gap-2">
-                                            Producto {sortConfig.key === 'Nombre' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-indigo-500" /> : <ArrowDown size={12} className="text-indigo-500" />)}
-                                        </div>
-                                    </th>
-                                    <th className="px-6 py-4 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => handleSort('Categoria')}>
-                                        <div className="flex items-center gap-2">
-                                            Categoría {sortConfig.key === 'Categoria' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-indigo-500" /> : <ArrowDown size={12} className="text-indigo-500" />)}
-                                        </div>
-                                    </th>
-                                    <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => handleSort('Precio_Unitario')}>
-                                        <div className="flex items-center justify-end gap-2">
-                                            Economía {sortConfig.key === 'Precio_Unitario' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-indigo-500" /> : <ArrowDown size={12} className="text-indigo-500" />)}
-                                        </div>
-                                    </th>
-                                    <th className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => handleSort('margin')}>
-                                        <div className="flex items-center justify-center gap-2">
-                                            Recargo {sortConfig.key === 'margin' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-indigo-500" /> : <ArrowDown size={12} className="text-indigo-500" />)}
-                                        </div>
-                                    </th>
-                                    <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => handleSort('Stock_Actual')}>
-                                        <div className="flex items-center justify-end gap-2">
-                                            Stock {sortConfig.key === 'Stock_Actual' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-indigo-500" /> : <ArrowDown size={12} className="text-indigo-500" />)}
-                                        </div>
-                                    </th>
-                                    <th className="px-6 py-4 text-right">Carga Est.</th>
-                                    {!isMassEditing && <th className="px-6 py-4 text-center">⚙️</th>}
-                                </tr>
-                            </thead>
+                                <thead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                    <tr>
+                                        <th className="px-6 py-5 text-left sticky left-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('Nombre')}>
+                                            <div className="flex items-center gap-2">
+                                                Producto {sortConfig.key === 'Nombre' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                                            </div>
+                                        </th>
+                                        <th className="px-6 py-5 text-left cursor-pointer hover:text-emerald-500 transition-colors" onClick={() => handleSort('Precio_Unitario')}>
+                                            <div className="flex items-center gap-2">
+                                                Valores {sortConfig.key === 'Precio_Unitario' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                                            </div>
+                                        </th>
+                                        <th className="px-6 py-5 text-center cursor-pointer hover:text-amber-500 transition-colors" onClick={() => handleSort('margin')}>
+                                            <div className="flex items-center justify-center gap-2">
+                                                Margen {sortConfig.key === 'margin' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                                            </div>
+                                        </th>
+                                        <th className="px-6 py-5 text-center cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('Stock_Actual')}>
+                                            <div className="flex items-center justify-center gap-2">
+                                                Stock {sortConfig.key === 'Stock_Actual' && (sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                                            </div>
+                                        </th>
+                                        {!isMassEditing && <th className="px-6 py-5 text-center">Acciones</th>}
+                                    </tr>
+                                </thead>
                             <tbody className="divide-y divide-[var(--border)]">
                                 <AnimatePresence>
                                     {(isMassEditing ? editedProducts : filteredProducts).map((product: any, idx: number) => (
@@ -716,7 +858,159 @@ export default function ProductosPage() {
                     />
                 )}
             </AnimatePresence>
+
+            <AnimatePresence>
+                {showImportModal && (
+                    <ImportModal
+                        onClose={() => {
+                            setShowImportModal(false);
+                            setImportPreview([]);
+                        }}
+                        preview={importPreview}
+                        onConfirm={handleConfirmImport}
+                        onDelete={deleteFromPreview}
+                        importing={isImporting}
+                    />
+                )}
+            </AnimatePresence>
         </div>
+    );
+}
+
+// --- SUBCOMPONENTE MODAL DE IMPORTACIÓN ---
+function ImportModal({ onClose, preview, onConfirm, onDelete, importing }: any) {
+    return (
+        <>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="fixed inset-0 bg-slate-950/60 z-[200] backdrop-blur-md"
+            />
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="fixed inset-4 md:inset-20 bg-white dark:bg-slate-900 z-[210] rounded-[40px] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+            >
+                {/* Header Modal */}
+                <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <Upload size={20} />
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-800 dark:text-white">Previsualización de Importación</h2>
+                        </div>
+                        <p className="text-slate-500 text-xs mt-1 font-medium italic">Revisa los datos antes de impactar en la base de datos de producción.</p>
+                    </div>
+                    <button onClick={onClose} className="w-12 h-12 flex items-center justify-center hover:bg-rose-500 hover:text-white rounded-2xl transition-all group active:scale-90">
+                        <X size={20} className="group-hover:rotate-90 transition-transform" />
+                    </button>
+                </div>
+
+                {/* Contenido / Tabla de Preview */}
+                <div className="flex-1 overflow-auto p-4 md:p-8 custom-scroll bg-slate-50 dark:bg-slate-950/20">
+                    {preview.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center gap-6 p-20 text-center">
+                            <div className="w-24 h-24 rounded-[40px] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300">
+                                <FileSpreadsheet size={48} strokeWidth={1} />
+                            </div>
+                            <div className="max-w-md mx-auto space-y-4">
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white">Instrucciones de Importación</h3>
+                                <div className="text-slate-500 text-sm space-y-2 text-left bg-white dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm leading-relaxed font-medium">
+                                    <p className="flex items-start gap-3">
+                                        <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                                        El archivo debe ser un <b>.CSV</b> separado por punto y coma (;) o comas (,).
+                                    </p>
+                                    <p className="flex items-start gap-3">
+                                        <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                                        Columnas requeridas: <b>ID_Producto</b>, <b>Nombre</b>, <b>Categoria</b>, <b>Precio_Unitario</b>, <b>Stock_Actual</b>.
+                                    </p>
+                                    <p className="flex items-start gap-3">
+                                        <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                                        Si el <b>ID_Producto</b> ya existe, el producto se actualizará. Si no, se creará uno nuevo.
+                                    </p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => (window as any).triggerImportFile?.()}
+                                className="px-10 py-5 bg-indigo-600 text-white rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-3"
+                            >
+                                <FileSpreadsheet size={18} />
+                                Seleccionar Archivo CSV Ahora
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] shadow-xl p-0 overflow-hidden">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                    <tr>
+                                        <th className="px-6 py-4">Producto</th>
+                                        <th className="px-6 py-4 uppercase">Categoría</th>
+                                        <th className="px-6 py-4 text-right">Precio</th>
+                                        <th className="px-6 py-4 text-center">Stock</th>
+                                        <th className="px-6 py-4 text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-50 dark:divide-slate-800">
+                                    {preview.map((item: any, idx: number) => (
+                                        <tr key={idx} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <td className="px-6 py-3">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-black text-slate-800 dark:text-white">{item.Nombre}</span>
+                                                    <span className="text-[9px] font-mono text-slate-400">SKU: {item.ID_Producto}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-3">
+                                                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">{item.Categoria}</span>
+                                            </td>
+                                            <td className="px-6 py-3 text-right">
+                                                <span className="text-sm font-black text-emerald-600">${item.Precio_Unitario}</span>
+                                            </td>
+                                            <td className="px-6 py-3 text-center">
+                                                <span className="text-xs font-black text-slate-700 dark:text-slate-300">{item.Stock_Actual} u</span>
+                                            </td>
+                                            <td className="px-6 py-3 text-center">
+                                                <button onClick={() => onDelete(idx)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer Modal */}
+                <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-950/80 backdrop-blur-xl">
+                    <div className="flex items-center gap-4 text-slate-400">
+                        <FileSpreadsheet size={18} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">{preview.length} registros detectados</span>
+                    </div>
+                    
+                    <div className="flex gap-4">
+                        <button
+                            onClick={onClose}
+                            className="px-8 py-4 rounded-[20px] text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
+                        >
+                            Desechar Todo
+                        </button>
+                        <button
+                            disabled={preview.length === 0 || importing}
+                            onClick={onConfirm}
+                            className="px-10 py-4 bg-indigo-600 text-white rounded-[20px] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-3 disabled:opacity-40"
+                        >
+                            {importing ? <Loader2 size={16} className="animate-spin" /> : <Save size={18} />}
+                            {importing ? 'Syncing...' : 'Subir e Integrar en Cloud'}
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
+        </>
     );
 }
 
@@ -827,158 +1121,131 @@ function MassEditRow({ product, onChange, categories }: any) {
     );
 }
 
-// --- SUBCOMPONENTE DE TARJETA ---
+// --- SUBCOMPONENTE DE TARJETA ESTILO E-COMMERCE ---
 function ProductCard({ product, idx, onEdit }: any) {
     const margin = calculateProfitability(parseFloat(product.Precio_Unitario), parseFloat(product.Costo));
-    const totalWeight = (parseFloat(product.Stock_Actual || 0) * parseFloat(product.Peso_Promedio || 0)).toFixed(1);
+    const isLowStock = parseFloat(product.Stock_Actual) <= 5;
+    const isOutOfStock = parseFloat(product.Stock_Actual) <= 0;
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: Math.min(idx * 0.02, 0.5) }}
-            className="tech-card p-0 group overflow-hidden hover:border-indigo-500/30 transition-all cursor-default"
+            transition={{ delay: Math.min(idx * 0.02, 0.4) }}
+            className="group relative bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-black/20 hover:border-indigo-500/30 transition-all"
         >
-            <div className="p-5 flex gap-4">
-                <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-[var(--border)] flex-shrink-0">
-                    {product.Imagen_URL ? (
-                        <img src={getImageUrl(product.Imagen_URL)} alt={product.Nombre} className="w-full h-full object-cover" />
-                    ) : (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                const query = encodeURIComponent(`${product.Nombre} producto`);
-                                window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
-                            }}
-                            className="w-full h-full flex items-center justify-center text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-500 transition-colors"
-                            title="Buscar imagen en Google"
-                        >
-                            <Search size={20} />
-                        </button>
+            {/* Imagen del Producto */}
+            <div className="relative aspect-square bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center p-8">
+                {product.Imagen_URL ? (
+                    <img 
+                        src={getImageUrl(product.Imagen_URL)} 
+                        alt={product.Nombre} 
+                        className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" 
+                    />
+                ) : (
+                    <div className="flex flex-col items-center gap-2 text-slate-300">
+                        <ImageIcon size={48} strokeWidth={1} />
+                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Sin Imagen</span>
+                    </div>
+                )}
+
+                {/* Badges Flotantes */}
+                <div className="absolute top-4 left-4 flex flex-col gap-2">
+                    {product.Es_Oferta && (
+                        <div className="bg-rose-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 flex items-center gap-1.5">
+                            <Zap size={10} fill="currentColor" /> Oferta
+                        </div>
                     )}
-                    {parseFloat(product.Stock_Actual) <= 5 && (
-                        <div className="absolute inset-0 bg-rose-500/10 flex items-center justify-center">
-                            <div className="w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+                    {isLowStock && !isOutOfStock && (
+                        <div className="bg-amber-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg shadow-amber-500/20">
+                            Stock Bajo
+                        </div>
+                    )}
+                    {product.Visible_Online !== false && (
+                        <div className="bg-indigo-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 flex items-center gap-1.5">
+                            <Globe size={10} /> Online
+                        </div>
+                    )}
+                    {isOutOfStock && (
+                        <div className="bg-slate-800 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg">
+                            Sin Stock
                         </div>
                     )}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-1">
-                        <div className="flex gap-1">
-                            <span className="text-[8px] font-black py-0.5 px-2 rounded-full bg-indigo-500/10 text-indigo-500 uppercase tracking-widest border border-indigo-500/10">
-                                {product.Categoria || 'S/C'}
-                            </span>
-                            {product.Unidad === 'Kg' && (
-                                <span className="text-[8px] font-black py-0.5 px-2 rounded-full bg-amber-500/10 text-amber-600 uppercase tracking-widest border border-amber-500/10">
-                                    Pesable
-                                </span>
-                            )}
-                        </div>
-                        <div className={`flex items-center gap-1 text-[9px] font-black ${margin >= 30 ? 'text-emerald-500' : margin >= 15 ? 'text-amber-500' : 'text-rose-500'}`}>
-                            <TrendingUp size={10} />
-                            {margin.toFixed(1)}%
-                        </div>
-                    </div>
-                    <h4 className="font-bold text-sm truncate mb-3 text-slate-800 dark:text-slate-100">{product.Nombre}</h4>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-[var(--border)]/50">
-                            <p className="text-[7px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Precio</p>
-                            <p className="font-black text-xs text-indigo-600">${parseFloat(product.Precio_Unitario || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                        </div>
-                        <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-[var(--border)]/50">
-                            <p className="text-[7px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Stock</p>
-                            <p className={`font-black text-xs ${parseFloat(product.Stock_Actual) <= 5 ? 'text-rose-500' : 'text-slate-700 dark:text-slate-300'}`}>
-                                {parseFloat(product.Stock_Actual || 0).toFixed(0)} <span className="text-[8px] opacity-40 font-medium">{product.Unidad || 'un'}</span>
-                            </p>
-                        </div>
-                    </div>
+                {/* Acciones Rápidas (Overlay) */}
+                <div className="absolute inset-0 bg-indigo-900/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                    <button onClick={() => onEdit(product)} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-indigo-500 shadow-xl hover:scale-110 active:scale-95 transition-all">
+                        <Edit3 size={20} />
+                    </button>
+                    <button onClick={() => (window as any).handleDuplicateProduct?.(product)} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-emerald-500 shadow-xl hover:scale-110 active:scale-95 transition-all" title="Duplicar">
+                        <Copy size={20} />
+                    </button>
+                    <button onClick={() => (window as any).handleDeleteProduct?.(product.ID_Producto)} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-rose-500 shadow-xl hover:scale-110 active:scale-95 transition-all">
+                        <Trash2 size={20} />
+                    </button>
                 </div>
             </div>
 
-            <div className="bg-slate-50/50 dark:bg-slate-900/30 px-5 py-3 border-t border-[var(--border)] flex justify-between items-center transition-all text-slate-400">
-                <div className="flex gap-4 text-[8px] font-bold text-slate-400 uppercase tracking-widest overflow-hidden">
-                    <span className="truncate flex items-center gap-1"><ScaleIcon size={10} /> {totalWeight} Kg Est.</span>
+            {/* Info del Producto */}
+            <div className="p-6">
+                <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{product.Categoria || "General"}</span>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 text-[9px] font-black uppercase">
+                        <Percent size={10} /> {margin.toFixed(0)}%
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => onEdit(product)}
-                        className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-[var(--border)] hover:bg-indigo-500 hover:text-white transition-all shadow-sm active:scale-90"
-                    >
-                        <Edit3 size={14} />
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); (window as any).handleDuplicateProduct?.(product); }}
-                        className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-[var(--border)] hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-90"
-                        title="Duplicar Producto"
-                    >
-                        <Copy size={14} />
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); (window as any).handleDeleteProduct?.(product.ID_Producto); }}
-                        className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-[var(--border)] hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-90"
-                    >
-                        <Trash2 size={14} />
-                    </button>
+                <h4 className="text-base font-black text-slate-800 dark:text-white mb-4 line-clamp-1">{product.Nombre}</h4>
+
+                <div className="flex items-end justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex flex-col text-slate-900 dark:text-white">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Precio Online</span>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-black">${parseFloat(product.Precio_Unitario || 0).toLocaleString()}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">/ {product.Unidad === 'Kg' ? 'Kg' : 'u'}</span>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Stock</span>
+                        <p className={`text-sm font-black ${isLowStock ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                            {parseFloat(product.Stock_Actual).toFixed(0)} <span className="text-[10px] opacity-60">{product.Unidad}</span>
+                        </p>
+                    </div>
                 </div>
             </div>
         </motion.div>
     );
 }
 
-// --- SUBCOMPONENTE DE FILA (LISTA) ---
+// --- SUBCOMPONENTE DE FILA (LISTA) MODERNIZADA ---
 function ProductRow({ product, onEdit }: any) {
     const isLowStock = parseFloat(product.Stock_Actual) <= 5;
     const margin = calculateProfitability(parseFloat(product.Precio_Unitario), parseFloat(product.Costo));
-    const estimatedWeight = (parseFloat(product.Stock_Actual || 0) * parseFloat(product.Peso_Promedio || 0)).toFixed(2);
 
     return (
         <>
-            <td className="px-6 py-4 sticky left-0 z-10 bg-[var(--card)] group-hover:bg-slate-50 dark:group-hover:bg-slate-900 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-[var(--border)]/50">
+            <td className="px-6 py-4 sticky left-0 z-10 bg-[var(--card)] group-hover:bg-slate-50 dark:group-hover:bg-slate-900 transition-colors border-r border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-[var(--border)] overflow-hidden flex-shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 overflow-hidden shrink-0 flex items-center justify-center p-1 group-hover:scale-110 transition-transform">
                         {product.Imagen_URL ? (
-                            <img src={getImageUrl(product.Imagen_URL)} className="w-full h-full object-cover" />
+                            <img src={getImageUrl(product.Imagen_URL)} className="w-full h-full object-contain" />
                         ) : (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    const query = encodeURIComponent(`${product.Nombre} producto`);
-                                    window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
-                                }}
-                                className="w-full h-full flex items-center justify-center text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-500 transition-colors"
-                                title="Buscar imagen en Google"
-                            >
-                                <Search size={16} />
-                            </button>
+                            <ImageIcon size={18} className="text-slate-300" />
                         )}
                     </div>
-                    <div className="min-w-[180px]">
-                        <p className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{product.Nombre}</p>
+                    <div>
+                        <p className="font-black text-sm text-slate-800 dark:text-white truncate max-w-[200px]">{product.Nombre}</p>
                         <div className="flex items-center gap-2">
-                            <p className="text-[9px] font-mono text-slate-400 uppercase">ID: {product.ID_Producto}</p>
-                            {parseFloat(product.Peso_Promedio) > 0 && (
-                                <span className="text-[8px] font-black text-amber-500 flex items-center gap-0.5">
-                                    <Weight size={8} /> {product.Peso_Promedio}Kg avg.
-                                </span>
-                            )}
+                           <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/10 px-2 py-0.5 rounded-lg">{product.Categoria || "S/C"}</span>
+                           <span className="text-[8px] font-bold text-slate-400">SKU: {product.ID_Producto}</span>
                         </div>
                     </div>
                 </div>
             </td>
             <td className="px-6 py-4">
-                <span className="text-[9px] font-black py-1 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase tracking-widest border border-[var(--border)]">
-                    {product.Categoria || 'Sin Cat.'}
-                </span>
-            </td>
-            <td className="px-6 py-4 text-right">
-                <div className="space-y-0.5">
-                    <p className="font-black text-sm text-indigo-600">${parseFloat(product.Precio_Unitario || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    <div className="flex items-center justify-end gap-1.5 transition-all text-slate-500">
-                        <span className="text-[8px] font-bold uppercase tracking-tighter">Costo:</span>
-                        <span className="text-[9px] font-black">${product.Costo || 0}</span>
-                    </div>
+                <div className="flex flex-col">
+                    <span className="text-sm font-black text-slate-900 dark:text-white font-mono">${parseFloat(product.Precio_Unitario).toLocaleString()}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Costo: ${product.Costo}</span>
                 </div>
             </td>
             <td className="px-6 py-4 text-center">
@@ -986,50 +1253,22 @@ function ProductRow({ product, onEdit }: any) {
                     margin >= 15 ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
                         'bg-rose-500/10 border-rose-500/20 text-rose-500'
                     }`}>
-                    <TrendingUp size={12} strokeWidth={3} />
-                    <span className="text-xs font-black tracking-tight">{margin.toFixed(1)}%</span>
+                    <span className="text-[10px] font-black uppercase tracking-tight">{margin.toFixed(0)}%</span>
                 </div>
             </td>
-            <td className="px-6 py-4 text-right">
-                <div className="flex flex-col items-end">
-                    <div className={`flex items-center gap-2 font-black text-sm ${isLowStock ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                        {parseFloat(product.Stock_Actual || 0).toFixed(0)} <span className="text-[10px] opacity-40 font-bold uppercase">{product.Unidad || 'un'}</span>
-                        {isLowStock && <AlertCircle size={12} className="animate-pulse" />}
+            <td className="px-6 py-4">
+               <div className="flex flex-col items-center">
+                    <div className={`text-sm font-black ${isLowStock ? 'text-rose-500' : 'text-slate-700 dark:text-white'}`}>
+                        {parseFloat(product.Stock_Actual).toFixed(0)} <span className="text-[10px] opacity-40 uppercase">{product.Unidad}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <p className="text-[8px] text-slate-400 uppercase tracking-tighter">UB: {product.Unidades_Bulto || 1}</p>
-                        <p className="text-[8px] text-slate-400 uppercase tracking-tighter">•</p>
-                        <p className="text-[8px] text-slate-400 uppercase tracking-tighter">Stock Actual</p>
-                    </div>
-                </div>
-            </td>
-            <td className="px-6 py-4 text-right">
-                <div className="flex flex-col items-end">
-                    <span className="text-sm font-black text-amber-600">{estimatedWeight} Kg</span>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Carga Total Est.</span>
-                </div>
+                    {isLowStock && <div className="text-[8px] font-black text-rose-500 uppercase tracking-widest mt-0.5">Reponer</div>}
+               </div>
             </td>
             <td className="px-6 py-4 text-center">
-                <div className="flex justify-center gap-2 transition-opacity">
-                    <button
-                        onClick={() => onEdit(product)}
-                        className="p-2.5 rounded-xl bg-[var(--card)] border border-[var(--border)] text-slate-500 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 transition-all shadow-sm active:scale-95"
-                    >
-                        <Edit3 size={14} />
-                    </button>
-                    <button
-                        onClick={() => (window as any).handleDuplicateProduct?.(product)}
-                        className="p-2.5 rounded-xl bg-[var(--card)] border border-[var(--border)] text-slate-500 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all shadow-sm active:scale-95"
-                        title="Duplicar Producto"
-                    >
-                        <Copy size={14} />
-                    </button>
-                    <button
-                        onClick={() => (window as any).handleDeleteProduct?.(String(product.ID_Producto))}
-                        className="p-2.5 rounded-xl bg-[var(--card)] border border-[var(--border)] text-slate-500 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all shadow-sm active:scale-95"
-                    >
-                        <Trash2 size={14} />
-                    </button>
+                <div className="flex items-center justify-center gap-2">
+                    <button onClick={() => onEdit(product)} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all shadow-sm active:scale-95"><Edit3 size={16} /></button>
+                    <button onClick={() => (window as any).handleDuplicateProduct?.(product)} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all shadow-sm active:scale-95"><Copy size={16} /></button>
+                    <button onClick={() => (window as any).handleDeleteProduct?.(product.ID_Producto)} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all shadow-sm active:scale-95"><Trash2 size={16} /></button>
                 </div>
             </td>
         </>
@@ -1058,317 +1297,334 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
                 className="fixed right-0 top-0 h-full w-full max-w-xl bg-[var(--card)] z-[120] shadow-2xl border-l border-[var(--border)] flex flex-col"
             >
-                {/* Header */}
-                <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 sticky top-0 z-10 backdrop-blur-md">
-                    <div className="flex items-center gap-4 text-slate-800 dark:text-slate-100">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shadow-inner">
-                            {drawerMode === 'edit' ? <Edit3 size={24} /> : <Plus size={24} />}
+                {/* Header Premium */}
+                <div className="p-8 border-b border-[var(--border)] bg-white/50 dark:bg-slate-900/50 flex items-center justify-between sticky top-0 z-[130] backdrop-blur-xl rounded-t-[32px]">
+                    <div className="flex items-center gap-6">
+                        <div className="w-20 h-20 rounded-[32px] bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/20 group relative overflow-hidden">
+                            {formData.Imagen_URL ? (
+                                <img src={getImageUrl(formData.Imagen_URL)} className="w-full h-full object-cover p-1.5 rounded-[32px] group-hover:scale-110 transition-transform duration-500" />
+                            ) : (
+                                drawerMode === 'edit' ? <Package size={34} strokeWidth={1.5} /> : <Plus size={34} strokeWidth={1.5} />
+                            )}
+                            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
+                        
                         <div>
-                            <h3 className="font-black text-xl tracking-tight">
-                                {drawerMode === 'edit' ? 'Ficha de Producto' : 'Nuevo Producto'}
-                            </h3>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                                    ID: {formData.ID_Producto}
+                            <div className="flex items-center gap-3">
+                                <h3 className="font-black text-3xl tracking-tight text-slate-800 dark:text-white leading-none">
+                                    {drawerMode === 'edit' ? 'Edición Maestro' : 'Nuevo Producto'}
+                                </h3>
+                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] ${drawerMode === 'edit' ? 'bg-indigo-500/10 text-indigo-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                    {drawerMode === 'edit' ? 'ACTUALIZAR' : 'CREACIÓN'}
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 mt-3">
+                                <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] text-slate-500 uppercase font-black tracking-widest border border-slate-200/50 dark:border-slate-700/50">
+                                    SKU: {formData.ID_Producto || 'AUTO-ID'}
                                 </span>
+                                {formData.Stock_Actual > 0 ? (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        <span className="text-[9px] font-black text-emerald-600 uppercase">En Existencias</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/5 rounded-xl border border-rose-500/10">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                        <span className="text-[9px] font-black text-rose-600 uppercase">Sin Stock</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
+
                     <button
                         onClick={onClose}
-                        className="p-2.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-2xl transition-all active:scale-90 text-slate-400 hover:text-slate-600"
+                        className="w-12 h-12 flex items-center justify-center bg-slate-100/50 dark:bg-slate-800/50 hover:bg-rose-500 hover:text-white rounded-[20px] transition-all group active:scale-95 border border-slate-200/50 dark:border-slate-700/50"
                     >
-                        <X size={20} />
+                        <X size={20} className="group-hover:rotate-90 transition-transform duration-300" />
                     </button>
                 </div>
 
-                {/* Contenido Formulario */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scroll pb-32">
+                {/* Contenido Seccionado */}
+                <div className="flex-1 overflow-y-auto p-8 space-y-12 custom-scroll pb-40">
+                    
+                    {/* SECCIÓN 1: IDENTIFICACIÓN Y CATEGORÍA */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
+                        <div className="md:col-span-12 space-y-8">
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] ml-1">Descripción del Producto</label>
+                                <input
+                                    type="text"
+                                    value={formData.Nombre}
+                                    onChange={(e) => setFormData({ ...formData, Nombre: e.target.value })}
+                                    placeholder="Nombre oficial del producto..."
+                                    className="w-full text-4xl font-black bg-transparent border-none outline-none placeholder:text-slate-200 dark:placeholder:text-slate-800 focus:ring-0 text-slate-800 dark:text-white"
+                                />
+                                <div className="h-[2px] w-full bg-gradient-to-r from-indigo-500/50 to-transparent" />
+                            </div>
 
-                    {/* Dashboard de Rentabilidad y Logística */}
-                    <div className="grid grid-cols-1 gap-4">
-                        <section className="bg-gradient-to-br from-slate-900 to-indigo-950 p-6 rounded-[2.5rem] text-white shadow-xl shadow-indigo-500/10 overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                                <TrendingUp size={120} />
-                            </div>
-                            <div className="relative">
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-300 mb-6 flex items-center gap-2">
-                                    <Percent size={12} /> Análisis de Recargo (Markup)
-                                </h4>
-                                <div className="grid grid-cols-2 gap-8">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-indigo-200/50">Utilidad Bruta</p>
-                                        <p className="text-3xl font-black">${profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                                        <p className="text-[10px] text-indigo-400 font-bold mt-1">por unidad vendida</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-indigo-200/50">Rentabilidad</p>
-                                        <p className={`text-3xl font-black ${currentMargin >= 30 ? 'text-emerald-400' : currentMargin >= 15 ? 'text-amber-400' : 'text-rose-400'}`}>
-                                            {currentMargin.toFixed(1)}%
-                                        </p>
-                                        <div className="flex items-center justify-end gap-1 mt-1">
-                                            <div className={`w-2 h-2 rounded-full ${currentMargin >= 30 ? 'bg-emerald-400' : currentMargin >= 15 ? 'bg-amber-400' : 'bg-rose-400'}`} />
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Recargo Actual</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-[2rem] flex items-center justify-between text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                                    <ScaleIcon size={20} />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Estimación de Inventario</p>
-                                    <p className="text-lg font-black">{estimatedStockWeight} Kilogramos</p>
-                                </div>
-                            </div>
-                            <div className="text-right text-[10px] font-bold max-w-[120px] leading-tight opacity-60 italic">
-                                Según Peso Promedio de {formData.Peso_Promedio || 0}kg
-                            </div>
-                        </section>
-                    </div>
-
-                    {/* Campos Formulario */}
-                    <div className="space-y-8 text-slate-800 dark:text-slate-100">
-                        {/* 1. Identificación */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black uppercase text-indigo-500 tracking-[0.25em] flex items-center gap-3">
-                                <Tag size={12} className="text-indigo-500" /> Identificación del Artículo
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="col-span-full space-y-2">
-                                    <InputField
-                                        label="Nombre Completo"
-                                        value={formData.Nombre}
-                                        onChange={(v: any) => setFormData({ ...formData, Nombre: v })}
-                                        placeholder="Ej: Leche Entera Wanda 1L"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
-                                        Categoría
-                                    </label>
-                                    <div className="relative">
-                                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Categoría Principal</label>
+                                    <div className="relative group">
+                                        <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
                                         <input
                                             list="drawer-cats"
                                             value={formData.Categoria || ""}
                                             onChange={(e: any) => setFormData({ ...formData, Categoria: e.target.value })}
-                                            placeholder="Seleccionar o crear..."
-                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-[var(--border)] rounded-2xl py-3.5 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none transition-all text-slate-800 dark:text-slate-100"
+                                            className="w-full bg-slate-50 dark:bg-slate-950/50 border-2 border-slate-100 dark:border-slate-800 rounded-[20px] py-4 pl-12 pr-6 text-sm font-bold focus:border-indigo-500/30 outline-none transition-all"
                                         />
                                         <datalist id="drawer-cats">
                                             {categories.filter((c: any) => c !== 'ALL').map((c: any) => <option key={c} value={c} />)}
                                         </datalist>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
-                                        Unidad de Medida
-                                    </label>
-                                    <select
-                                        value={formData.Unidad || "Unid"}
-                                        onChange={(e) => setFormData({ ...formData, Unidad: e.target.value })}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-[var(--border)] rounded-2xl py-3.5 px-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none transition-all appearance-none text-slate-800 dark:text-slate-100"
-                                    >
-                                        <option value="Unid">Unidad</option>
-                                        <option value="Kg">Kilogramo (Kg)</option>
-                                        <option value="Lt">Litro (Lt)</option>
-                                        <option value="Pack">Pack / Bulto</option>
-                                    </select>
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidad Comercial</label>
+                                    <div className="relative group">
+                                        <ScaleIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                                        <select
+                                            value={formData.Unidad || "Unid"}
+                                            onChange={(e) => setFormData({ ...formData, Unidad: e.target.value })}
+                                            className="w-full bg-slate-50 dark:bg-slate-950/50 border-2 border-slate-100 dark:border-slate-800 rounded-[20px] py-4 pl-12 pr-6 text-sm font-bold focus:border-indigo-500/30 outline-none transition-all appearance-none"
+                                        >
+                                            <option value="Unid">Unidades (Piezas)</option>
+                                            <option value="Kg">Peso (Kilogramos)</option>
+                                            <option value="Pack">Pack / Bulto Cerrado</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
-                        </section>
+                        </div>
+                    </div>
 
-                        {/* 2. Economía e Inventario */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black uppercase text-indigo-500 tracking-[0.25em] flex items-center gap-3">
-                                <DollarSign size={12} /> Valores Comerciales & Stock
-                            </h4>
-                            <div className="grid grid-cols-2 gap-6 p-6 rounded-3xl bg-slate-50 dark:bg-slate-950/50 border border-[var(--border)]/50">
+                    {/* SECCIÓN 2: ECONOMÍA Y RENTABILIDAD */}
+                    <div className="space-y-8">
+                         <div className="flex items-center gap-4">
+                            <h4 className="text-[10px] font-black uppercase text-slate-800 dark:text-white tracking-[0.4em]">Finanzas & Márgenes</h4>
+                            <div className="flex-1 h-[1px] bg-slate-100 dark:bg-slate-800" />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div className="lg:col-span-2 grid grid-cols-2 gap-6 bg-slate-50/50 dark:bg-slate-900/50 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800/50">
                                 <InputField
-                                    label="Precio de Venta ($)"
+                                    label="Precio de Venta Final"
                                     value={formData.Precio_Unitario}
                                     type="number"
-                                    step="0.01"
-                                    onChange={(v: any) => {
-                                        setFormData({ ...formData, Precio_Unitario: v });
-                                    }}
+                                    onChange={(v: any) => setFormData({ ...formData, Precio_Unitario: v })}
                                     highlight
                                 />
                                 <InputField
-                                    label="Stock Fisico Actual"
-                                    value={formData.Stock_Actual}
-                                    type="number"
-                                    onChange={(v: any) => setFormData({ ...formData, Stock_Actual: v })}
-                                    color={parseFloat(formData.Stock_Actual) <= 5 ? "rose" : "slate"}
-                                />
-                                <InputField
-                                    label="Costo Unitario ($)"
+                                    label="Costo de Compra"
                                     value={formData.Costo}
                                     type="number"
-                                    step="0.01"
                                     onChange={(v: any) => {
                                         const cost = parseFloat(v) || 0;
                                         const margin = currentMargin / 100;
                                         const newPrice = cost * (1 + margin);
-                                        setFormData({ 
-                                            ...formData, 
-                                            Costo: v, 
-                                            Precio_Unitario: cost > 0 ? newPrice.toFixed(2) : formData.Precio_Unitario 
-                                        });
+                                        setFormData({ ...formData, Costo: v, Precio_Unitario: cost > 0 ? newPrice.toFixed(2) : formData.Precio_Unitario });
                                     }}
-                                    highlight
                                 />
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Recargo (%)</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Recargo (% Markup)</label>
                                     <div className="relative">
-                                        <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
+                                        <Percent className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={16} />
                                         <input
                                             type="number"
                                             value={currentMargin.toFixed(1)}
                                             onChange={(e) => {
-                                                const newMargin = parseFloat(e.target.value) || 0;
+                                                const m = parseFloat(e.target.value) || 0;
                                                 const cost = parseFloat(formData.Costo || 0);
-                                                const newPrice = cost * (1 + newMargin / 100);
+                                                const newPrice = cost * (1 + m/100);
                                                 setFormData({ ...formData, Precio_Unitario: newPrice.toFixed(2) });
                                             }}
-                                            className="w-full bg-indigo-500/5 border border-indigo-500/20 rounded-2xl py-3 px-12 text-sm font-black text-indigo-600 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                                            className="w-full bg-emerald-500/5 border-2 border-emerald-500/20 rounded-[20px] py-3.5 pl-12 pr-6 text-sm font-black text-emerald-600 outline-none"
                                         />
                                     </div>
                                 </div>
                                 <InputField
-                                    label="Cant. por Bulto (UB)"
+                                    label="Unidades por Bulto"
                                     value={formData.Unidades_Bulto}
                                     type="number"
                                     onChange={(v: any) => setFormData({ ...formData, Unidades_Bulto: v })}
                                 />
                             </div>
-                        </section>
 
-                        {/* 3. Logística */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black uppercase text-indigo-500 tracking-[0.25em] flex items-center gap-3">
-                                <Scale size={12} /> Especificaciones Logísticas
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <InputField
-                                    label="Peso Promedio x Pieza (Kg)"
-                                    value={formData.Peso_Promedio}
-                                    type="number"
-                                    step="0.001"
-                                    onChange={(v: any) => setFormData({ ...formData, Peso_Promedio: v })}
-                                    placeholder="Ej: 0.850"
-                                />
-                                <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 flex items-start gap-3">
-                                    <AlertCircle size={16} className="text-indigo-500 flex-shrink-0 mt-0.5" />
-                                    <p className="text-[10px] text-indigo-600/80 font-medium leading-relaxed italic">
-                                        Modificando manualmente el **Stock** o el **Peso**, el sistema ajustará automáticamente la estimación de carga total del inventario.
-                                    </p>
+                            <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 p-8 rounded-[32px] text-white shadow-xl shadow-indigo-500/20 flex flex-col justify-between overflow-hidden relative">
+                                <div className="absolute top-0 right-0 p-4 opacity-10">
+                                    <TrendingUp size={100} />
+                                </div>
+                                <div className="relative">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Ganancia Est. x Unidad</p>
+                                    <p className="text-5xl font-black">${profit.toLocaleString(undefined, { minimumFractionDigits: 1 })}</p>
+                                    <div className="mt-4 flex items-center gap-2">
+                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${currentMargin >= 25 ? 'bg-emerald-400/20 text-emerald-400' : 'bg-amber-400/20 text-amber-400'}`}>
+                                            ROI: {currentMargin.toFixed(0)}%
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="relative mt-auto pt-6 border-t border-white/10">
+                                    <p className="text-[9px] font-medium opacity-50 italic">Calculado sobre costo neto sin IVA ni logística.</p>
                                 </div>
                             </div>
-                        </section>
+                        </div>
+                    </div>
 
-                        {/* 4. Multimedia */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black uppercase text-indigo-500 tracking-[0.25em] flex items-center gap-3">
-                                <Layers size={12} /> Multimedia & Visual
-                            </h4>
-                            <div className="space-y-4">
-                                <div className="flex gap-2 items-end">
-                                    <div className="flex-1">
-                                        <InputField
-                                            label="URL Imagen del Producto"
-                                            value={formData.Imagen_URL}
-                                            onChange={(v: any) => setFormData({ ...formData, Imagen_URL: v })}
-                                            placeholder="https://ejemplo.com/imagen.jpg"
-                                        />
+                    {/* SECCIÓN 3: INVENTARIO Y LOGÍSTICA */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                         <div className="space-y-6">
+                            <h4 className="text-[10px] font-black uppercase text-slate-800 dark:text-white tracking-[0.4em]">Control de Stock</h4>
+                            <div className="p-8 rounded-[32px] bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800 space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Existencias Actuales</p>
+                                        <p className="text-4xl font-black mt-1 text-slate-800 dark:text-white">{formData.Stock_Actual} <span className="text-sm font-bold opacity-40">{formData.Unidad}</span></p>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const query = encodeURIComponent(`${formData.Nombre || ''} ${formData.Categoria || ''} producto`);
-                                            window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
-                                        }}
-                                        className="h-[52px] mb-[1px] px-4 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-200 dark:border-indigo-900/50 hover:bg-indigo-500 hover:text-white transition-all shadow-sm flex items-center gap-2 group shrink-0"
-                                        title="Buscar automáticamente en Google Imágenes"
-                                    >
-                                        <Search size={18} className="group-hover:scale-110 transition-transform" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Buscar</span>
-                                    </button>
+                                    <Box size={40} className="text-slate-200 dark:text-slate-800" />
                                 </div>
-                                <p className="text-[9px] text-slate-400 italic ml-1">
-                                    Sugerencia: Haz clic en <b>Buscar</b>, encuentra la imagen, <b>clic derecho &quot;Copiar dirección de imagen&quot;</b> y pégala arriba.
-                                </p>
-                                {formData.Imagen_URL && (
-                                    <div className="mt-4 relative group w-max">
-                                        <div className="w-40 h-40 rounded-[2rem] overflow-hidden border-4 border-white dark:border-slate-800 shadow-xl bg-slate-100 dark:bg-slate-900">
-                                            <img
-                                                src={getImageUrl(formData.Imagen_URL)}
-                                                className="w-full h-full object-contain p-2"
-                                                onError={(e: any) => { (e.target as any).src = 'https://placehold.co/400?text=Error+en+URL'; }}
+                                <div className="space-y-4">
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="500" 
+                                        value={formData.Stock_Actual} 
+                                        onChange={(e) => setFormData({ ...formData, Stock_Actual: e.target.value })}
+                                        className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                                    />
+                                    <div className="flex justify-between text-[9px] font-black uppercase text-slate-400">
+                                        <span>Agotado</span>
+                                        <span>Bajo</span>
+                                        <span>Óptimo</span>
+                                        <span>Exceso</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <h4 className="text-[10px] font-black uppercase text-slate-800 dark:text-white tracking-[0.4em]">Logística de Pesos</h4>
+                            <div className="p-8 rounded-[32px] bg-amber-500/5 border border-amber-500/10 space-y-6">
+                                <div className="flex items-start gap-4">
+                                    <Weight className="text-amber-500 mt-1" size={24} />
+                                    <div>
+                                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Peso Promedio x Pieza</p>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            <input
+                                                type="number"
+                                                step="0.001"
+                                                value={formData.Peso_Promedio}
+                                                onChange={(e) => setFormData({ ...formData, Peso_Promedio: e.target.value })}
+                                                className="bg-transparent text-3xl font-black text-amber-700 dark:text-amber-400 w-24 border-b-2 border-amber-500/20 outline-none focus:border-amber-500 transition-all"
+                                            />
+                                            <span className="text-sm font-black text-amber-500/60 uppercase">KG</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-white dark:bg-slate-950/40 p-4 rounded-2xl flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Carga Total Estimada</span>
+                                    <span className="text-sm font-black text-slate-800 dark:text-white">{estimatedStockWeight} kg</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* SECCIÓN 4: MULTIMEDIA Y VISIBILIDAD */}
+                    <div className="space-y-8">
+                         <div className="flex items-center gap-4">
+                            <h4 className="text-[10px] font-black uppercase text-slate-800 dark:text-white tracking-[0.4em]">Identidad Visual</h4>
+                            <div className="flex-1 h-[1px] bg-slate-100 dark:bg-slate-800" />
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                            <div className="space-y-6">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL de la Imagen (Web)</label>
+                                    <div className="flex gap-3">
+                                        <div className="relative flex-1">
+                                            <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                                            <input
+                                                type="text"
+                                                value={formData.Imagen_URL}
+                                                onChange={(e) => setFormData({ ...formData, Imagen_URL: e.target.value })}
+                                                placeholder="https://..."
+                                                className="w-full bg-slate-50 dark:bg-slate-950/50 border-2 border-slate-100 dark:border-slate-800 rounded-[20px] py-4 pl-12 pr-6 text-sm font-bold focus:border-indigo-500 transition-all"
                                             />
                                         </div>
                                         <button
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, Imagen_URL: '' })}
-                                            className="absolute -top-2 -right-2 p-2 bg-rose-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                                            onClick={() => {
+                                                const query = encodeURIComponent(`${formData.Nombre || ''} ${formData.Categoria || ''} wanda`);
+                                                window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
+                                            }}
+                                            className="px-6 bg-slate-100 dark:bg-slate-800 text-slate-600 rounded-[20px] hover:bg-slate-200 transition-all flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"
                                         >
-                                            <X size={14} />
+                                            <Search size={16} /> Buscar
                                         </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-6 p-6 rounded-[32px] bg-rose-500/5 border border-rose-500/10">
+                                        <div className="flex-1">
+                                            <p className="text-sm font-black text-slate-800 dark:text-white">En Oferta</p>
+                                            <p className="text-[10px] text-slate-400 font-medium">Priorizar en carrusel</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setFormData({ ...formData, Es_Oferta: !formData.Es_Oferta })}
+                                            className={`w-14 h-8 rounded-full transition-all relative ${formData.Es_Oferta ? 'bg-rose-500 shadow-lg shadow-rose-500/30' : 'bg-slate-200'}`}
+                                        >
+                                            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${formData.Es_Oferta ? 'left-7' : 'left-1'}`} />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-6 p-6 rounded-[32px] bg-indigo-500/5 border border-indigo-500/10">
+                                        <div className="flex-1">
+                                            <p className="text-sm font-black text-slate-800 dark:text-white">Visible Online</p>
+                                            <p className="text-[10px] text-slate-400 font-medium">Mostrar en Tienda</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setFormData({ ...formData, Visible_Online: !formData.Visible_Online })}
+                                            className={`w-14 h-8 rounded-full transition-all relative ${formData.Visible_Online !== false ? 'bg-indigo-500 shadow-lg shadow-indigo-500/30' : 'bg-slate-200'}`}
+                                        >
+                                            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${formData.Visible_Online !== false ? 'left-7' : 'left-1'}`} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-center bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-900 rounded-[40px] overflow-hidden min-h-[280px] group relative">
+                                {formData.Imagen_URL ? (
+                                    <img 
+                                        src={getImageUrl(formData.Imagen_URL)} 
+                                        className="w-full h-full object-contain p-8 group-hover:scale-105 transition-transform duration-700" 
+                                        onError={(e: any) => { (e.target as any).src = 'https://placehold.co/400x400?text=No+Imagen'; }}
+                                    />
+                                ) : (
+                                    <div className="flex flex-col items-center gap-4 text-slate-300">
+                                        <ImageIcon size={60} strokeWidth={1} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Sin Visualización</span>
                                     </div>
                                 )}
                             </div>
-                        </section>
-
-                        {/* 5. Promoción y Ofertas (MD3) */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black uppercase text-rose-500 tracking-[0.25em] flex items-center gap-3">
-                                <Zap size={12} /> Promoción & Alta Prioridad
-                            </h4>
-                            <div className="p-6 rounded-3xl bg-rose-50/30 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Marcar como Oferta</span>
-                                        <span className="text-[10px] text-slate-500 italic">Aparecerá en el carrusel de preventa</span>
-                                    </div>
-                                    <button
-                                        onClick={() => setFormData({ ...formData, Es_Oferta: !formData.Es_Oferta })}
-                                        className={`w-12 h-6 rounded-full transition-all relative ${formData.Es_Oferta ? 'bg-rose-500 shadow-md shadow-rose-500/20' : 'bg-slate-200'}`}
-                                    >
-                                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.Es_Oferta ? 'left-7' : 'left-1'}`} />
-                                    </button>
-                                </div>
-                                <InputField
-                                    label="Etiqueta de Oferta"
-                                    value={formData.Nota_Oferta}
-                                    onChange={(v: any) => setFormData({ ...formData, Nota_Oferta: v })}
-                                    placeholder="Ej: -20% OFF hoy"
-                                />
-                            </div>
-                        </section>
+                        </div>
                     </div>
                 </div>
 
-                {/* Footer Drawer */}
-                <div className="p-8 border-t border-[var(--border)] bg-white dark:bg-slate-900 sticky bottom-0 z-10 flex gap-4 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+                {/* Acción Flotante */}
+                <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl sticky bottom-0 z-10 flex gap-6">
                     <button
                         onClick={onClose}
-                        className="flex-1 py-4 border border-[var(--border)] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95 text-slate-600 dark:text-slate-300"
+                        className="px-8 py-5 rounded-[24px] text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all"
                     >
-                        Cancelar
+                        Descartar
                     </button>
                     <button
                         onClick={onSave}
                         disabled={saving}
-                        className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 disabled:opacity-50 active:scale-95"
+                        className="flex-1 py-5 bg-indigo-600 text-white rounded-[24px] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-500/40 disabled:opacity-50 group"
                     >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={16} />}
-                        {saving ? 'Guardando...' : 'Aplicar Cambios'}
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
+                        {saving ? 'Procesando...' : 'Guardar Ficha Técnica'}
                     </button>
                 </div>
             </motion.div>

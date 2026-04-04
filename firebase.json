@@ -2,13 +2,15 @@
   "auth": {
     "providers": {
       "googleSignIn": {
-        "oAuthBrandDisplayName": "Wanda Pro",
-        "supportEmail": "rauldrt5@gmail.com",
-        "authorizedRedirectUris": [
-          "http://localhost:3000",
-          "http://localhost"
-        ]
+        "oAuthBrandDisplayName": "Wanda Store New",
+        "supportEmail": "rauldrt5@gmail.com"
       }
     }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "us-central",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }

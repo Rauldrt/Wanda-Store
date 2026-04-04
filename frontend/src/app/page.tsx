@@ -5,16 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp,
   Package,
-  Truck,
   Users,
   Search,
-  ArrowUpRight,
   Clock,
   AlertCircle,
   RefreshCcw,
   ExternalLink,
-  CheckCircle2,
-  DatabaseBackup
+  CheckCircle2
 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 
@@ -106,13 +103,6 @@ export default function Home() {
           color="emerald"
         />
         <StatCard
-          title="En Movimiento"
-          value={inLogistics}
-          icon={<Truck className="w-5 h-5" />}
-          trend="Logística"
-          color="amber"
-        />
-        <StatCard
           title="Clientes"
           value={totalClients}
           icon={<Users className="w-5 h-5" />}
@@ -189,43 +179,7 @@ export default function Home() {
         <div className="space-y-6">
           <h3 className="font-bold text-lg">Resumen Operativo</h3>
 
-          <div className="tech-card border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-transparent">
-            <h4 className="font-bold text-xs uppercase tracking-widest text-indigo-500 mb-6">Estado de Repartos</h4>
-            <div className="space-y-6">
-              <RouteProgress
-                label="Pedidos Entregados"
-                current={data?.orders?.filter((p: any) => p.estado === 'Entregado').length || 0}
-                total={data?.orders?.length || 0}
-                color="emerald"
-              />
-              <RouteProgress
-                label="Pdnt. Asignación"
-                current={data?.orders?.filter((p: any) => !p.reparto && p.estado !== 'Cancelado').length || 0}
-                total={data?.orders?.length || 0}
-                color="indigo"
-              />
-              <RouteProgress
-                label="En Preparación"
-                current={data?.orders?.filter((p: any) => p.estado === 'En Preparación').length || 0}
-                total={data?.orders?.length || 0}
-                color="amber"
-              />
-            </div>
-          </div>
 
-          <div className="tech-card border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-transparent">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-bold text-xs uppercase tracking-widest text-indigo-500">Herramientas</h4>
-              <DatabaseBackup size={16} className="text-indigo-500" />
-            </div>
-            <p className="text-[10px] text-slate-500 mb-4 font-medium">Sincroniza pedidos rezagados desde la plataforma anterior.</p>
-            <button
-              onClick={() => window.location.href = '/migracion'}
-              className="w-full py-2.5 bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20"
-            >
-              Abrir Migración
-            </button>
-          </div>
 
           <div className="tech-card">
             <div className="flex items-center justify-between mb-4">
@@ -282,29 +236,4 @@ function StatCard({ title, value, icon, trend, color }: any) {
   );
 }
 
-function RouteProgress({ label, current, total, color }: any) {
-  const percent = total > 0 ? (current / total) * 100 : 0;
 
-  const bgColors: any = {
-    indigo: "bg-indigo-500",
-    emerald: "bg-emerald-500",
-    amber: "bg-amber-500",
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest overflow-hidden">
-        <span className="truncate mr-2">{label}</span>
-        <span className="text-slate-400 flex-shrink-0">{current}/{total}</span>
-      </div>
-      <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${percent}%` }}
-          transition={{ duration: 1, ease: "easeOut" }}
-          className={`h-full ${bgColors[color]} shadow-[0_0_10px_rgba(99,102,241,0.3)]`}
-        />
-      </div>
-    </div>
-  );
-}

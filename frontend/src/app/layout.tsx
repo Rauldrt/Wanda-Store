@@ -7,7 +7,6 @@ import "./globals.css";
 import {
   LayoutDashboard,
   Package,
-  Truck,
   Users,
   Settings,
   Bell,
@@ -15,16 +14,9 @@ import {
   X,
   Loader2,
   Store,
-  BarChart3,
-  Map,
-  Save,
-  Layout,
-  DatabaseBackup,
   ChevronLeft,
   ChevronRight,
-  LogOut,
-  FileSpreadsheet,
-  MapPinned
+  LogOut
 } from "lucide-react";
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -89,23 +81,16 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     const isLoggedIn = localStorage.getItem("is_logged_in");
     const role = localStorage.getItem("user_role");
 
-    if (!isLoggedIn && pathname !== '/login' && pathname !== '/landing' && pathname !== '/migracion' && pathname !== '/preventa' && pathname !== '/tienda') {
+    if (!isLoggedIn && pathname !== '/login' && pathname !== '/tienda') {
       router.push('/login');
     } else if (isLoggedIn && pathname === '/login') {
-      if (role === 'admin') router.push('/productos');
+      if (role === 'admin') router.push('/');
       else if (role === 'cliente') router.push('/tienda');
-      else router.push('/preventa');
+      else router.push('/tienda'); 
     }
 
-    // Si el usuario es preventista y trata de entrar al admin, lo mandamos a /preventa
-    if (role === 'preventista' && pathname !== '/preventa' && pathname !== '/tienda' && pathname !== '/login') {
-      router.push('/preventa');
-    }
-
-    // Si el usuario es admin y entra a tienda, lo dejamos. Pero si entra a otra cosa que no sea admin, lo dejamos.
-    // La lógica actual redirigía si el path no era /preventa, ahora excluimos /tienda de las restricciones.
-    if (role === 'admin' && pathname === '/preventa') {
-      router.push('/productos');
+    if (role === 'cliente' && pathname !== '/tienda' && pathname !== '/login') {
+      router.push('/tienda');
     }
 
     // --- LIMPIEZA DE PWA EN MODO DEV ---
@@ -121,17 +106,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
+    { href: "/pedidos", icon: <Store size={18} />, label: "Pedidos" },
     { href: "/productos", icon: <Package size={18} />, label: "Productos" },
-    { href: "/logistica", icon: <Truck size={18} />, label: "Logística" },
-    { href: "/recorrido", icon: <Map size={18} />, label: "Recorrido" },
     { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
-    { href: "/vendedores", icon: <Users size={18} />, label: "Vendedores" },
-    { href: "/zonas", icon: <MapPinned size={18} />, label: "Zonas de Cobertura" },
-    { href: "/informes", icon: <BarChart3 size={18} />, label: "Informes" },
-    { href: "/datos", icon: <FileSpreadsheet size={18} />, label: "Centro de Datos" },
-    { href: "/landing", icon: <Layout size={18} />, label: "Presentación" },
-    { href: "/migracion", icon: <DatabaseBackup size={18} />, label: "Migración" },
-    { href: "/settings", icon: <Settings size={18} />, label: "Ajustes" },
+    { href: "/settings", icon: <Settings size={18} />, label: "Configuración" },
   ];
 
   if (!mounted || loading) {

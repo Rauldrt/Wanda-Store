@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "wanda-store-raul-2026"
+  },
   "targets": {},
   "etags": {}
 }

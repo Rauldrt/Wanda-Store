@@ -269,7 +269,7 @@ export const wandaApi: Record<string, any> = {
             estado: "Pendiente",
             reparto: "",
             notas: notas,
-            gps: orderData.gps || "",
+            gps: orderData.gps || orderData.cliente?.Ubicacion || "",
             descuento_general: orderData.descuento_general || 0,
             items: orderData.items || []
         };
@@ -282,7 +282,7 @@ export const wandaApi: Record<string, any> = {
             orderData.items.forEach((item: any) => {
                 const idProd = String(item.id_producto || item.id || item.id_prod).replace(/\//g, "-").trim();
                 batch.update(doc(db, "products", idProd), {
-                    Stock: increment(-item.cantidad)
+                    Stock_Actual: increment(-item.cantidad)
                 });
             });
         }
@@ -373,7 +373,7 @@ export const wandaApi: Record<string, any> = {
             order.items.forEach((item: any) => {
                 const idProd = String(item.id_producto || item.id || item.id_prod).replace(/\//g, "-").trim();
                 batch.update(doc(db, "products", idProd), {
-                    Stock: increment(item.cantidad)
+                    Stock_Actual: increment(item.cantidad)
                 });
             });
         }
@@ -421,7 +421,7 @@ export const wandaApi: Record<string, any> = {
                     const idProd = String(item.id_producto || item.id || item.id_prod);
                     // Seguridad: Solo actualizar stock si el ID es válido y no es una fecha accidental
                     if (idProd && idProd !== "undefined" && !/^\d{4}-\d{2}-\d{2}T/.test(idProd)) {
-                        batch.set(doc(db, "products", idProd), { Stock: increment(item.cantidad) }, { merge: true });
+                        batch.set(doc(db, "products", idProd), { Stock_Actual: increment(item.cantidad) }, { merge: true });
                     }
                 });
             } else if (ord.estado === 'Parcial') {
@@ -440,7 +440,7 @@ export const wandaApi: Record<string, any> = {
                 // Seguridad: Validar ID de producto antes de actualizar stock
                 if (id && id !== "undefined" && !/^\d{4}-\d{2}-\d{2}T/.test(id)) {
                     batch.set(doc(db, "products", id), {
-                        Stock: increment(adj.Stock || 0)
+                        Stock_Actual: increment(adj.Stock_Actual || adj.Stock || 0)
                     }, { merge: true });
                 }
             });

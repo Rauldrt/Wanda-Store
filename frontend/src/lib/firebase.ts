@@ -3,12 +3,13 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCEYIIw0SA2UkHtf2vI90_c9hhFEco6uqk",
-    authDomain: "wanda-pro-cloud-raul-123.firebaseapp.com",
-    projectId: "wanda-pro-cloud-raul-123",
-    storageBucket: "wanda-pro-cloud-raul-123.firebasestorage.app",
-    messagingSenderId: "557004412716",
-    appId: "1:557004412716:web:a34b41d975dfd6d22bbe89"
+    projectId: "wanda-store-raul-2026",
+    appId: "1:1068696357909:web:6eeabfec2e35954105121c",
+    storageBucket: "wanda-store-raul-2026.firebasestorage.app",
+    apiKey: "AIzaSyDbBU3AtliOxTZKVoYbf7x5Oqf0TuAcKe4",
+    authDomain: "wanda-store-raul-2026.firebaseapp.com",
+    messagingSenderId: "1068696357909",
+    projectNumber: "1068696357909"
 };
 
 const app = initializeApp(firebaseConfig);
