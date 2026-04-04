@@ -112,7 +112,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/settings", icon: <Settings size={18} />, label: "Configuración" },
   ];
 
-  if (!mounted || loading) {
+  // Prevención de errores de hidratación:
+  // Mostramos una pantalla vacía o el loader básico HASTA que estemos en el cliente
+  if (!mounted) {
+    return <div className="h-screen w-screen bg-[var(--background)] lg:bg-slate-950" />;
+  }
+  
+  if (loading) {
     return (
       <div className="flex-1 h-screen flex flex-col items-center justify-center gap-4 bg-[var(--background)] w-full">
         <div className="relative group/logo">
