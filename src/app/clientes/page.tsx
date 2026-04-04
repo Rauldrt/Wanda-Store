@@ -227,17 +227,29 @@ export default function ClientesPage() {
             </div>
 
             {/* Listado de Clientes */}
-            <div className={`grid gap-6 ${viewMode === 'list' ? 'grid-cols-1' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
+            <div className="w-full">
                 <AnimatePresence mode="popLayout">
                     {viewMode === 'map' ? (
-                        <div key="map-view" className="col-span-full h-[70vh] animate-in fade-in zoom-in-95 duration-500">
+                        <motion.div 
+                            key="map-view" 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="col-span-full h-[70vh]"
+                        >
                             <ClientMapView
                                 clients={filteredClients}
                                 onViewClient={(client) => handleOpenDrawer(client, 'view')}
                             />
-                        </div>
+                        </motion.div>
                     ) : (
-                        <>
+                        <motion.div 
+                            key="list-view"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className={`grid gap-6 ${viewMode === 'list' ? 'grid-cols-1' : 'md:grid-cols-2 xl:grid-cols-3'}`}
+                        >
                             {filteredClients.slice(0, visibleCount).map((client: any) => (
                                 <ClientCard
                                     key={client.id || client.ID_Cliente}
@@ -260,7 +272,7 @@ export default function ClientesPage() {
                                     </button>
                                 </div>
                             )}
-                        </>
+                        </motion.div>
                     )}
                 </AnimatePresence>
             </div>

@@ -3,8 +3,18 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { wandaApi } from '@/lib/api';
 
+interface DataState {
+    products: any[];
+    clients: any[];
+    orders: any[];
+    sellers: any[];
+    config: any;
+    liquidaciones?: any[];
+    client_requests?: any[];
+}
+
 interface DataContextType {
-    data: any;
+    data: DataState | null;
     loading: boolean;
     isSyncing: boolean;
     error: string | null;
@@ -17,7 +27,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 const CACHE_KEY = "wanda_cloud_data_cache";
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<DataState | null>(null);
     const [loading, setLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
 

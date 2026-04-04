@@ -4,6 +4,16 @@ import {
     writeBatch, query, where, increment, updateDoc
 } from "firebase/firestore";
 
+// --- CONFIGURACIÓN DE APIS (FIREBASE ONLY) ---
+// El backend de Google Sheets ha sido desactivado a petición del usuario.
+
+export interface WandaApiResponse {
+    result?: string;
+    error?: string;
+    id?: string;
+    [key: string]: any;
+}
+
 export const wandaApi: Record<string, any> = {
     // ---------------- LECTURAS ----------------
 
@@ -37,7 +47,8 @@ export const wandaApi: Record<string, any> = {
             liquidaciones: liqSnap.docs.map(d => ({ id: d.id, ...d.data() })),
             config: cfgSnap.exists() ? cfgSnap.data() : {},
             client_requests: reqSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-            sellers: sellSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+            sellers: sellSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+            result: "OK"
         };
     },
     getConfig: async () => {
@@ -84,9 +95,7 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK", id: id };
     },
     approveClientRequest: async (requestId: string, clientData: any) => {
-        // Guardar como cliente real con nuevo ID si es necesario
         const res = await wandaApi.saveClient(clientData);
-        // Borrar solicitud
         await deleteDoc(doc(db, "client_requests", requestId));
         return res;
     },
@@ -291,12 +300,11 @@ export const wandaApi: Record<string, any> = {
         return { result: "success", id: idPedido };
     },
 
-    submitOrder: async (order: any) => {
-        return await wandaApi.createOrder(order);
+    submitOrder: async (orderData: any) => {
+        return await wandaApi.createOrder(orderData);
     },
-
-    updateStatus: async (id: string, status: string) => {
-        await updateDoc(doc(db, "orders", String(id)), { estado: status });
+    updateStatus: async (orderId: string, status: string, notes: string = "") => {
+        await updateDoc(doc(db, "orders", String(orderId)), { estado: status, notas_logistica: notes });
         return { result: "OK" };
     },
 

@@ -1,9 +1,7 @@
 "use client";
 
-
-import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
+import "../app/globals.css";
 import {
   LayoutDashboard,
   Package,
@@ -14,6 +12,7 @@ import {
   X,
   Loader2,
   Store,
+  Truck,
   ChevronLeft,
   ChevronRight,
   LogOut
@@ -29,33 +28,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="es" suppressHydrationWarning className="antialiased h-full">
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#6366f1" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Wanda" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-      </head>
-      <body suppressHydrationWarning className={`${inter.className} min-h-screen bg-[var(--background)] flex`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <DataProvider>
-            <LayoutContent>{children}</LayoutContent>
-          </DataProvider>
-        </ThemeProvider>
-      </body>
-    </html>
-  );
-}
-
-function LayoutContent({ children }: { children: React.ReactNode }) {
+export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -107,13 +80,12 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
     { href: "/pedidos", icon: <Store size={18} />, label: "Pedidos" },
+    { href: "/logistica", icon: <Truck size={18} />, label: "Logística" },
     { href: "/productos", icon: <Package size={18} />, label: "Productos" },
     { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
     { href: "/settings", icon: <Settings size={18} />, label: "Configuración" },
   ];
 
-  // Prevención de errores de hidratación:
-  // Mostramos una pantalla vacía o el loader básico HASTA que estemos en el cliente
   if (!mounted) {
     return <div className="h-screen w-screen bg-[var(--background)] lg:bg-slate-950" />;
   }
@@ -135,7 +107,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // RENDERIZADO ESPECIAL PARA PAGINAS SIN SIDEBAR (Login, Preventa, Tienda, Landing)
   const isMinimalLayout = pathname === '/login' || pathname === '/preventa' || pathname === '/tienda' || pathname === '/landing';
 
   if (isMinimalLayout) {
@@ -143,7 +114,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
+    <div className={`flex w-full min-h-screen ${inter.className}`}>
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
@@ -273,7 +244,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-    </>
+    </div>
   );
 }
 
