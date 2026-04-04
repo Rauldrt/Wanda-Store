@@ -34,6 +34,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
   const { loading, isSyncing, error } = useData();
 
   useEffect(() => {
@@ -75,7 +77,30 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       });
     }
 
+    // --- EVENTO DE INSTALACIÓN PWA ---
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, [pathname, router]);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    }
+    setDeferredPrompt(null);
+    setShowInstallBtn(false);
+  };
 
   const navItems = [
     { href: "/", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
@@ -172,6 +197,23 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 </div>
               )}
             </button>
+
+            {showInstallBtn && (
+              <button 
+                onClick={handleInstallClick}
+                className="flex items-center gap-3 p-3 rounded-xl bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all border border-indigo-500/20 group"
+              >
+                <div className="bg-indigo-500 text-white p-1.5 rounded-lg group-hover:bg-white group-hover:text-indigo-500 transition-colors">
+                  <LayoutDashboard size={16} />
+                </div>
+                {!isSidebarCollapsed && (
+                  <div className="text-left">
+                    <p className="text-[10px] font-black uppercase tracking-wider leading-none">Instalar App</p>
+                    <p className="text-[9px] opacity-70 leading-none mt-0.5">Versión Escritorio</p>
+                  </div>
+                )}
+              </button>
+            )}
 
             <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center flex-col gap-4' : 'justify-between px-2'}`}>
               <div className="flex items-center gap-3">

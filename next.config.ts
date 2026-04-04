@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV !== "production";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: true,
+  disable: isDev,
   register: true,
 });
 
@@ -13,4 +13,4 @@ const nextConfig: NextConfig = {
   /* config options here */
 };
 
-export default isDev ? nextConfig : withPWA(nextConfig);
+export default withPWA(nextConfig);
