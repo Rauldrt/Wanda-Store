@@ -1183,7 +1183,7 @@ function ProductCard({ product, idx, onEdit }: any) {
             className="group relative bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-black/20 hover:border-indigo-500/30 transition-all"
         >
             {/* Imagen del Producto */}
-            <div className="relative aspect-[4/3] md:aspect-square bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center p-6 md:p-8">
+            <div className="relative aspect-[16/9] md:aspect-[16/7] bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center p-3">
                 {product.Imagen_URL ? (
                     <img 
                         src={getImageUrl(product.Imagen_URL)} 
@@ -1192,7 +1192,7 @@ function ProductCard({ product, idx, onEdit }: any) {
                     />
                 ) : (
                     <div className="flex flex-col items-center gap-2 text-slate-300">
-                        <ImageIcon size={48} strokeWidth={1} />
+                        <ImageIcon size={32} strokeWidth={1} />
                         <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Sin Imagen</span>
                     </div>
                 )}
