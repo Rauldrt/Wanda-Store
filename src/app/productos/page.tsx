@@ -1429,14 +1429,14 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                 className="fixed inset-0 bg-slate-950/40 z-[110] backdrop-blur-[2px]"
             />
             <motion.div
-                layoutId={drawerMode === 'new' ? 'fab-modal' : undefined}
-                initial={drawerMode === 'new' ? false : { x: "100%" }}
+                layoutId={drawerMode === 'create' ? 'fab-modal' : undefined}
+                initial={drawerMode === 'create' ? false : { x: "100%" }}
                 animate={{ x: 0 }}
-                exit={drawerMode === 'new' ? { opacity: 0 } : { x: "100%" }}
+                exit={drawerMode === 'create' ? { opacity: 0 } : { x: "100%" }}
                 transition={{ type: "spring", damping: 30, stiffness: 300, layout: { duration: 0.6 } }}
                 className={`
                     fixed z-[120] bg-[var(--card)] shadow-2xl flex flex-col overflow-hidden transition-all duration-500
-                    ${drawerMode === 'new' 
+                    ${drawerMode === 'create' 
                         ? 'inset-2 sm:inset-10 md:inset-auto md:right-10 md:top-10 md:bottom-10 md:w-[600px] border-2 border-[var(--border)] rounded-[40px] sm:rounded-[48px]' 
                         : 'right-0 top-0 h-full w-full max-w-xl border-l border-[var(--border)] rounded-none'
                     }
