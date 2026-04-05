@@ -4,7 +4,7 @@
     "description": "Panel de Administración y Aplicación de Preventa",
     "start_url": "/login",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "background_color": "#020617",
     "theme_color": "#6366f1",
     "icons": [
         {
