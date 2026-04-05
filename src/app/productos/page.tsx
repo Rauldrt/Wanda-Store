@@ -1333,22 +1333,22 @@ function MobileProductCard({ product, onEdit }: any) {
         <motion.div 
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="p-3 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors active:scale-[0.98]"
+            className="p-2 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors active:scale-[0.98] border-b border-slate-100/50 dark:border-slate-800/50"
             onClick={() => onEdit(product)}
         >
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden p-1 flex items-center justify-center">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden p-0.5 flex items-center justify-center">
                     {product.Imagen_URL ? (
                         <img src={getImageUrl(product.Imagen_URL)} className="w-full h-full object-contain" alt="" />
                     ) : (
-                        <ImageIcon size={20} className="text-slate-300" />
+                        <ImageIcon size={16} className="text-slate-300" />
                     )}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h4 className="text-[13px] font-black text-slate-800 dark:text-white truncate leading-tight uppercase tracking-tight">{product.Nombre}</h4>
-                    <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{product.Categoria || 'S/C'}</span>
-                        <div className={`px-2 py-0.5 rounded-md text-[8px] font-black ${isLowStock ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                    <h4 className="text-[12.5px] font-black text-slate-800 dark:text-white truncate leading-none uppercase tracking-tight">{product.Nombre}</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[7.5px] font-black text-indigo-500 uppercase tracking-widest leading-none">{product.Categoria || 'S/C'}</span>
+                        <div className={`px-1.5 py-0.5 rounded-md text-[8px] font-black leading-none ${isLowStock ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
                             {parseFloat(product.Stock_Actual).toFixed(0)} {product.Unidad}
                         </div>
                     </div>
@@ -1356,10 +1356,10 @@ function MobileProductCard({ product, onEdit }: any) {
             </div>
 
             <div className="text-right shrink-0">
-                <p className="text-sm font-black text-slate-900 dark:text-white">$ {parseFloat(product.Precio_Unitario).toLocaleString()}</p>
+                <p className="text-xs font-black text-slate-900 dark:text-white leading-none">$ {parseFloat(product.Precio_Unitario).toLocaleString()}</p>
                 <div className="flex items-center justify-end gap-1 mt-1">
-                    <div className={`w-2 h-2 rounded-full ${margin >= 20 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    <span className="text-[10px] font-bold text-slate-400">{margin.toFixed(0)}% Util.</span>
+                    <div className={`w-1.5 h-1.5 rounded-full ${margin >= 20 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                    <span className="text-[8px] font-bold text-slate-400 leading-none">{margin.toFixed(0)}% Util.</span>
                 </div>
             </div>
         </motion.div>
@@ -1433,11 +1433,14 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                 initial={drawerMode === 'create' ? false : { x: "100%" }}
                 animate={{ x: 0 }}
                 exit={drawerMode === 'create' ? { opacity: 0 } : { x: "100%" }}
-                transition={{ type: "spring", damping: 30, stiffness: 300, layout: { duration: 0.6 } }}
+                transition={{ 
+                    duration: 0.5, 
+                    ease: [0.2, 0.0, 0, 1.0], // MD3 Standard Easing
+                }}
                 className={`
-                    fixed z-[120] bg-[var(--card)] shadow-2xl flex flex-col overflow-hidden transition-all duration-500
+                    fixed z-[120] bg-[var(--card)] shadow-2xl flex flex-col overflow-hidden
                     ${drawerMode === 'create' 
-                        ? 'inset-2 sm:inset-10 md:inset-auto md:right-10 md:top-10 md:bottom-10 md:w-[600px] border-2 border-[var(--border)] rounded-[40px] sm:rounded-[48px]' 
+                        ? 'inset-0 sm:inset-6 md:inset-auto md:right-10 md:top-10 md:bottom-10 md:w-[600px] border-2 border-[var(--border)] rounded-[28px] sm:rounded-[32px]' 
                         : 'right-0 top-0 h-full w-full max-w-xl border-l border-[var(--border)] rounded-none'
                     }
                 `}
