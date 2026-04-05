@@ -1619,7 +1619,7 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                 className={`
                     fixed z-[120] bg-[var(--card)] shadow-2xl flex flex-col overflow-hidden
                     ${drawerMode === 'create' 
-                        ? 'inset-0 sm:inset-10 md:inset-auto md:right-12 md:top-12 md:bottom-12 md:w-[480px] md:max-h-[85vh] border-2 border-[var(--border)] rounded-[32px] sm:rounded-[36px]' 
+                        ? 'inset-6 sm:inset-12 md:inset-auto md:right-14 md:top-14 md:bottom-14 md:w-[440px] md:max-h-[75vh] border-2 border-[var(--border)] rounded-[32px] sm:rounded-[40px]' 
                         : 'right-0 top-0 h-full w-full max-w-xl border-l border-[var(--border)] rounded-none'
                     }
                 `}
