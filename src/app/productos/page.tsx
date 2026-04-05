@@ -1221,17 +1221,19 @@ function ProductCard({ product, idx, onEdit }: any) {
                     )}
                 </div>
 
-                {/* Acciones Rápidas (Overlay) */}
-                <div className="absolute inset-0 bg-indigo-900/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
-                    <button onClick={() => onEdit(product)} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-indigo-500 shadow-xl hover:scale-110 active:scale-95 transition-all">
-                        <Edit3 size={20} />
-                    </button>
-                    <button onClick={() => (window as any).handleDuplicateProduct?.(product)} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-emerald-500 shadow-xl hover:scale-110 active:scale-95 transition-all" title="Duplicar">
-                        <Copy size={20} />
-                    </button>
-                    <button onClick={() => (window as any).handleDeleteProduct?.(product.ID_Producto)} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-rose-500 shadow-xl hover:scale-110 active:scale-95 transition-all">
-                        <Trash2 size={20} />
-                    </button>
+                {/* Acciones Rápidas (Overlay Táctil Optimizado) */}
+                <div className="absolute inset-0 bg-transparent lg:bg-indigo-900/10 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all flex items-center justify-center lg:items-center lg:justify-center gap-1.5 backdrop-blur-none lg:backdrop-blur-[2px]">
+                    <div className="flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 p-1.5 rounded-2xl shadow-xl border border-white dark:border-slate-700 pointer-events-auto">
+                        <button onClick={() => onEdit(product)} className="w-9 h-9 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl flex items-center justify-center text-indigo-500 hover:scale-110 active:scale-95 transition-all">
+                            <Edit3 size={16} />
+                        </button>
+                        <button onClick={() => (window as any).handleDuplicateProduct?.(product)} className="w-9 h-9 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl flex items-center justify-center text-emerald-500 hover:scale-110 active:scale-95 transition-all" title="Duplicar">
+                            <Copy size={16} />
+                        </button>
+                        <button onClick={() => (window as any).handleDeleteProduct?.(product.ID_Producto)} className="w-9 h-9 bg-rose-50 dark:bg-rose-900/10 rounded-xl flex items-center justify-center text-rose-500 hover:scale-110 active:scale-95 transition-all">
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1355,11 +1357,28 @@ function MobileProductCard({ product, onEdit }: any) {
                 </div>
             </div>
 
-            <div className="text-right shrink-0">
-                <p className="text-xs font-black text-slate-900 dark:text-white leading-none">$ {parseFloat(product.Precio_Unitario).toLocaleString()}</p>
-                <div className="flex items-center justify-end gap-1 mt-1">
-                    <div className={`w-1.5 h-1.5 rounded-full ${margin >= 20 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    <span className="text-[8px] font-bold text-slate-400 leading-none">{margin.toFixed(0)}% Util.</span>
+            <div className="flex items-center gap-2 shrink-0">
+                <div className="text-right flex flex-col items-end">
+                    <p className="text-xs font-black text-slate-900 dark:text-white leading-none">$ {parseFloat(product.Precio_Unitario).toLocaleString()}</p>
+                    <div className="flex items-center justify-end gap-1 mt-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${margin >= 20 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                        <span className="text-[8px] font-bold text-slate-400 leading-none">{margin.toFixed(0)}% Util.</span>
+                    </div>
+                </div>
+                
+                <div className="flex items-center bg-slate-50 dark:bg-slate-800/40 p-1 rounded-xl ml-1 border border-slate-100/50 dark:border-slate-800/50">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); (window as any).handleDuplicateProduct?.(product); }}
+                        className="p-2 text-slate-400 hover:text-emerald-500 transition-colors"
+                    >
+                        <Copy size={13} />
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); (window as any).handleDeleteProduct?.(product.ID_Producto); }}
+                        className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
+                    >
+                        <Trash2 size={13} />
+                    </button>
                 </div>
             </div>
         </motion.div>
