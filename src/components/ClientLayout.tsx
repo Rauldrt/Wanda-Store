@@ -157,12 +157,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             {/* Resplandor dinámico detrás del logo */}
             <div className="absolute inset-0 bg-indigo-500 blur-2xl opacity-40 group-hover:opacity-60 transition-opacity animate-pulse" />
             
-            <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] bg-slate-900/80 backdrop-blur-xl border border-white/10 flex items-center justify-center p-6 shadow-[0_0_50px_rgba(99,102,241,0.3)] overflow-hidden">
-               <img 
-                 src="/wanda-3d-logo.png" 
-                 alt="Wanda Store Logo" 
-                 className="w-full h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
-               />
+                <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] bg-slate-900 border border-white/10 flex items-center justify-center shadow-[0_0_50px_rgba(99,102,241,0.3)] overflow-hidden">
+                   <img 
+                     src="/wanda-3d-logo.png" 
+                     alt="Wanda Store Logo" 
+                     className="w-full h-full object-cover scale-110"
+                   />
                {/* Efecto de brillo barriendo */}
                <motion.div
                  animate={{ x: [-200, 200] }}
@@ -184,7 +184,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <span className="text-2xl md:text-3xl font-black text-indigo-500 tracking-widest uppercase italic">Store</span>
             </div>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.4em] animate-pulse">
-              Distribución Inteligente
+              Online Tendence
             </p>
           </motion.div>
         </div>
