@@ -1176,16 +1176,34 @@ function ProductCard({ product, idx, onEdit }: any) {
     const margin = calculateProfitability(parseFloat(product.Precio_Unitario), parseFloat(product.Costo));
     const isLowStock = parseFloat(product.Stock_Actual) <= 5;
     const isOutOfStock = parseFloat(product.Stock_Actual) <= 0;
+    const [longPressActive, setLongPressActive] = useState(false);
+    const timerRef = useRef<any>(null);
+
+    const startPress = () => {
+        timerRef.current = setTimeout(() => {
+            setLongPressActive(true);
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 600);
+    };
+
+    const endPress = () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+    };
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(idx * 0.02, 0.4) }}
-            className="group relative bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-2xl shadow-indigo-500/10 hover:shadow-indigo-500/20 hover:-translate-y-1 transition-all duration-300"
+            className="group relative bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border-2 border-white dark:border-slate-800 shadow-2xl shadow-indigo-500/10 hover:shadow-indigo-500/20 hover:-translate-y-1 transition-all duration-300 ring-1 ring-slate-100 dark:ring-white/5"
         >
             {/* Imagen del Producto */}
-            <div className="relative aspect-[16/9] md:aspect-[16/7] bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center p-3">
+            <div 
+                onPointerDown={startPress}
+                onPointerUp={endPress}
+                onContextMenu={(e) => { e.preventDefault(); setLongPressActive(true); }}
+                className="relative aspect-[16/9] md:aspect-[16/7] bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center p-3 cursor-pointer"
+            >
                 {product.Imagen_URL ? (
                     <img 
                         src={getImageUrl(product.Imagen_URL)} 
@@ -1193,15 +1211,36 @@ function ProductCard({ product, idx, onEdit }: any) {
                         className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" 
                     />
                 ) : (
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="flex gap-3">
-                            <button className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm" title="Tomar Foto"><CameraIcon size={18} /></button>
-                            <button className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm" title="Subir"><Upload size={18} /></button>
-                            <button className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-all flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm" title="URL"><LinkIcon size={18} /></button>
-                        </div>
-                        <span className="text-[7.5px] font-black uppercase tracking-widest text-slate-400">Sin Imagen - Carga Rápida</span>
+                    <div className="flex flex-col items-center gap-2">
+                        <ImageIcon size={32} strokeWidth={1} className="text-slate-300" />
+                        <span className="text-[7.5px] font-black uppercase tracking-widest text-slate-400">Click Largo para Foto</span>
                     </div>
                 )}
+
+                {/* Overlay de Carga Rápida (Se activa con long press) */}
+                <AnimatePresence>
+                    {longPressActive && (
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 z-20 flex flex-col items-center justify-center gap-4 backdrop-blur-sm"
+                            onMouseLeave={() => setLongPressActive(false)}
+                        >
+                            <div className="flex gap-4">
+                                <button className="w-12 h-12 rounded-2xl bg-indigo-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"><CameraIcon size={20} /></button>
+                                <button className="w-12 h-12 rounded-2xl bg-emerald-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"><Upload size={20} /></button>
+                                <button className="w-12 h-12 rounded-2xl bg-amber-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"><LinkIcon size={20} /></button>
+                            </div>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setLongPressActive(false); }}
+                                className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                            >
+                                Cancelar
+                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Badges Flotantes */}
                 <div className="absolute top-4 left-4 flex flex-col gap-2">
@@ -1336,14 +1375,48 @@ function MobileProductCard({ product, onEdit }: any) {
     const margin = calculateProfitability(parseFloat(product.Precio_Unitario), parseFloat(product.Costo));
     const isLowStock = parseFloat(product.Stock_Actual) <= 5;
     const isOutOfStock = parseFloat(product.Stock_Actual) <= 0;
+    const [longPressActive, setLongPressActive] = useState(false);
+    const timerRef = useRef<any>(null);
+
+    const startPress = () => {
+        timerRef.current = setTimeout(() => {
+            setLongPressActive(true);
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 600);
+    };
+
+    const endPress = () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+    };
 
     return (
         <motion.div 
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="p-2 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors active:scale-[0.98] border-b border-slate-100/50 dark:border-slate-800/50"
+            onPointerDown={startPress}
+            onPointerUp={endPress}
+            onContextMenu={(e) => { e.preventDefault(); setLongPressActive(true); }}
+            className="p-2 relative flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all active:scale-[0.98] border-b border-slate-100/50 dark:border-slate-800/50 border-2 border-white dark:border-slate-800/20 rounded-2xl mb-1 shadow-sm"
             onClick={() => onEdit(product)}
         >
+            {/* Overlay de Imagen para Móvil */}
+            <AnimatePresence>
+                {longPressActive && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 z-30 flex items-center justify-around px-4 backdrop-blur-md rounded-2xl"
+                        onClick={(e) => { e.stopPropagation(); }}
+                    >
+                        <button className="flex flex-col items-center gap-1 text-indigo-500 hover:scale-110 transition-transform"><CameraIcon size={20} /><span className="text-[8px] font-black uppercase">Foto</span></button>
+                        <button className="flex flex-col items-center gap-1 text-emerald-500 hover:scale-110 transition-transform"><Upload size={20} /><span className="text-[8px] font-black uppercase">Subir</span></button>
+                        <button className="flex flex-col items-center gap-1 text-amber-500 hover:scale-110 transition-transform"><LinkIcon size={20} /><span className="text-[8px] font-black uppercase">URL</span></button>
+                        <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1" />
+                        <button onClick={(e) => { e.stopPropagation(); setLongPressActive(false); }} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><X size={20} /></button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden flex items-center justify-center shadow-inner">
                     {product.Imagen_URL ? (
