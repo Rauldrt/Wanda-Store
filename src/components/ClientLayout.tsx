@@ -230,9 +230,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} mb-10 relative`}>
             <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
               <div className="relative group/logo cursor-pointer shrink-0" onClick={() => router.push('/landing')} title="Wanda Store">
-                <div className="absolute inset-0 bg-indigo-500 blur opacity-10 group-hover:opacity-30 transition-opacity" />
-                <div className="relative w-8 h-8 rounded-lg bg-slate-900 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black text-xs">
-                  <span>&lt;/&gt;</span>
+                <div className="absolute inset-0 bg-indigo-500 blur opacity-20 group-hover:opacity-40 transition-opacity" />
+                <div className="relative w-10 h-10 rounded-xl bg-slate-900/50 backdrop-blur-md border border-white/10 flex items-center justify-center overflow-hidden">
+                  <img src="/wanda-3d-logo.png" alt="Wanda" className="w-full h-full object-contain p-1" />
                 </div>
               </div>
               {!isSidebarCollapsed && <span className="font-black text-xl uppercase italic whitespace-nowrap">Wanda <span className="text-indigo-500">Store</span></span>}

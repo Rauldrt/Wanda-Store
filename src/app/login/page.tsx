@@ -90,8 +90,16 @@ export default function LoginPage() {
                 className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl shadow-slate-200/50 dark:shadow-black/50 p-8 relative z-10 border border-slate-100 dark:border-slate-800"
             >
                 <div className="text-center mb-10">
-                    <div className="w-16 h-16 bg-indigo-500 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-xl shadow-indigo-500/20 rotate-3">
-                        <Store size={32} />
+                    <div className="relative w-24 h-24 mx-auto mb-6 group">
+                        {/* Aura difuminada detrás del logo como en la imagen */}
+                        <div className="absolute inset-0 bg-indigo-500/30 blur-[30px] rounded-full animate-pulse" />
+                        <div className="relative w-full h-full bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white/10 flex items-center justify-center p-4 shadow-2xl shadow-indigo-500/10 transition-transform group-hover:scale-110 duration-500">
+                            <img 
+                                src="/wanda-3d-logo.png" 
+                                alt="Wanda Store Logo" 
+                                className="w-full h-full object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
+                            />
+                        </div>
                     </div>
                     <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">WANDA</h1>
                     <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-1">Sistemas de Distribución</p>
