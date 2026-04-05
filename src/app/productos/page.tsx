@@ -902,15 +902,25 @@ export default function ProductosPage() {
             </AnimatePresence>
 
             {/* BOTÓN FLOTANTE MÓVIL (FAB) */}
-            <div className="fixed bottom-24 right-5 z-[100] lg:hidden">
-                <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={openCreateDrawer}
-                    className="w-16 h-16 bg-indigo-500 text-white rounded-[24px] flex items-center justify-center shadow-2xl shadow-indigo-500/40 border-4 border-white dark:border-slate-950"
-                >
-                    <Plus size={32} strokeWidth={3} />
-                </motion.button>
-            </div>
+            <AnimatePresence>
+                {!isDrawerOpen && (
+                    <motion.div 
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        className="fixed bottom-24 right-5 z-[100] lg:hidden"
+                    >
+                        <motion.button
+                            layoutId="fab-modal"
+                            whileTap={{ scale: 0.9 }}
+                            onClick={openCreateDrawer}
+                            className="w-16 h-16 bg-indigo-500 text-white rounded-[24px] flex items-center justify-center shadow-2xl shadow-indigo-500/40 border-4 border-white dark:border-slate-950"
+                        >
+                            <Plus size={32} strokeWidth={3} />
+                        </motion.button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -1323,11 +1333,11 @@ function MobileProductCard({ product, onEdit }: any) {
         <motion.div 
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="p-5 flex items-center gap-5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors active:scale-[0.98]"
+            className="p-3 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors active:scale-[0.98]"
             onClick={() => onEdit(product)}
         >
             <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden p-1 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden p-1 flex items-center justify-center">
                     {product.Imagen_URL ? (
                         <img src={getImageUrl(product.Imagen_URL)} className="w-full h-full object-contain" alt="" />
                     ) : (
@@ -1335,11 +1345,11 @@ function MobileProductCard({ product, onEdit }: any) {
                     )}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-black text-slate-800 dark:text-white truncate">{product.Nombre}</h4>
-                    <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{product.Categoria || 'S/C'}</span>
+                    <h4 className="text-[13px] font-black text-slate-800 dark:text-white truncate leading-tight uppercase tracking-tight">{product.Nombre}</h4>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{product.Categoria || 'S/C'}</span>
                         <div className={`px-2 py-0.5 rounded-md text-[8px] font-black ${isLowStock ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                            STOCK: {parseFloat(product.Stock_Actual).toFixed(0)}
+                            {parseFloat(product.Stock_Actual).toFixed(0)} {product.Unidad}
                         </div>
                     </div>
                 </div>
@@ -1419,11 +1429,12 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                 className="fixed inset-0 bg-slate-950/40 z-[110] backdrop-blur-[2px]"
             />
             <motion.div
-                initial={{ x: "100%" }}
+                layoutId={drawerMode === 'new' ? 'fab-modal' : undefined}
+                initial={drawerMode === 'new' ? false : { x: "100%" }}
                 animate={{ x: 0 }}
-                exit={{ x: "100%" }}
+                exit={drawerMode === 'new' ? { opacity: 0 } : { x: "100%" }}
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                className="fixed right-0 top-0 h-full w-full max-w-xl bg-[var(--card)] z-[120] shadow-2xl border-l border-[var(--border)] flex flex-col"
+                className="fixed right-0 top-0 h-full w-full max-w-xl bg-[var(--card)] z-[120] shadow-2xl border-l border-[var(--border)] flex flex-col overflow-hidden"
             >
                 {/* AI File Input Oculto */}
                 <input 
