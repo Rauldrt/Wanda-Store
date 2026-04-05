@@ -75,7 +75,7 @@ export default function ProductosPage() {
     const products = useMemo(() => data?.products || [], [data?.products]);
     const [searchTerm, setSearchTerm] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showMetrics, setShowMetrics] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
@@ -95,6 +95,56 @@ export default function ProductosPage() {
         value: 0,
         target: 'Precio_Unitario' as 'Precio_Unitario' | 'Costo'
     });
+
+    // Estado para Carga Rápida de Imagen
+    const [quickImageTarget, setQuickImageTarget] = useState<any>(null);
+    const quickImageFileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleQuickImageAction = (product: any, type: 'camera' | 'upload' | 'url') => {
+        setQuickImageTarget(product);
+        if (type === 'url') {
+            const url = prompt("Ingrese la URL de la imagen para: " + product.Nombre);
+            if (url) {
+                confirmQuickImage(product, url);
+            }
+        } else {
+            if (quickImageFileInputRef.current) {
+                quickImageFileInputRef.current.setAttribute('capture', type === 'camera' ? 'environment' : '');
+                quickImageFileInputRef.current.click();
+            }
+        }
+    };
+
+    const handleQuickImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !quickImageTarget) return;
+
+        try {
+            setIsSyncing(true);
+            const imageUrl = await wandaApi.uploadImage(file, `quick_pics/${Date.now()}_${file.name}`);
+            await confirmQuickImage(quickImageTarget, imageUrl);
+        } catch (error) {
+            console.error(error);
+            alert("Error al subir imagen rápida.");
+        } finally {
+            setIsSyncing(false);
+            setQuickImageTarget(null);
+            if (e.target) e.target.value = "";
+        }
+    };
+
+    const confirmQuickImage = async (product: any, imageUrl: string) => {
+        try {
+            setIsSyncing(true);
+            await wandaApi.saveProduct({ ...product, Imagen_URL: imageUrl });
+            await refreshData(true);
+        } catch (error) {
+            console.error(error);
+            alert("Error al actualizar imagen del producto.");
+        } finally {
+            setIsSyncing(false);
+        }
+    };
 
     // Estados para el Drawer de Edición Individual
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -364,9 +414,10 @@ export default function ProductosPage() {
     useEffect(() => {
         (window as any).handleDeleteProduct = handleDeleteProduct;
         (window as any).handleDuplicateProduct = handleDuplicateProduct;
+        (window as any).handleQuickImageAction = handleQuickImageAction;
         (window as any).triggerImportFile = () => fileInputRef.current?.click();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filteredProducts]);
+    }, [filteredProducts, quickImageTarget]);
 
     const handleSaveIndividual = async () => {
         try {
@@ -922,6 +973,14 @@ export default function ProductosPage() {
                         </motion.button>
                     </motion.div>
                 )}
+                {/* Hidden Quick Pic Input */}
+                <input 
+                    type="file" 
+                    ref={quickImageFileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleQuickImageFileChange} 
+                />
             </AnimatePresence>
         </div>
     );
@@ -1059,6 +1118,7 @@ function ImportModal({ onClose, preview, onConfirm, onDelete, importing }: any) 
                         </button>
                     </div>
                 </div>
+
             </motion.div>
         </>
     );
@@ -1228,9 +1288,18 @@ function ProductCard({ product, idx, onEdit }: any) {
                             onMouseLeave={() => setLongPressActive(false)}
                         >
                             <div className="flex gap-4">
-                                <button className="w-12 h-12 rounded-2xl bg-indigo-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"><CameraIcon size={20} /></button>
-                                <button className="w-12 h-12 rounded-2xl bg-emerald-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"><Upload size={20} /></button>
-                                <button className="w-12 h-12 rounded-2xl bg-amber-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"><LinkIcon size={20} /></button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); (window as any).handleQuickImageAction(product, 'camera'); setLongPressActive(false); }}
+                                    className="w-12 h-12 rounded-2xl bg-indigo-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+                                ><CameraIcon size={20} /></button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); (window as any).handleQuickImageAction(product, 'upload'); setLongPressActive(false); }}
+                                    className="w-12 h-12 rounded-2xl bg-emerald-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+                                ><Upload size={20} /></button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); (window as any).handleQuickImageAction(product, 'url'); setLongPressActive(false); }}
+                                    className="w-12 h-12 rounded-2xl bg-amber-500 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+                                ><LinkIcon size={20} /></button>
                             </div>
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setLongPressActive(false); }}
@@ -1409,9 +1478,18 @@ function MobileProductCard({ product, onEdit }: any) {
                         className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 z-30 flex items-center justify-around px-4 backdrop-blur-md rounded-2xl"
                         onClick={(e) => { e.stopPropagation(); }}
                     >
-                        <button className="flex flex-col items-center gap-1 text-indigo-500 hover:scale-110 transition-transform"><CameraIcon size={20} /><span className="text-[8px] font-black uppercase">Foto</span></button>
-                        <button className="flex flex-col items-center gap-1 text-emerald-500 hover:scale-110 transition-transform"><Upload size={20} /><span className="text-[8px] font-black uppercase">Subir</span></button>
-                        <button className="flex flex-col items-center gap-1 text-amber-500 hover:scale-110 transition-transform"><LinkIcon size={20} /><span className="text-[8px] font-black uppercase">URL</span></button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); (window as any).handleQuickImageAction(product, 'camera'); setLongPressActive(false); }}
+                            className="flex flex-col items-center gap-1 text-indigo-500 hover:scale-110 transition-transform"
+                        ><CameraIcon size={20} /><span className="text-[8px] font-black uppercase">Foto</span></button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); (window as any).handleQuickImageAction(product, 'upload'); setLongPressActive(false); }}
+                            className="flex flex-col items-center gap-1 text-emerald-500 hover:scale-110 transition-transform"
+                        ><Upload size={20} /><span className="text-[8px] font-black uppercase">Subir</span></button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); (window as any).handleQuickImageAction(product, 'url'); setLongPressActive(false); }}
+                            className="flex flex-col items-center gap-1 text-amber-500 hover:scale-110 transition-transform"
+                        ><LinkIcon size={20} /><span className="text-[8px] font-black uppercase">URL</span></button>
                         <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1" />
                         <button onClick={(e) => { e.stopPropagation(); setLongPressActive(false); }} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><X size={20} /></button>
                     </motion.div>
