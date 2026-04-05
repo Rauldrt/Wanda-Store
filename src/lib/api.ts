@@ -1,8 +1,9 @@
-import { db } from "./firebase";
+import { db, storage } from "./firebase";
 import {
     collection, getDocs, doc, setDoc, deleteDoc, getDoc,
     writeBatch, query, where, increment, updateDoc
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // --- CONFIGURACIÓN DE APIS (FIREBASE ONLY) ---
 // El backend de Google Sheets ha sido desactivado a petición del usuario.
@@ -553,5 +554,17 @@ export const wandaApi: Record<string, any> = {
         }
 
         return { success: false, error: "Contraseña incorrecta" };
+    },
+
+    uploadImage: async (file: File, path: string) => {
+        try {
+            const storageRef = ref(storage, path);
+            const snapshot = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return { result: "OK", url: downloadURL };
+        } catch (error: any) {
+            console.error("Error uploading image:", error);
+            return { error: error.message };
+        }
     },
 };

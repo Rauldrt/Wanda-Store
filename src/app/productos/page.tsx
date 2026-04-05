@@ -43,6 +43,7 @@ import {
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 import { getImageUrl, normalizeText, smartSearch } from "@/lib/utils";
+import { analyzeProductImage } from "@/app/actions/gemini";
 
 // --- HELPERS ---
 const calculateProfitability = (price: number, cost: number) => {
@@ -1135,7 +1136,7 @@ function ProductCard({ product, idx, onEdit }: any) {
             className="group relative bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-black/20 hover:border-indigo-500/30 transition-all"
         >
             {/* Imagen del Producto */}
-            <div className="relative aspect-square bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center p-8">
+            <div className="relative aspect-[4/3] md:aspect-square bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center p-6 md:p-8">
                 {product.Imagen_URL ? (
                     <img 
                         src={getImageUrl(product.Imagen_URL)} 
@@ -1280,6 +1281,53 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
     const currentMargin = calculateProfitability(parseFloat(formData.Precio_Unitario || 0), parseFloat(formData.Costo || 0));
     const profit = (parseFloat(formData.Precio_Unitario || 0) - parseFloat(formData.Costo || 0));
     const estimatedStockWeight = (parseFloat(formData.Stock_Actual || 0) * parseFloat(formData.Peso_Promedio || 0)).toFixed(2);
+    
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const aiFileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImageScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setIsAnalyzing(true);
+
+            // 1. Convert to Base64 for Gemini
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(file);
+            });
+            const base64Image = await base64Promise;
+
+            // 2. Scan with Gemini (Parallel with upload)
+            const analysisPromise = analyzeProductImage(base64Image);
+            
+            // 3. Upload to Firebase Storage
+            const uploadPromise = wandaApi.uploadImage(file, `products/${Date.now()}_${file.name}`);
+
+            const [analysis, imageUrl] = await Promise.all([analysisPromise, uploadPromise]);
+
+            // 4. Update Form Data
+            setFormData((prev: any) => ({
+                ...prev,
+                Nombre: analysis.nombre || prev.Nombre,
+                Categoria: analysis.categoria || prev.Categoria,
+                Costo: analysis.precio_costo || prev.Costo,
+                Precio_Unitario: analysis.precio_venta || prev.Precio_Unitario,
+                Imagen_URL: imageUrl || prev.Imagen_URL,
+                Unidad: analysis.unidad && analysis.unidad.toLowerCase().includes('kg') ? 'Kg' : (prev.Unidad || 'Unid'),
+                Descripcion: analysis.descripcion || prev.Descripcion
+            }));
+
+            alert("Producto analizado con éxito por IA.");
+        } catch (err: any) {
+            console.error("AI Analysis Error:", err);
+            alert("Error al analizar la imagen: " + err.message);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
 
     return (
         <>
@@ -1297,16 +1345,43 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
                 className="fixed right-0 top-0 h-full w-full max-w-xl bg-[var(--card)] z-[120] shadow-2xl border-l border-[var(--border)] flex flex-col"
             >
+                {/* AI File Input Oculto */}
+                <input 
+                    type="file" 
+                    ref={aiFileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    capture="environment"
+                    onChange={handleImageScan} 
+                />
+
                 {/* Header Premium */}
                 <div className="p-8 border-b border-[var(--border)] bg-white/50 dark:bg-slate-900/50 flex items-center justify-between sticky top-0 z-[130] backdrop-blur-xl rounded-t-[32px]">
                     <div className="flex items-center gap-6">
-                        <div className="w-20 h-20 rounded-[32px] bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/20 group relative overflow-hidden">
-                            {formData.Imagen_URL ? (
+                        <div 
+                            onClick={() => aiFileInputRef.current?.click()}
+                            className="w-20 h-20 rounded-[32px] bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/20 group relative overflow-hidden cursor-pointer"
+                        >
+                            {isAnalyzing ? (
+                                <motion.div 
+                                    className="absolute inset-0 bg-indigo-500 flex flex-col items-center justify-center gap-1"
+                                    initial={{ opacity: 0 }} 
+                                    animate={{ opacity: 1 }}
+                                >
+                                    <Loader2 className="animate-spin" size={24} />
+                                    <span className="text-[8px] font-black uppercase">IA...</span>
+                                </motion.div>
+                            ) : formData.Imagen_URL ? (
                                 <img src={getImageUrl(formData.Imagen_URL)} className="w-full h-full object-cover p-1.5 rounded-[32px] group-hover:scale-110 transition-transform duration-500" />
                             ) : (
-                                drawerMode === 'edit' ? <Package size={34} strokeWidth={1.5} /> : <Plus size={34} strokeWidth={1.5} />
+                                <div className="flex flex-col items-center gap-1">
+                                    <Plus size={24} strokeWidth={2.5} />
+                                    <ImageIcon size={14} className="opacity-60" />
+                                </div>
                             )}
-                            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Zap size={20} className="text-white fill-white" />
+                            </div>
                         </div>
                         
                         <div>
@@ -1314,9 +1389,12 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                                 <h3 className="font-black text-3xl tracking-tight text-slate-800 dark:text-white leading-none">
                                     {drawerMode === 'edit' ? 'Edición Maestro' : 'Nuevo Producto'}
                                 </h3>
-                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] ${drawerMode === 'edit' ? 'bg-indigo-500/10 text-indigo-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                                    {drawerMode === 'edit' ? 'ACTUALIZAR' : 'CREACIÓN'}
-                                </div>
+                                <button
+                                    onClick={() => aiFileInputRef.current?.click()}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+                                >
+                                    <Zap size={10} fill="currentColor" /> Scan con IA
+                                </button>
                             </div>
                             
                             <div className="flex items-center gap-3 mt-3">
@@ -1594,11 +1672,19 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
 
                             <div className="flex items-center justify-center bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-900 rounded-[40px] overflow-hidden min-h-[280px] group relative">
                                 {formData.Imagen_URL ? (
-                                    <img 
-                                        src={getImageUrl(formData.Imagen_URL)} 
-                                        className="w-full h-full object-contain p-8 group-hover:scale-105 transition-transform duration-700" 
-                                        onError={(e: any) => { (e.target as any).src = 'https://placehold.co/400x400?text=No+Imagen'; }}
-                                    />
+                                    <>
+                                        <img 
+                                            src={getImageUrl(formData.Imagen_URL)} 
+                                            className="w-full h-full object-contain p-8 group-hover:scale-105 transition-transform duration-700" 
+                                            onError={(e: any) => { (e.target as any).src = 'https://placehold.co/400x400?text=No+Imagen'; }}
+                                        />
+                                        <button 
+                                            onClick={() => setFormData({ ...formData, Imagen_URL: '' })}
+                                            className="absolute top-6 right-6 p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl text-rose-500 shadow-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white"
+                                        >
+                                            <Trash2 size={20} />
+                                        </button>
+                                    </>
                                 ) : (
                                     <div className="flex flex-col items-center gap-4 text-slate-300">
                                         <ImageIcon size={60} strokeWidth={1} />

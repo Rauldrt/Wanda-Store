@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import GoogleMapReact from 'google-map-react';
 import { MapPin, Building2, ChevronRight } from 'lucide-react';
 
-const API_KEY = ''; // Add API key if needed
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''; // Usa la API Key desde las variables de entorno
 
 const ClientMarker = ({ client, onView }: any) => {
     const [showLabel, setShowLabel] = useState(false);
