@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Wanda Store",
   description: "Sistema de gestión inteligente para Wanda Lácteos",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=2",
   icons: {
     icon: "/icon.png?v=2",
     apple: "/apple-icon.png?v=2",
