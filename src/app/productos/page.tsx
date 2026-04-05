@@ -1236,27 +1236,27 @@ function ProductCard({ product, idx, onEdit }: any) {
             </div>
 
             {/* Info del Producto */}
-            <div className="p-6">
-                <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{product.Categoria || "General"}</span>
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 text-[9px] font-black uppercase">
-                        <Percent size={10} /> {margin.toFixed(0)}%
+            <div className="p-3">
+                <div className="flex justify-between items-start mb-0.5">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{product.Categoria || "General"}</span>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 text-[8.5px] font-black uppercase">
+                        <Percent size={9} /> {margin.toFixed(0)}%
                     </div>
                 </div>
-                <h4 className="text-base font-black text-slate-800 dark:text-white mb-4 line-clamp-1">{product.Nombre}</h4>
+                <h4 className="text-[14px] font-black text-slate-800 dark:text-white mb-1 line-clamp-1 leading-tight">{product.Nombre}</h4>
 
-                <div className="flex items-end justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-end justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex flex-col text-slate-900 dark:text-white">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Precio Online</span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-xl font-black">${parseFloat(product.Precio_Unitario || 0).toLocaleString()}</span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">/ {product.Unidad === 'Kg' ? 'Kg' : 'u'}</span>
+                        <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest leading-none">P. Online</span>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                            <span className="text-lg font-black leading-none">${parseFloat(product.Precio_Unitario || 0).toLocaleString()}</span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">/{product.Unidad === 'Kg' ? 'Kg' : 'u'}</span>
                         </div>
                     </div>
                     <div className="text-right">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Stock</span>
-                        <p className={`text-sm font-black ${isLowStock ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                            {parseFloat(product.Stock_Actual).toFixed(0)} <span className="text-[10px] opacity-60">{product.Unidad}</span>
+                        <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest leading-none">Stock</span>
+                        <p className={`text-[13px] font-black mt-0.5 leading-none ${isLowStock ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                            {parseFloat(product.Stock_Actual).toFixed(0)} <span className="text-[9px] opacity-60">{product.Unidad}</span>
                         </p>
                     </div>
                 </div>
