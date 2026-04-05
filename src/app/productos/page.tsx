@@ -40,6 +40,8 @@ import {
     EyeOff,
     Globe,
     ChevronRight,
+    Camera as CameraIcon,
+    Link as LinkIcon,
 } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
@@ -1180,7 +1182,7 @@ function ProductCard({ product, idx, onEdit }: any) {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(idx * 0.02, 0.4) }}
-            className="group relative bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-black/20 hover:border-indigo-500/30 transition-all"
+            className="group relative bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-2xl shadow-indigo-500/10 hover:shadow-indigo-500/20 hover:-translate-y-1 transition-all duration-300"
         >
             {/* Imagen del Producto */}
             <div className="relative aspect-[16/9] md:aspect-[16/7] bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center p-3">
@@ -1191,9 +1193,13 @@ function ProductCard({ product, idx, onEdit }: any) {
                         className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" 
                     />
                 ) : (
-                    <div className="flex flex-col items-center gap-2 text-slate-300">
-                        <ImageIcon size={32} strokeWidth={1} />
-                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Sin Imagen</span>
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="flex gap-3">
+                            <button className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm" title="Tomar Foto"><CameraIcon size={18} /></button>
+                            <button className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm" title="Subir"><Upload size={18} /></button>
+                            <button className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-all flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm" title="URL"><LinkIcon size={18} /></button>
+                        </div>
+                        <span className="text-[7.5px] font-black uppercase tracking-widest text-slate-400">Sin Imagen - Carga Rápida</span>
                     </div>
                 )}
 
@@ -1339,11 +1345,14 @@ function MobileProductCard({ product, onEdit }: any) {
             onClick={() => onEdit(product)}
         >
             <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden p-0.5 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden flex items-center justify-center shadow-inner">
                     {product.Imagen_URL ? (
                         <img src={getImageUrl(product.Imagen_URL)} className="w-full h-full object-contain" alt="" />
                     ) : (
-                        <ImageIcon size={16} className="text-slate-300" />
+                        <div className="flex gap-1">
+                            <CameraIcon size={12} className="text-indigo-400" />
+                            <Upload size={12} className="text-emerald-400" />
+                        </div>
                     )}
                 </div>
                 <div className="flex-1 min-w-0">
