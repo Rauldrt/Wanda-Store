@@ -161,7 +161,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                    <img 
                      src="/wanda-3d-logo.png" 
                      alt="Wanda Store Logo" 
-                     className="w-full h-full object-cover scale-110"
+                     className="w-full h-full object-cover scale-125"
                    />
                {/* Efecto de brillo barriendo */}
                <motion.div
@@ -232,7 +232,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <div className="relative group/logo cursor-pointer shrink-0" onClick={() => router.push('/landing')} title="Wanda Store">
                 <div className="absolute inset-0 bg-indigo-500 blur opacity-20 group-hover:opacity-40 transition-opacity" />
                 <div className="relative w-10 h-10 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden">
-                  <img src="/wanda-3d-logo.png" alt="Wanda" className="w-full h-full object-cover scale-110" />
+                  <img src="/wanda-3d-logo.png" alt="Wanda" className="w-full h-full object-cover scale-125" />
                 </div>
               </div>
               {!isSidebarCollapsed && <span className="font-black text-xl uppercase italic whitespace-nowrap">Wanda <span className="text-indigo-500">Store</span></span>}

@@ -97,7 +97,7 @@ export default function LoginPage() {
                             <img 
                                 src="/wanda-3d-logo.png" 
                                 alt="Wanda Store Logo" 
-                                className="w-full h-full object-cover scale-110"
+                                className="w-full h-full object-cover scale-125"
                             />
                         </div>
                     </div>
