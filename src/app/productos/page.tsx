@@ -38,7 +38,8 @@ import {
     FileSpreadsheet,
     Eye,
     EyeOff,
-    Globe
+    Globe,
+    ChevronRight,
 } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
@@ -492,66 +493,94 @@ export default function ProductosPage() {
                         </button>
                     </div>
 
-                    <div className="h-10 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
+                    <div className="h-10 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden lg:block" />
 
-                    {!isMassEditing && (
-                        <>
-                            <div className="flex gap-2">
+                    <div className="hidden lg:flex flex-wrap items-center gap-3">
+                        {!isMassEditing && (
+                            <>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleExportCSV}
+                                        className="p-3 bg-white dark:bg-slate-900 text-slate-400 hover:text-emerald-500 border border-slate-100 dark:border-slate-800 rounded-2xl transition-all shadow-sm group"
+                                        title="Exportar CSV"
+                                    >
+                                        <Download size={20} className="group-hover:scale-110 transition-transform" />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowImportModal(true)}
+                                        className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-500 hover:border-indigo-500 transition-all shadow-sm group"
+                                    >
+                                        <Upload size={16} className="group-hover:scale-110 transition-transform" />
+                                        Importar
+                                    </button>
+                                </div>
+
                                 <button
-                                    onClick={handleExportCSV}
-                                    className="p-3 bg-white dark:bg-slate-900 text-slate-400 hover:text-emerald-500 border border-slate-100 dark:border-slate-800 rounded-2xl transition-all shadow-sm group"
-                                    title="Exportar CSV"
+                                    onClick={() => setShowAdvanced(!showAdvanced)}
+                                    className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                                        showAdvanced 
+                                        ? 'bg-slate-800 text-white border-slate-700' 
+                                        : 'bg-white dark:bg-slate-900 text-slate-400 hover:text-slate-600 border-slate-100 dark:border-slate-800'
+                                    }`}
                                 >
-                                    <Download size={20} className="group-hover:scale-110 transition-transform" />
+                                    <Settings2 size={16} className={showAdvanced ? 'rotate-90 transition-transform' : 'transition-transform'} />
+                                    {showAdvanced ? 'Cerrar Filtros' : 'Filtros'}
                                 </button>
+
                                 <button
-                                    onClick={() => setShowImportModal(true)}
-                                    className="flex items-center gap-2 px-5 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-500 hover:border-indigo-500 transition-all shadow-sm group"
+                                    onClick={openCreateDrawer}
+                                    className="flex items-center gap-3 px-7 py-3 bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-500/20 active:scale-95"
                                 >
-                                    <Upload size={16} className="group-hover:scale-110 transition-transform" />
-                                    Importar
+                                    <Plus size={18} /> Nuevo Producto
                                 </button>
-                            </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
 
-                            <button
-                                onClick={() => setShowAdvanced(!showAdvanced)}
-                                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
-                                    showAdvanced 
-                                    ? 'bg-slate-800 text-white border-slate-700' 
-                                    : 'bg-white dark:bg-slate-900 text-slate-400 hover:text-slate-600 border-slate-100 dark:border-slate-800'
-                                }`}
-                            >
-                                <Settings2 size={16} className={showAdvanced ? 'rotate-90 transition-transform' : 'transition-transform'} />
-                                {showAdvanced ? 'Cerrar Filtros' : 'Filtros'}
-                            </button>
-
-                            <button
-                                onClick={openCreateDrawer}
-                                className="flex items-center gap-3 px-7 py-3 bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-500/20 active:scale-95"
-                            >
-                                <Plus size={18} /> Nuevo Producto
-                            </button>
-                        </>
-                    )}
+            {/* Acciones de Auditoría (Fuera del flex-row superior para mejor control) */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+                    {/* Acciones Rápidas Móvil (Solo visible en responsive) */}
+                    <div className="flex lg:hidden overflow-x-auto pb-2 gap-3 no-scrollbar w-full">
+                        <button
+                            onClick={openCreateDrawer}
+                            className="shrink-0 flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20"
+                        >
+                            <Plus size={16} /> Nuevo
+                        </button>
+                        <button
+                            onClick={() => setShowAdvanced(!showAdvanced)}
+                            className="shrink-0 flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest"
+                        >
+                            <Filter size={16} /> {showAdvanced ? 'Filtros' : 'Filtros'}
+                        </button>
+                        <button
+                            onClick={() => setShowImportModal(true)}
+                            className="shrink-0 flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest"
+                        >
+                            <Upload size={16} /> Importar
+                        </button>
+                    </div>
 
                     {isMassEditing && (
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3 w-full lg:w-auto">
                             <button
                                 onClick={() => setIsAdjustOverlayOpen(true)}
-                                className="flex items-center gap-2 px-5 py-3 bg-amber-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20"
+                                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-amber-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20"
                             >
                                 <Zap size={16} /> Ajustar Precios
                             </button>
                             <button
                                 onClick={toggleMassEdit}
-                                className="flex items-center gap-2 px-5 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200 dark:border-slate-700"
+                                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200 dark:border-slate-700"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleMassSave}
                                 disabled={isSyncing}
-                                className="flex items-center gap-3 px-7 py-3 bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 hover:bg-indigo-600 transition-all disabled:opacity-50"
+                                className="w-full lg:w-auto flex items-center justify-center gap-3 px-7 py-3 bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 hover:bg-indigo-600 transition-all disabled:opacity-50"
                             >
                                 {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 Guardar ({editedProducts.length})
@@ -559,7 +588,6 @@ export default function ProductosPage() {
                         </div>
                     )}
                 </div>
-            </div>
 
             {/* Panel Avanzado / Collapsible */}
             <AnimatePresence>
@@ -815,7 +843,7 @@ export default function ProductosPage() {
                             <tbody className="divide-y divide-[var(--border)]">
                                 <AnimatePresence>
                                     {(isMassEditing ? editedProducts : filteredProducts).map((product: any, idx: number) => (
-                                        <tr key={product.ID_Producto} className="group hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                                        <tr key={product.ID_Producto} className="group hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors hidden lg:table-row">
                                             {isMassEditing ? (
                                                 <MassEditRow
                                                     product={product}
@@ -833,6 +861,19 @@ export default function ProductosPage() {
                                 </AnimatePresence>
                             </tbody>
                         </table>
+                        
+                        {/* Vista de lista optimizada para móvil (visible solo en MD e inferiores) */}
+                        <div className="flex flex-col lg:hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                           <AnimatePresence>
+                                {filteredProducts.map((product: any, idx: number) => (
+                                    <MobileProductCard 
+                                        key={product.ID_Producto} 
+                                        product={product} 
+                                        onEdit={openEditDrawer} 
+                                    />
+                                ))}
+                           </AnimatePresence>
+                        </div>
                     </div>
                 </div>
             ) : (
@@ -860,20 +901,16 @@ export default function ProductosPage() {
                 )}
             </AnimatePresence>
 
-            <AnimatePresence>
-                {showImportModal && (
-                    <ImportModal
-                        onClose={() => {
-                            setShowImportModal(false);
-                            setImportPreview([]);
-                        }}
-                        preview={importPreview}
-                        onConfirm={handleConfirmImport}
-                        onDelete={deleteFromPreview}
-                        importing={isImporting}
-                    />
-                )}
-            </AnimatePresence>
+            {/* BOTÓN FLOTANTE MÓVIL (FAB) */}
+            <div className="fixed bottom-24 right-5 z-[100] lg:hidden">
+                <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={openCreateDrawer}
+                    className="w-16 h-16 bg-indigo-500 text-white rounded-[24px] flex items-center justify-center shadow-2xl shadow-indigo-500/40 border-4 border-white dark:border-slate-950"
+                >
+                    <Plus size={32} strokeWidth={3} />
+                </motion.button>
+            </div>
         </div>
     );
 }
@@ -1273,6 +1310,49 @@ function ProductRow({ product, onEdit }: any) {
                 </div>
             </td>
         </>
+    );
+}
+
+// --- NUEVO SUBCOMPONENTE: TARJETA LISTA MÓVIL (ULTRA OPTIMIZADA) ---
+function MobileProductCard({ product, onEdit }: any) {
+    const margin = calculateProfitability(parseFloat(product.Precio_Unitario), parseFloat(product.Costo));
+    const isLowStock = parseFloat(product.Stock_Actual) <= 5;
+    const isOutOfStock = parseFloat(product.Stock_Actual) <= 0;
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="p-5 flex items-center gap-5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors active:scale-[0.98]"
+            onClick={() => onEdit(product)}
+        >
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shrink-0 overflow-hidden p-1 flex items-center justify-center">
+                    {product.Imagen_URL ? (
+                        <img src={getImageUrl(product.Imagen_URL)} className="w-full h-full object-contain" alt="" />
+                    ) : (
+                        <ImageIcon size={20} className="text-slate-300" />
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-black text-slate-800 dark:text-white truncate">{product.Nombre}</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{product.Categoria || 'S/C'}</span>
+                        <div className={`px-2 py-0.5 rounded-md text-[8px] font-black ${isLowStock ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                            STOCK: {parseFloat(product.Stock_Actual).toFixed(0)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="text-right shrink-0">
+                <p className="text-sm font-black text-slate-900 dark:text-white">$ {parseFloat(product.Precio_Unitario).toLocaleString()}</p>
+                <div className="flex items-center justify-end gap-1 mt-1">
+                    <div className={`w-2 h-2 rounded-full ${margin >= 20 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                    <span className="text-[10px] font-bold text-slate-400">{margin.toFixed(0)}% Util.</span>
+                </div>
+            </div>
+        </motion.div>
     );
 }
 
@@ -1739,3 +1819,4 @@ function InputField({ label, value, onChange, type = "text", placeholder = "", h
         </div>
     );
 }
+
