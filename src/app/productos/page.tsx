@@ -1243,7 +1243,7 @@ function ProductCard({ product, idx, onEdit }: any) {
         timerRef.current = setTimeout(() => {
             setLongPressActive(true);
             if (navigator.vibrate) navigator.vibrate(50);
-        }, 600);
+        }, 850);
     };
 
     const endPress = () => {
@@ -1451,7 +1451,7 @@ function MobileProductCard({ product, onEdit }: any) {
         timerRef.current = setTimeout(() => {
             setLongPressActive(true);
             if (navigator.vibrate) navigator.vibrate(50);
-        }, 600);
+        }, 850);
     };
 
     const endPress = () => {
@@ -1619,7 +1619,7 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                 className={`
                     fixed z-[120] bg-[var(--card)] shadow-2xl flex flex-col overflow-hidden
                     ${drawerMode === 'create' 
-                        ? 'inset-0 sm:inset-6 md:inset-auto md:right-10 md:top-10 md:bottom-10 md:w-[600px] border-2 border-[var(--border)] rounded-[28px] sm:rounded-[32px]' 
+                        ? 'inset-0 sm:inset-10 md:inset-auto md:right-12 md:top-12 md:bottom-12 md:w-[480px] md:max-h-[85vh] border-2 border-[var(--border)] rounded-[32px] sm:rounded-[36px]' 
                         : 'right-0 top-0 h-full w-full max-w-xl border-l border-[var(--border)] rounded-none'
                     }
                 `}
