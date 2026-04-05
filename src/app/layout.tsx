@@ -11,6 +11,10 @@ export const metadata: Metadata = {
   title: "Wanda Store",
   description: "Sistema de gestión inteligente para Wanda Lácteos",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
