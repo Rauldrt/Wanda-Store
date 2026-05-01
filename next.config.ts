@@ -7,6 +7,13 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: isDev,
   register: true,
+  skipWaiting: true,
+  clientsClaim: true,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  swcMinify: true,
+  dynamicStartUrl: false,
 });
 
 const nextConfig: NextConfig = {

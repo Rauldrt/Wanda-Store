@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target, Shield, Lock, Image as ImageIcon } from "lucide-react";
 import { wandaApi } from "@/lib/api";

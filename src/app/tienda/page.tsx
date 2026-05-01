@@ -547,7 +547,15 @@ export default function TiendaOnlinePage() {
 
             <main className="px-6 py-6 space-y-8">
                 {/* Buscador MD3 */}
-                <div className="relative group">
+                <motion.div 
+                    animate={{ 
+                        opacity: showStickySearch ? 0 : 1,
+                        y: showStickySearch ? -20 : 0,
+                        scale: showStickySearch ? 0.95 : 1
+                    }}
+                    transition={{ duration: 0.2 }}
+                    className={`relative group ${showStickySearch ? 'pointer-events-none' : ''}`}
+                >
                     <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
                         <Search size={22} />
                     </div>
@@ -569,7 +577,7 @@ export default function TiendaOnlinePage() {
                             </div>
                         </label>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Carousel de Categorías Particular */}
                 <CategoryCarousel 

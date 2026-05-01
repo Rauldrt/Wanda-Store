@@ -161,7 +161,7 @@ export default function CategoryCarousel({
       </div>
 
       <div 
-        className="flex w-full cursor-grab active:cursor-grabbing select-none transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] gap-3 flex-row h-[220px] sm:h-[280px]"
+        className="flex w-full overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] gap-3 flex-row h-[220px] sm:h-[280px] snap-x snap-mandatory px-1"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => { setIsPaused(false); isDragging.current = false; }}
         onTouchStart={handleStart}
@@ -180,8 +180,8 @@ export default function CategoryCarousel({
               key={item.id}
               layoutId={`card-${item.id}`}
               className={`
-                relative overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] rounded-[40px] group
-                ${isActive ? 'flex-[6] shadow-2xl z-10 cursor-pointer' : 'flex-[1] shadow-md grayscale-[40%] hover:grayscale-0 cursor-pointer'}
+                relative overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] rounded-[40px] group shrink-0 snap-center
+                ${isActive ? 'w-[80%] sm:flex-[6] shadow-2xl z-10 cursor-pointer' : 'w-[15%] sm:flex-[1] shadow-md grayscale-[40%] hover:grayscale-0 cursor-pointer'}
                 ${isSelected ? 'ring-4 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-950' : ''}
               `}
               onClick={() => {
@@ -227,7 +227,7 @@ export default function CategoryCarousel({
 
               {/* Título Vertical (Inactivas) */}
               <div className={`absolute inset-0 flex items-center justify-center transition-all ease-in-out pointer-events-none ${isActive ? 'opacity-0' : 'opacity-100'}`}>
-                <p className="text-white/50 font-black uppercase tracking-[0.2em] transition-all group-hover:text-white group-hover:tracking-[0.3em] drop-shadow-lg text-center text-xs [writing-mode:vertical-lr] rotate-180">
+                <p className="text-white/50 font-black uppercase tracking-[0.2em] transition-all group-hover:text-white group-hover:tracking-[0.3em] drop-shadow-lg text-center text-[8px] sm:text-xs sm:[writing-mode:vertical-lr] sm:rotate-180">
                   {item.title}
                 </p>
               </div>
