@@ -35,21 +35,8 @@ export default function CategoryCarousel({ categories, onSelectCategory, activeC
   const [isPaused, setIsPaused] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   
-  // Controles de Modo
-  const [orientationMode, setOrientationMode] = useState<'auto' | 'horizontal' | 'vertical'>('auto');
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
-
-  // Escuchar redimensionamiento para el modo Auto
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Determinar la orientación final a renderizar
-  const actualOrientation = orientationMode === 'auto'
-    ? (windowWidth >= 768 ? 'horizontal' : 'vertical')
-    : orientationMode;
+  // Determinar la orientación final a renderizar (Siempre horizontal por pedido del usuario)
+  const actualOrientation = 'horizontal';
 
   // Refs Táctiles
   const touchStart = useRef({ x: 0, y: 0 });
@@ -144,7 +131,7 @@ export default function CategoryCarousel({ categories, onSelectCategory, activeC
         className={`flex w-full cursor-grab active:cursor-grabbing select-none transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
           ${expandedCard !== null ? 'gap-0' : 'gap-3'}
           ${actualOrientation === 'horizontal' 
-            ? 'flex-row h-[280px]' 
+            ? 'flex-row h-[220px] sm:h-[280px]' 
             : 'flex-col h-[500px]'
           }
         `}
