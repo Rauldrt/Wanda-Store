@@ -30,6 +30,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { wandaApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { getImageUrl, normalizeText, smartSearch } from "@/lib/utils";
+import CategoryCarousel from "@/components/CategoryCarousel";
 
 export default function TiendaOnlinePage() {
     const { data } = useData();
@@ -59,6 +60,7 @@ export default function TiendaOnlinePage() {
     const [searchOnlyByCode, setSearchOnlyByCode] = useState(false);
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
     const [isDeliveryFormOpen, setIsDeliveryFormOpen] = useState(false);
+    const [categoryFilter, setCategoryFilter] = useState("ALL");
     const productInputRef = useRef<HTMLInputElement>(null);
 
     const [userInfo, setUserInfo] = useState({
@@ -198,18 +200,30 @@ export default function TiendaOnlinePage() {
         return banners;
     }, [data, products]);
 
+    const categories = useMemo(() => ["ALL", ...new Set(products.map((p: any) => p.Categoria).filter(Boolean).sort() as string[])], [products]);
 
     const filteredProducts = useMemo(() => {
-        if (!deferredSearchTerm) return products;
-        const query = normalizeText(deferredSearchTerm);
-        return products.filter(p => {
-            if (searchOnlyByCode) {
-                return normalizeText(p.ID_Producto).includes(query);
-            }
-            const searchPayload = `${p.Nombre} ${p.Categoria || ''} ${p.Nota_Oferta || ''}`;
-            return smartSearch(searchPayload, deferredSearchTerm);
-        });
-    }, [products, deferredSearchTerm, searchOnlyByCode]);
+        let result = products;
+        
+        // Filter by Category
+        if (categoryFilter !== "ALL") {
+            result = result.filter(p => p.Categoria === categoryFilter);
+        }
+
+        // Filter by Search Term
+        if (deferredSearchTerm) {
+            const query = normalizeText(deferredSearchTerm);
+            result = result.filter(p => {
+                if (searchOnlyByCode) {
+                    return normalizeText(p.ID_Producto).includes(query);
+                }
+                const searchPayload = `${p.Nombre} ${p.Categoria || ''} ${p.Nota_Oferta || ''}`;
+                return smartSearch(searchPayload, deferredSearchTerm);
+            });
+        }
+
+        return result;
+    }, [products, deferredSearchTerm, searchOnlyByCode, categoryFilter]);
 
     const addToCart = (id: string, qty: number = 1) => {
         setCarrito(prev => ({ ...prev, [id]: (prev[id] || 0) + qty }));
@@ -495,6 +509,30 @@ export default function TiendaOnlinePage() {
                             </div>
                         </label>
                     </div>
+                </div>
+
+                {/* Carousel de Categorías Particular */}
+                <CategoryCarousel 
+                    categories={categories} 
+                    activeCategory={categoryFilter}
+                    onSelectCategory={(cat) => setCategoryFilter(cat === categoryFilter ? "ALL" : cat)}
+                />
+
+                {/* Filtros Rápidos de Categoría (Chips) */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar border-b border-slate-50 dark:border-slate-900">
+                    {categories.map(cat => (
+                        <button
+                            key={cat}
+                            onClick={() => setCategoryFilter(cat)}
+                            className={`shrink-0 px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                                categoryFilter === cat 
+                                ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' 
+                                : 'bg-slate-100 dark:bg-slate-900 text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            {cat === "ALL" ? "Todos" : cat}
+                        </button>
+                    ))}
                 </div>
 
                 {/* Banner Carrusel */}
