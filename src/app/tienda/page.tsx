@@ -61,7 +61,9 @@ export default function TiendaOnlinePage() {
     const [expandedBanner, setExpandedBanner] = useState<string | null>(null);
     const [isDeliveryFormOpen, setIsDeliveryFormOpen] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState("ALL");
+    const [showStickySearch, setShowStickySearch] = useState(false);
     const productInputRef = useRef<HTMLInputElement>(null);
+    const stickyInputRef = useRef<HTMLInputElement>(null);
 
     const [userInfo, setUserInfo] = useState({
         name: "",
@@ -139,6 +141,19 @@ export default function TiendaOnlinePage() {
             }
         };
         loadProfile();
+    }, []);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            const threshold = 200;
+            if (window.scrollY > threshold) {
+                setShowStickySearch(true);
+            } else {
+                setShowStickySearch(false);
+            }
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     // Sincronizar Historial desde Firestore + Local (Offline)
@@ -457,30 +472,63 @@ export default function TiendaOnlinePage() {
     return (
         <div className="min-h-screen bg-white dark:bg-slate-950 font-sans pb-24 transition-colors">
             {/* Header Rediseñado */}
-            <div className="sticky top-0 z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                    {userInfo.photo ? (
-                        <img src={userInfo.photo} className="w-10 h-10 rounded-full border-2 border-indigo-500/20 shadow-sm" alt="User" />
-                    ) : (
-                        <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                            <User size={20} />
-                        </div>
-                    )}
-                    <div>
-                        <h1 className="text-sm font-black text-slate-800 dark:text-white leading-none mb-1">{userInfo.name}</h1>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tienda Online</span>
-                    </div>
+            <div className="sticky top-0 z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl px-4 sm:px-6 py-3 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 h-[72px]">
+                <div className="flex items-center gap-3 shrink-0">
+                    <AnimatePresence mode="wait">
+                        {!showStickySearch ? (
+                            <motion.div 
+                                key="user-info"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                className="flex items-center gap-3"
+                            >
+                                {userInfo.photo ? (
+                                    <img src={userInfo.photo} className="w-9 h-9 rounded-full border-2 border-indigo-500/20 shadow-sm" alt="User" />
+                                ) : (
+                                    <div className="w-9 h-9 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                                        <User size={18} />
+                                    </div>
+                                )}
+                                <div className="hidden xs:block">
+                                    <h1 className="text-xs font-black text-slate-800 dark:text-white leading-none mb-0.5">{userInfo.name}</h1>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Wanda Store</span>
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="sticky-search"
+                                initial={{ opacity: 0, width: 0 }}
+                                animate={{ opacity: 1, width: 'auto' }}
+                                exit={{ opacity: 0, width: 0 }}
+                                className="flex-1 max-w-[280px] sm:max-w-md relative"
+                            >
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <Search size={16} />
+                                </div>
+                                <input
+                                    ref={stickyInputRef}
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Buscar..."
+                                    className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-full py-2.5 pl-10 pr-4 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/10 transition-all"
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-                <div className="flex gap-1.5 items-center">
+                
+                <div className="flex gap-1 items-center shrink-0">
                     <ThemeToggle />
-                    <button onClick={() => setIsProfileOpen(true)} className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-500 transition-colors">
-                        <Settings size={18} />
+                    <button onClick={() => setIsProfileOpen(true)} className="w-9 h-9 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-500 transition-colors">
+                        <Settings size={16} />
                     </button>
-                    <button onClick={() => setIsHistoryOpen(true)} className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
-                        <Clock size={18} />
+                    <button onClick={() => setIsHistoryOpen(true)} className="w-9 h-9 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+                        <Clock size={16} />
                     </button>
-                    <button onClick={logout} className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-rose-50 dark:bg-rose-900/10 flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-colors">
-                        <LogOut size={18} />
+                    <button onClick={logout} className="w-9 h-9 rounded-full bg-rose-50 dark:bg-rose-900/10 flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-colors">
+                        <LogOut size={16} />
                     </button>
                 </div>
             </div>
