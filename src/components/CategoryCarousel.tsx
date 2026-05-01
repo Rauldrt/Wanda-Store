@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ChevronRight, Star, MapPin, Play, Pause, X, Send, Monitor, Smartphone, MonitorSmartphone, Layers, Tag, Box, ShoppingBag } from 'lucide-react';
+import { ChevronRight, Star, MapPin, Play, Pause, X, Send, Monitor, Smartphone, MonitorSmartphone, Layers, Tag, Box, ShoppingBag, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ShopProductCard } from './ShopProductCard';
 
 interface CategoryItem {
   id: string;
@@ -28,30 +29,46 @@ interface CategoryCarouselProps {
   categories: string[];
   onSelectCategory: (category: string) => void;
   activeCategory: string;
+  // Props para el modal de productos
+  allProducts: any[];
+  carrito: any;
+  onInitialAdd: (id: string) => void;
+  onUpdateQty: (id: string, delta: number) => void;
+  onSetQtyExact: (id: string, qty: number) => void;
+  onToggleBulto: (id: string) => void;
+  onSelectImage: (url: string) => void;
 }
 
-export default function CategoryCarousel({ categories, onSelectCategory, activeCategory }: CategoryCarouselProps) {
+export default function CategoryCarousel({ 
+  categories, 
+  onSelectCategory, 
+  activeCategory,
+  allProducts,
+  carrito,
+  onInitialAdd,
+  onUpdateQty,
+  onSetQtyExact,
+  onToggleBulto,
+  onSelectImage
+}: CategoryCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [selectedModalCategory, setSelectedModalCategory] = useState<CategoryItem | null>(null);
   
-  // Determinar la orientación final a renderizar (Siempre horizontal por pedido del usuario)
   const actualOrientation = 'horizontal';
 
-  // Refs Táctiles
   const touchStart = useRef({ x: 0, y: 0 });
   const touchEnd = useRef({ x: 0, y: 0 });
   const isDragging = useRef(false);
   const minSwipeDistance = 40;
 
-  // Preparar items del carrusel (Solo los que no son "ALL")
   const carouselItems = useMemo(() => {
     return categories
       .filter(cat => cat !== "ALL")
       .map((cat, index) => ({
         id: `cat-${index}`,
         title: cat,
-        description: `Explora nuestra selección de ${cat.toLowerCase()}.`,
+        description: `Explora nuestra selección premium de ${cat.toLowerCase()}.`,
         image: DEFAULT_CATEGORY_IMAGES[cat] || GENERIC_IMAGE,
         category: cat
       }));
@@ -67,18 +84,17 @@ export default function CategoryCarousel({ categories, onSelectCategory, activeC
     setActiveIndex((prev) => (prev === 0 ? carouselItems.length - 1 : prev - 1));
   }, [carouselItems.length]);
 
-  // Lógica de Swipe con prevención de click accidental
   const handleStart = (e: any) => {
-    if (expandedCard) return;
+    if (selectedModalCategory) return;
     isDragging.current = false;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     touchStart.current = { x: clientX, y: clientY };
-    touchEnd.current = { x: clientX, y: clientY }; // Inicializar touchEnd para evitar saltos
+    touchEnd.current = { x: clientX, y: clientY };
   };
 
   const handleMove = (e: any) => {
-    if (expandedCard) return;
+    if (selectedModalCategory) return;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     touchEnd.current = { x: clientX, y: clientY };
@@ -89,23 +105,22 @@ export default function CategoryCarousel({ categories, onSelectCategory, activeC
   };
 
   const handleEnd = () => {
-    if (expandedCard) return;
+    if (selectedModalCategory) return;
     const distX = touchStart.current.x - touchEnd.current.x;
-    const distY = touchStart.current.y - touchEnd.current.y;
-
-    if (actualOrientation === 'horizontal') {
-      if (Math.abs(distX) > minSwipeDistance) distX > 0 ? nextSlide() : prevSlide();
-    } else {
-      if (Math.abs(distY) > minSwipeDistance) distY > 0 ? nextSlide() : prevSlide();
-    }
+    if (Math.abs(distX) > minSwipeDistance) distX > 0 ? nextSlide() : prevSlide();
   };
 
-  // Autoplay Inteligente
   useEffect(() => {
-    if (isPaused || expandedCard !== null || carouselItems.length === 0) return;
+    if (isPaused || selectedModalCategory || carouselItems.length === 0) return;
     const interval = setInterval(nextSlide, 6000);
     return () => clearInterval(interval);
-  }, [isPaused, nextSlide, activeIndex, expandedCard, carouselItems.length]);
+  }, [isPaused, nextSlide, activeIndex, selectedModalCategory, carouselItems.length]);
+
+  // Filtrar productos para el modal
+  const modalProducts = useMemo(() => {
+    if (!selectedModalCategory) return [];
+    return allProducts.filter(p => p.Categoria === selectedModalCategory.category);
+  }, [selectedModalCategory, allProducts]);
 
   if (carouselItems.length === 0) return null;
 
@@ -128,13 +143,7 @@ export default function CategoryCarousel({ categories, onSelectCategory, activeC
       </div>
 
       <div 
-        className={`flex w-full cursor-grab active:cursor-grabbing select-none transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
-          ${expandedCard !== null ? 'gap-0' : 'gap-3'}
-          ${actualOrientation === 'horizontal' 
-            ? 'flex-row h-[220px] sm:h-[280px]' 
-            : 'flex-col h-[500px]'
-          }
-        `}
+        className="flex w-full cursor-grab active:cursor-grabbing select-none transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] gap-3 flex-row h-[220px] sm:h-[280px]"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => { setIsPaused(false); isDragging.current = false; }}
         onTouchStart={handleStart}
@@ -146,67 +155,51 @@ export default function CategoryCarousel({ categories, onSelectCategory, activeC
       >
         {carouselItems.map((item, index) => {
           const isActive = activeIndex === index;
-          const isExpanded = expandedCard === item.id;
-          const isOtherExpanded = expandedCard !== null && expandedCard !== item.id;
           const isSelected = activeCategory === item.category;
           
           return (
-            <div
+            <motion.div
               key={item.id}
+              layoutId={`card-${item.id}`}
               className={`
-                relative overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] rounded-[24px] group
-                ${isExpanded ? 'flex-[10] shadow-2xl bg-white dark:bg-slate-900 cursor-default' : ''}
-                ${isOtherExpanded ? 'flex-[0] opacity-0 max-w-0 p-0 m-0 border-0 pointer-events-none' : ''}
-                ${isActive && !expandedCard ? 'flex-[6] shadow-xl z-10 cursor-pointer' : ''}
-                ${!isExpanded && !isActive && !isOtherExpanded ? 'flex-[1] shadow-md grayscale-[40%] hover:grayscale-0 cursor-pointer' : ''}
-                ${isSelected && !isExpanded ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-950' : ''}
+                relative overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] rounded-[40px] group
+                ${isActive ? 'flex-[6] shadow-2xl z-10 cursor-pointer' : 'flex-[1] shadow-md grayscale-[40%] hover:grayscale-0 cursor-pointer'}
+                ${isSelected ? 'ring-4 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-950' : ''}
               `}
               onClick={() => {
                 if (isDragging.current) return;
-                if (isExpanded || isOtherExpanded) return;
-
                 if (isActive) {
-                  setExpandedCard(item.id);
+                  setSelectedModalCategory(item);
                 } else {
                   setActiveIndex(index);
                 }
               }}
             >
-              
               {/* IMAGEN */}
-              <div className={`absolute top-0 left-0 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
-                ${isExpanded 
-                  ? (actualOrientation === 'horizontal' ? 'w-[45%] h-full' : 'w-full h-[40%]') 
-                  : 'w-full h-full'
-                }
-              `}>
-                <img
+              <div className="absolute inset-0 overflow-hidden">
+                <motion.img
+                  layoutId={`image-${item.id}`}
                   src={item.image}
                   alt={item.title}
                   draggable="false"
-                  className={`w-full h-full object-cover transition-transform duration-[2000ms] ${isActive && !isExpanded ? 'scale-110' : 'scale-100'}`}
+                  className={`w-full h-full object-cover transition-transform duration-[2000ms] ${isActive ? 'scale-110' : 'scale-100'}`}
                 />
-                <div className={`absolute inset-0 transition-opacity duration-300 ${isExpanded ? 'opacity-0' : (isActive ? 'bg-gradient-to-t from-black/80 via-black/20 to-transparent' : 'bg-black/50')}`} />
+                <div className={`absolute inset-0 transition-opacity duration-300 ${isActive ? 'bg-gradient-to-t from-black/80 via-black/20 to-transparent' : 'bg-black/50'}`} />
               </div>
 
               {/* Barra de progreso */}
-              {isActive && !isPaused && !expandedCard && (
-                <div className={`absolute top-0 left-0 bg-white/20 z-40 ${actualOrientation === 'horizontal' ? 'w-full h-1' : 'w-1 h-full'}`}>
+              {isActive && !isPaused && !selectedModalCategory && (
+                <div className="absolute top-0 left-0 bg-white/20 z-40 w-full h-1">
                   <div 
                     key={activeIndex} 
-                    className={`bg-indigo-400 ${actualOrientation === 'horizontal' ? 'h-full animate-[progressX_6s_linear_forwards]' : 'w-full animate-[progressY_6s_linear_forwards]'}`} 
+                    className="bg-indigo-400 h-full animate-[progressX_6s_linear_forwards]" 
                   />
                 </div>
               )}
 
-              {/* ESTADO CONTRAÍDO */}
-              <div className={`absolute inset-0 p-6 flex flex-col justify-end transition-all ease-in-out pointer-events-none
-                ${isExpanded 
-                  ? 'opacity-0 translate-y-4 duration-150 delay-0' 
-                  : (isActive ? 'opacity-100 translate-y-0 duration-300 delay-[200ms]' : 'opacity-0')
-                }
-              `}>
-                <h3 className="text-xl md:text-2xl font-black text-white mb-2 leading-tight tracking-tight uppercase">{item.title}</h3>
+              {/* CONTENIDO CONTRAÍDO */}
+              <div className={`absolute inset-0 p-6 flex flex-col justify-end transition-all ease-in-out pointer-events-none ${isActive ? 'opacity-100 translate-y-0 duration-300 delay-200' : 'opacity-0'}`}>
+                <motion.h3 layoutId={`title-${item.id}`} className="text-xl md:text-2xl font-black text-white mb-2 uppercase">{item.title}</motion.h3>
                 <div className="flex items-center gap-2">
                   <div className="px-4 py-2 bg-indigo-500/90 text-white rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-1 backdrop-blur-md">
                     Explorar <ChevronRight size={12} />
@@ -214,71 +207,127 @@ export default function CategoryCarousel({ categories, onSelectCategory, activeC
                 </div>
               </div>
 
-              {/* ESTADO EXPANDIDO */}
-              <div className={`absolute bottom-0 right-0 transition-all ease-in-out bg-white dark:bg-slate-900 flex flex-col
-                ${isExpanded 
-                  ? `opacity-100 duration-500 delay-[150ms] ${actualOrientation === 'horizontal' ? 'w-[55%] h-full translate-x-0' : 'w-full h-[60%] translate-y-0'}` 
-                  : `opacity-0 duration-150 delay-0 pointer-events-none ${actualOrientation === 'horizontal' ? 'w-[55%] h-full translate-x-8' : 'w-full h-[60%] translate-y-8'}`
-                }
-              `}>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpandedCard(null);
-                  }}
-                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-full transition-colors z-20"
-                >
-                  <X size={20} />
-                </button>
-
-                <div className="p-6 md:p-8 overflow-y-auto h-full w-full custom-scrollbar flex flex-col">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-wider mb-2">
-                    Categoría
-                  </div>
-                  <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white mb-2">{item.title}</h2>
-                  <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed mb-6">
-                    {item.description}
-                  </p>
-
-                  <div className="space-y-3 mt-auto">
-                    <button 
-                      onClick={() => {
-                        onSelectCategory(item.category);
-                        setExpandedCard(null);
-                      }}
-                      className="w-full py-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 transition-all transform active:scale-95 shadow-lg shadow-indigo-500/20"
-                    >
-                      Ver Productos
-                      <ShoppingBag size={14} />
-                    </button>
-                    <button 
-                      onClick={() => setExpandedCard(null)}
-                      className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all"
-                    >
-                      Cerrar
-                    </button>
-                  </div>
-                </div>
-              </div>
-
               {/* Título Vertical (Inactivas) */}
-              <div className={`absolute inset-0 flex items-center justify-center transition-all ease-in-out pointer-events-none
-                ${(isActive || expandedCard !== null) ? 'opacity-0 duration-150 delay-0' : 'opacity-100 duration-300 delay-[200ms]'}
-              `}>
-                <p className={`text-white/50 font-black uppercase tracking-[0.2em] transition-all group-hover:text-white group-hover:tracking-[0.3em] drop-shadow-lg text-center
-                  ${actualOrientation === 'horizontal' ? 'text-xs [writing-mode:vertical-lr] rotate-180' : 'text-xs px-2'}
-                `}>
+              <div className={`absolute inset-0 flex items-center justify-center transition-all ease-in-out pointer-events-none ${isActive ? 'opacity-0' : 'opacity-100'}`}>
+                <p className="text-white/50 font-black uppercase tracking-[0.2em] transition-all group-hover:text-white group-hover:tracking-[0.3em] drop-shadow-lg text-center text-xs [writing-mode:vertical-lr] rotate-180">
                   {item.title}
                 </p>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
 
+      {/* MODAL DE CATEGORÍA */}
+      <AnimatePresence>
+        {selectedModalCategory && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-10">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedModalCategory(null)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" 
+            />
+            
+            <motion.div
+              layoutId={`card-${selectedModalCategory.id}`}
+              className="relative w-full max-w-6xl h-full max-h-[90vh] bg-slate-50 dark:bg-slate-950 rounded-[48px] overflow-hidden shadow-2xl flex flex-col md:flex-row"
+            >
+              {/* Lado Izquierdo: Hero/Info */}
+              <div className="relative w-full md:w-[35%] h-[200px] md:h-auto overflow-hidden">
+                <motion.img
+                  layoutId={`image-${selectedModalCategory.id}`}
+                  src={selectedModalCategory.image}
+                  className="w-full h-full object-cover"
+                  alt={selectedModalCategory.title}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent md:bg-gradient-to-r" />
+                
+                <div className="absolute bottom-0 left-0 p-8 w-full">
+                  <motion.h2 
+                    layoutId={`title-${selectedModalCategory.id}`}
+                    className="text-3xl md:text-5xl font-black text-white uppercase mb-2 leading-tight"
+                  >
+                    {selectedModalCategory.title}
+                  </motion.h2>
+                  <p className="text-white/70 text-sm md:text-base font-medium max-w-xs">
+                    {selectedModalCategory.description}
+                  </p>
+                  
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white text-[10px] font-black uppercase tracking-wider">
+                      {modalProducts.length} Productos
+                    </span>
+                    <button 
+                      onClick={() => {
+                        onSelectCategory(selectedModalCategory.category);
+                        setSelectedModalCategory(null);
+                      }}
+                      className="px-4 py-1 bg-indigo-500 rounded-full text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1 hover:bg-indigo-400 transition-colors"
+                    >
+                      Ver en tienda <ArrowRight size={12} />
+                    </button>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setSelectedModalCategory(null)}
+                  className="absolute top-6 left-6 p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-2xl transition-all active:scale-95"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Lado Derecho: Grid de Productos */}
+              <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-900">
+                <div className="p-6 md:p-8 border-b dark:border-slate-800 flex items-center justify-between">
+                  <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Selección Exclusiva</h3>
+                  <button onClick={() => setSelectedModalCategory(null)} className="md:hidden p-2 text-slate-400"><X size={24} /></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+                  {modalProducts.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                      {modalProducts.map(p => {
+                        const pid = String(p.ID_Producto);
+                        const itemCarrito = carrito[pid];
+                        const qty = itemCarrito?.cantidad || 0;
+                        const isBulto = itemCarrito?.modoBulto || false;
+
+                        return (
+                          <ShopProductCard 
+                            key={pid}
+                            product={p}
+                            qty={qty}
+                            isBulto={isBulto}
+                            onInitialAdd={onInitialAdd}
+                            onUpdateQty={onUpdateQty}
+                            onSetQtyExact={onSetQtyExact}
+                            onToggleBulto={onToggleBulto}
+                            onSelectImage={onSelectImage}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-10">
+                      <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-[32px] flex items-center justify-center text-slate-300 mb-4">
+                        <ShoppingBag size={40} />
+                      </div>
+                      <h4 className="text-xl font-black text-slate-800 dark:text-white">Sin stock disponible</h4>
+                      <p className="text-slate-500 text-sm mt-2">Estamos trabajando para reponer estos productos pronto.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes progressX { from { width: 0%; } to { width: 100%; } }
-        @keyframes progressY { from { height: 0%; } to { height: 100%; } }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
