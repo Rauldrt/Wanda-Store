@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target, Shield, Lock } from "lucide-react";
+import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target, Shield, Lock, Image as ImageIcon } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 
@@ -25,18 +25,36 @@ interface Promotion {
     active: boolean;
 }
 
+interface CarouselItem {
+    id: string;
+    title: string;
+    description: string;
+    image: string;
+    category: string;
+    active: boolean;
+}
+
 export default function SettingsPage() {
     const { data, refreshData, setIsSyncing, isSyncing } = useData();
     const products = data?.products || [];
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState<SystemNotification[]>([]);
     const [promotions, setPromotions] = useState<Promotion[]>([]);
+    const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
     const [config, setConfig] = useState<Record<string, string>>({
         EMPRESA: "WANDA DISTRIBUCIONES",
         REMITO_TITULO: "REMITO",
         REMITO_DIRECCION: "",
         REMITO_TELEFONO: ""
     });
+
+    const categories = useMemo(() => {
+        const cats = new Set<string>();
+        products.forEach((p: any) => {
+            if (p.Categoria) cats.add(p.Categoria);
+        });
+        return Array.from(cats).sort();
+    }, [products]);
 
     useEffect(() => {
         const loadConfig = async () => {
@@ -57,6 +75,14 @@ export default function SettingsPage() {
                         } catch (e) {
                             console.error("Error parsing promotions", e);
                             setPromotions([]);
+                        }
+                    }
+                    if (res.SYSTEM_CAROUSEL) {
+                        try {
+                            setCarouselItems(JSON.parse(res.SYSTEM_CAROUSEL));
+                        } catch (e) {
+                            console.error("Error parsing carousel", e);
+                            setCarouselItems([]);
                         }
                     }
                     // Cargar otros campos
@@ -85,7 +111,8 @@ export default function SettingsPage() {
             await wandaApi.saveConfig({
                 ...config,
                 SYSTEM_NOTIFICATIONS: JSON.stringify(notifications),
-                SYSTEM_PROMOTIONS: JSON.stringify(promotions)
+                SYSTEM_PROMOTIONS: JSON.stringify(promotions),
+                SYSTEM_CAROUSEL: JSON.stringify(carouselItems)
             });
             await refreshData(true);
             alert("Configuración guardada correctamente");
@@ -135,6 +162,40 @@ export default function SettingsPage() {
 
     const updatePromotion = (id: string, updates: Partial<Promotion>) => {
         setPromotions(promotions.map(p => p.id === id ? { ...p, ...updates } : p));
+    };
+
+    const addCarouselItem = () => {
+        const newItem: CarouselItem = {
+            id: Date.now().toString(),
+            title: "Nueva Categoría",
+            description: "Descripción de la categoría...",
+            image: "",
+            category: "ALL",
+            active: true
+        };
+        setCarouselItems([...carouselItems, newItem]);
+    };
+
+    const removeCarouselItem = (id: string) => {
+        setCarouselItems(carouselItems.filter(i => i.id !== id));
+    };
+
+    const updateCarouselItem = (id: string, updates: Partial<CarouselItem>) => {
+        setCarouselItems(carouselItems.map(i => i.id === id ? { ...i, ...updates } : i));
+    };
+
+    const handleCarouselImageUpload = async (id: string, file: File) => {
+        setIsSyncing(true);
+        try {
+            const res = await wandaApi.uploadImage(file, `carousel/${id}_${file.name}`);
+            if (res.url) {
+                updateCarouselItem(id, { image: res.url });
+            }
+        } catch (e) {
+            alert("Error subiendo imagen");
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
     if (loading) return (
@@ -472,6 +533,121 @@ export default function SettingsPage() {
                                 </div>
                             </motion.div>
                         ))
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Sección Administrador de Carrusel */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-black uppercase tracking-widest text-slate-400 text-[10px] flex items-center gap-2">
+                        <Layers size={14} className="text-indigo-500" /> Carrusel de Categorías
+                    </h3>
+                    <button
+                        onClick={addCarouselItem}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 hover:text-white transition-all active:scale-95"
+                    >
+                        <Plus size={14} /> Nuevo Item
+                    </button>
+                </div>
+
+                <AnimatePresence mode="popLayout">
+                    {carouselItems.length === 0 ? (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] text-center space-y-3"
+                        >
+                            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                                <Layers size={20} />
+                            </div>
+                            <p className="text-sm text-slate-500 font-medium">No hay items en el carrusel. Se usarán las categorías por defecto.</p>
+                        </motion.div>
+                    ) : (
+                        <div className="space-y-4 pb-24">
+                            {carouselItems.map((item) => (
+                                <motion.div
+                                    key={item.id}
+                                    layout
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="bg-white dark:bg-slate-900 rounded-[32px] p-6 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-4"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="relative group w-12 h-12">
+                                                <div className={`w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center ${item.active ? 'ring-2 ring-indigo-500' : ''}`}>
+                                                    {item.image ? (
+                                                        <img src={item.image} className="w-full h-full object-cover" alt="" />
+                                                    ) : (
+                                                        <ImageIcon size={20} className="text-slate-400" />
+                                                    )}
+                                                </div>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => e.target.files?.[0] && handleCarouselImageUpload(item.id, e.target.files[0])}
+                                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                                />
+                                            </div>
+                                            <div>
+                                                <input
+                                                    value={item.title}
+                                                    onChange={(e) => updateCarouselItem(item.id, { title: e.target.value })}
+                                                    className="text-sm font-black bg-transparent border-none p-0 focus:ring-0 outline-none text-slate-800 dark:text-slate-100"
+                                                    placeholder="Título del slide..."
+                                                />
+                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">Slide de Carrusel</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => updateCarouselItem(item.id, { active: !item.active })}
+                                                className={`w-12 h-6 rounded-full transition-all relative ${item.active ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                                            >
+                                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${item.active ? 'left-7' : 'left-1'}`} />
+                                            </button>
+                                            <button
+                                                onClick={() => removeCarouselItem(item.id)}
+                                                className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1 text-left">
+                                            <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
+                                                <Layers size={10} /> Categoría Vinculada
+                                            </label>
+                                            <select
+                                                value={item.category}
+                                                onChange={(e) => updateCarouselItem(item.id, { category: e.target.value })}
+                                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-[11px] font-bold outline-none"
+                                            >
+                                                <option value="ALL">Sin categoría específica</option>
+                                                {categories.map((c: string) => (
+                                                    <option key={c} value={c}>{c}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1 text-left">
+                                            <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
+                                                <Tag size={10} /> Subtítulo / Descripción
+                                            </label>
+                                            <input
+                                                value={item.description}
+                                                onChange={(e) => updateCarouselItem(item.id, { description: e.target.value })}
+                                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-[11px] font-bold outline-none"
+                                                placeholder="Breve descripción..."
+                                            />
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
                     )}
                 </AnimatePresence>
             </div>

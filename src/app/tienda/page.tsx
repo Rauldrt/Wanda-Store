@@ -47,6 +47,17 @@ export default function TiendaOnlinePage() {
         return prods;
     }, [data]);
 
+    const carouselConfig = useMemo(() => {
+        const conf = data?.config?.SYSTEM_CAROUSEL;
+        if (!conf) return [];
+        try {
+            return JSON.parse(conf);
+        } catch (e) {
+            console.error("Error parsing carousel config", e);
+            return [];
+        }
+    }, [data?.config?.SYSTEM_CAROUSEL]);
+
     const [searchTerm, setSearchTerm] = useState("");
     const deferredSearchTerm = useDeferredValue(searchTerm);
     const [carrito, setCarrito] = useState<{ [key: string]: number }>({});
@@ -572,6 +583,7 @@ export default function TiendaOnlinePage() {
                     onSetQtyExact={setQtyExact}
                     onToggleBulto={toggleBulto}
                     onSelectImage={setSelectedImage}
+                    carouselConfig={carouselConfig}
                 />
 
                 {/* Filtros Rápidos de Categoría (Chips) */}

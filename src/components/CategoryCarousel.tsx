@@ -37,6 +37,7 @@ interface CategoryCarouselProps {
   onSetQtyExact: (id: string, qty: number) => void;
   onToggleBulto: (id: string) => void;
   onSelectImage: (url: string) => void;
+  carouselConfig?: any[];
 }
 
 export default function CategoryCarousel({ 
@@ -49,7 +50,8 @@ export default function CategoryCarousel({
   onUpdateQty,
   onSetQtyExact,
   onToggleBulto,
-  onSelectImage
+  onSelectImage,
+  carouselConfig
 }: CategoryCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -63,6 +65,21 @@ export default function CategoryCarousel({
   const minSwipeDistance = 40;
 
   const carouselItems = useMemo(() => {
+    // Si hay configuración dinámica y tiene items activos, usarlos
+    if (carouselConfig && carouselConfig.length > 0) {
+      const activeItems = carouselConfig.filter((item: any) => item.active);
+      if (activeItems.length > 0) {
+        return activeItems.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          image: item.image || (DEFAULT_CATEGORY_IMAGES[item.category] || GENERIC_IMAGE),
+          category: item.category
+        }));
+      }
+    }
+
+    // Fallback al comportamiento por defecto (categorías existentes)
     return categories
       .filter(cat => cat !== "ALL")
       .map((cat, index) => ({
@@ -72,7 +89,7 @@ export default function CategoryCarousel({
         image: DEFAULT_CATEGORY_IMAGES[cat] || GENERIC_IMAGE,
         category: cat
       }));
-  }, [categories]);
+  }, [categories, carouselConfig]);
 
   const nextSlide = useCallback(() => {
     if (carouselItems.length === 0) return;
@@ -119,6 +136,7 @@ export default function CategoryCarousel({
   // Filtrar productos para el modal
   const modalProducts = useMemo(() => {
     if (!selectedModalCategory) return [];
+    if (selectedModalCategory.category === 'ALL') return allProducts;
     return allProducts.filter(p => p.Categoria === selectedModalCategory.category);
   }, [selectedModalCategory, allProducts]);
 
