@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
-import { getImageUrl, normalizeText, smartSearch } from "@/lib/utils";
+import { getImageUrl, normalizeText, smartSearch, compressImage } from "@/lib/utils";
 import { analyzeProductImage } from "@/app/actions/gemini";
 
 // --- HELPERS ---
@@ -121,11 +121,13 @@ export default function ProductosPage() {
 
         try {
             setIsSyncing(true);
-            const imageUrl = await wandaApi.uploadImage(file, `quick_pics/${Date.now()}_${file.name}`);
-            await confirmQuickImage(quickImageTarget, imageUrl);
-        } catch (error) {
+            const compressed = await compressImage(file);
+            const uploadRes = await wandaApi.uploadImage(compressed.file, `quick_pics/${Date.now()}_${file.name.replace(/\.[^/.]+$/, "")}.jpg`);
+            if (uploadRes.error) throw new Error(uploadRes.error);
+            await confirmQuickImage(quickImageTarget, uploadRes.url);
+        } catch (error: any) {
             console.error(error);
-            alert("Error al subir imagen rápida.");
+            alert("Error al subir imagen rápida: " + error.message);
         } finally {
             setIsSyncing(false);
             setQuickImageTarget(null);
@@ -1561,21 +1563,18 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
         try {
             setIsAnalyzing(true);
 
-            // 1. Convert to Base64 for Gemini
-            const reader = new FileReader();
-            const base64Promise = new Promise<string>((resolve) => {
-                reader.onload = () => resolve(reader.result as string);
-                reader.readAsDataURL(file);
-            });
-            const base64Image = await base64Promise;
+            // 1. Compress image client-side (reduces size dramatically)
+            const compressed = await compressImage(file);
 
-            // 2. Scan with Gemini (Parallel with upload)
-            const analysisPromise = analyzeProductImage(base64Image);
+            // 2. Scan with Gemini (using compressed base64)
+            const analysisPromise = analyzeProductImage(compressed.base64);
             
-            // 3. Upload to Firebase Storage
-            const uploadPromise = wandaApi.uploadImage(file, `products/${Date.now()}_${file.name}`);
+            // 3. Upload to Firebase Storage (using compressed file)
+            const uploadPromise = wandaApi.uploadImage(compressed.file, `products/${Date.now()}_${file.name.replace(/\.[^/.]+$/, "")}.jpg`);
 
-            const [analysis, imageUrl] = await Promise.all([analysisPromise, uploadPromise]);
+            const [analysis, uploadRes] = await Promise.all([analysisPromise, uploadPromise]);
+
+            if (uploadRes.error) throw new Error(uploadRes.error);
 
             // 4. Update Form Data
             setFormData((prev: any) => ({
@@ -1584,7 +1583,7 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                 Categoria: analysis.categoria || prev.Categoria,
                 Costo: analysis.precio_costo || prev.Costo,
                 Precio_Unitario: analysis.precio_venta || prev.Precio_Unitario,
-                Imagen_URL: imageUrl || prev.Imagen_URL,
+                Imagen_URL: uploadRes.url || prev.Imagen_URL,
                 Unidad: analysis.unidad && analysis.unidad.toLowerCase().includes('kg') ? 'Kg' : (prev.Unidad || 'Unid'),
                 Descripcion: analysis.descripcion || prev.Descripcion
             }));
@@ -1630,7 +1629,6 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                     ref={aiFileInputRef} 
                     className="hidden" 
                     accept="image/*" 
-                    capture="environment"
                     onChange={handleImageScan} 
                 />
 

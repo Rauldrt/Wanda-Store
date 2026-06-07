@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target, Shield, Lock, Image as ImageIcon } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
+import { compressImage } from "@/lib/utils";
 
 interface SystemNotification {
     id: string;
@@ -187,7 +188,9 @@ export default function SettingsPage() {
     const handleCarouselImageUpload = async (id: string, file: File) => {
         setIsSyncing(true);
         try {
-            const res = await wandaApi.uploadImage(file, `carousel/${id}_${file.name}`);
+            const compressed = await compressImage(file);
+            const res = await wandaApi.uploadImage(compressed.file, `carousel/${id}_${file.name.replace(/\.[^/.]+$/, "")}.jpg`);
+            if (res.error) throw new Error(res.error);
             if (res.url) {
                 updateCarouselItem(id, { image: res.url });
             }
