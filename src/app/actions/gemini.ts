@@ -10,7 +10,7 @@ export async function analyzeProductImage(base64Image: string) {
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
             Analiza esta imagen de un producto y extrae la siguiente información en formato JSON:
