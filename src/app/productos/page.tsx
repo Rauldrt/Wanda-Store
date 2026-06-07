@@ -479,28 +479,80 @@ export default function ProductosPage() {
 
             const headerLine = lines[0];
             const sep = headerLine.includes(";") ? ";" : ",";
-            const headers = headerLine.split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
+
+            const parseCSVLine = (line: string, separator: string): string[] => {
+                const result: string[] = [];
+                let current = "";
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        if (inQuotes && line[i + 1] === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === separator && !inQuotes) {
+                        result.push(current.trim());
+                        current = "";
+                    } else {
+                        current += char;
+                    }
+                }
+                result.push(current.trim());
+                return result;
+            };
+
+            const headers = parseCSVLine(headerLine, sep).map(h => h.trim().replace(/^"|"$/g, ''));
             
             const parsedData = lines.slice(1).map(line => {
-                const values = line.split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
+                const values = parseCSVLine(line, sep);
                 const obj: any = {};
                 headers.forEach((header, index) => {
                     if (values[index] !== undefined) {
-                        obj[header] = values[index];
+                        obj[header] = values[index].replace(/^"|"$/g, '').trim();
                     }
                 });
                 return obj;
             });
 
-            // Normalización mínima (Convertir números)
-            const normalized = parsedData.map(item => ({
-                ...item,
-                ID_Producto: item.ID_Producto || item.SKU || item.id || `PROD-${Math.random().toString(36).substr(2, 9)}`,
-                Precio_Unitario: parseFloat(item.Precio_Unitario || item.Precio || 0),
-                Costo: parseFloat(item.Costo || 0),
-                Stock_Actual: parseFloat(item.Stock_Actual || item.Stock || 0),
-                Unidades_Bulto: parseInt(item.Unidades_Bulto || 1)
-            }));
+            // Normalización mínima (Convertir números y asegurar campos)
+            const normalized = parsedData.map(item => {
+                const precio = item.Precio_Unitario || item.Precio || item.PrecioUnitario || "0";
+                const costo = item.Costo || item.costo || "0";
+                const stock = item.Stock_Actual || item.Stock || item.StockActual || "0";
+                const unidadesBulto = item.Unidades_Bulto || item.UnidadesBulto || "1";
+
+                const cleanNumber = (val: any) => {
+                    if (typeof val === 'number') return val;
+                    if (!val) return 0;
+                    let s = String(val).replace(/[$\s]/g, '');
+                    if (s.includes(",") && s.includes(".")) {
+                        s = s.replace(/\./g, '').replace(/,/g, '.');
+                    } else if (s.includes(",")) {
+                        s = s.replace(/,/g, '.');
+                    }
+                    const parsed = parseFloat(s);
+                    return isNaN(parsed) ? 0 : parsed;
+                };
+
+                const cleanInt = (val: any) => {
+                    const parsed = parseInt(String(val).replace(/[^\d-]/g, ''), 10);
+                    return isNaN(parsed) ? 1 : parsed;
+                };
+
+                return {
+                    ...item,
+                    ID_Producto: item.ID_Producto || item.SKU || item.id || `PROD-${Math.random().toString(36).substr(2, 9)}`,
+                    Nombre: item.Nombre || item.nombre || item.Name || item.name || "Producto sin nombre",
+                    Categoria: item.Categoria || item.Categoría || item.categoria || item.Category || item.category || "General",
+                    Precio_Unitario: cleanNumber(precio),
+                    Costo: cleanNumber(costo),
+                    Stock_Actual: cleanNumber(stock),
+                    Unidades_Bulto: cleanInt(unidadesBulto)
+                };
+            });
 
             setImportPreview(normalized);
         };
@@ -984,6 +1036,22 @@ export default function ProductosPage() {
                     accept="image/*" 
                     onChange={handleQuickImageFileChange} 
                 />
+            </AnimatePresence>
+
+            {/* MODAL DE IMPORTACIÓN MASIVA */}
+            <AnimatePresence>
+                {showImportModal && (
+                    <ImportModal
+                        onClose={() => {
+                            setShowImportModal(false);
+                            setImportPreview([]);
+                        }}
+                        preview={importPreview}
+                        onConfirm={handleConfirmImport}
+                        onDelete={deleteFromPreview}
+                        importing={isImporting}
+                    />
+                )}
             </AnimatePresence>
         </div>
     );
