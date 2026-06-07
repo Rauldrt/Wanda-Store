@@ -349,7 +349,8 @@ export default function ProductosPage() {
             Peso_Promedio: 1,
             Imagen_URL: '',
             Es_Oferta: false,
-            Nota_Oferta: ''
+            Nota_Oferta: '',
+            Destacado: false
         });
         setIsDrawerOpen(true);
     };
@@ -1919,13 +1920,14 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div className="flex items-center gap-6 p-6 rounded-[32px] bg-rose-500/5 border border-rose-500/10">
                                         <div className="flex-1">
                                             <p className="text-sm font-black text-slate-800 dark:text-white">En Oferta</p>
                                             <p className="text-[10px] text-slate-400 font-medium">Priorizar en carrusel</p>
                                         </div>
                                         <button
+                                            type="button"
                                             onClick={() => setFormData({ ...formData, Es_Oferta: !formData.Es_Oferta })}
                                             className={`w-14 h-8 rounded-full transition-all relative ${formData.Es_Oferta ? 'bg-rose-500 shadow-lg shadow-rose-500/30' : 'bg-slate-200'}`}
                                         >
@@ -1939,10 +1941,25 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                                             <p className="text-[10px] text-slate-400 font-medium">Mostrar en Tienda</p>
                                         </div>
                                         <button
+                                            type="button"
                                             onClick={() => setFormData({ ...formData, Visible_Online: !formData.Visible_Online })}
                                             className={`w-14 h-8 rounded-full transition-all relative ${formData.Visible_Online !== false ? 'bg-indigo-500 shadow-lg shadow-indigo-500/30' : 'bg-slate-200'}`}
                                         >
                                             <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${formData.Visible_Online !== false ? 'left-7' : 'left-1'}`} />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-6 p-6 rounded-[32px] bg-amber-500/5 border border-amber-500/10">
+                                        <div className="flex-1">
+                                            <p className="text-sm font-black text-slate-800 dark:text-white">Destacado</p>
+                                            <p className="text-[10px] text-slate-400 font-medium">Priorizar en Home</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, Destacado: !formData.Destacado })}
+                                            className={`w-14 h-8 rounded-full transition-all relative ${formData.Destacado ? 'bg-amber-500 shadow-lg shadow-amber-500/30' : 'bg-slate-200'}`}
+                                        >
+                                            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${formData.Destacado ? 'left-7' : 'left-1'}`} />
                                         </button>
                                     </div>
                                 </div>

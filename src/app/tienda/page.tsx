@@ -592,6 +592,7 @@ export default function TiendaOnlinePage() {
                     onToggleBulto={toggleBulto}
                     onSelectImage={setSelectedImage}
                     carouselConfig={carouselConfig}
+                    config={data?.config || {}}
                 />
 
                 {/* Filtros Rápidos de Categoría (Chips) */}

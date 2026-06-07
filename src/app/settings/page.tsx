@@ -50,7 +50,8 @@ export default function SettingsPage() {
         SHOW_DASHBOARD: "true",
         SHOW_LOGISTICS: "true",
         APP_LOGO: "",
-        APP_TAGLINE: "Online Tendence"
+        APP_TAGLINE: "Online Tendence",
+        CAROUSEL_MODE: "categories"
     });
 
     const categories = useMemo(() => {
@@ -102,7 +103,8 @@ export default function SettingsPage() {
                         SHOW_DASHBOARD: res.SHOW_DASHBOARD !== undefined ? String(res.SHOW_DASHBOARD) : "true",
                         SHOW_LOGISTICS: res.SHOW_LOGISTICS !== undefined ? String(res.SHOW_LOGISTICS) : "true",
                         APP_LOGO: res.APP_LOGO || "",
-                        APP_TAGLINE: res.APP_TAGLINE || "Online Tendence"
+                        APP_TAGLINE: res.APP_TAGLINE || "Online Tendence",
+                        CAROUSEL_MODE: res.CAROUSEL_MODE || "categories"
                     }));
                 }
             } catch (err) {
@@ -406,6 +408,41 @@ export default function SettingsPage() {
                         </button>
                     </div>
                 </div>
+            </div>
+
+            {/* Sección Personalización del Carrusel */}
+            <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-6">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <Layers size={14} className="text-indigo-500" /> Modo del Carrusel (Tienda Online)
+                </h3>
+
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => setConfig({ ...config, CAROUSEL_MODE: 'categories' })}
+                        className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
+                            (config.CAROUSEL_MODE || 'categories') === 'categories'
+                                ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
+                                : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        📁 Mostrar Categorías
+                    </button>
+                    <button
+                        onClick={() => setConfig({ ...config, CAROUSEL_MODE: 'featured' })}
+                        className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
+                            (config.CAROUSEL_MODE || 'categories') === 'featured'
+                                ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
+                                : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        ⭐ Mostrar Productos Destacados
+                    </button>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-left">
+                    {(config.CAROUSEL_MODE || 'categories') === 'categories' 
+                        ? "El carrusel de la tienda mostrará las categorías del catálogo." 
+                        : "El carrusel de la tienda mostrará los productos marcados como 'Destacado'."}
+                </p>
             </div>
 
             {/* Sección Promociones */}

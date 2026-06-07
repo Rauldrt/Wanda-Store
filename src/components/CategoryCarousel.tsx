@@ -9,6 +9,7 @@ interface CategoryItem {
   description: string;
   image: string;
   category: string;
+  product?: any;
 }
 
 const DEFAULT_CATEGORY_IMAGES: { [key: string]: string } = {
@@ -38,6 +39,7 @@ interface CategoryCarouselProps {
   onToggleBulto: (id: string) => void;
   onSelectImage: (url: string) => void;
   carouselConfig?: any[];
+  config?: any;
 }
 
 export default function CategoryCarousel({ 
@@ -51,7 +53,8 @@ export default function CategoryCarousel({
   onSetQtyExact,
   onToggleBulto,
   onSelectImage,
-  carouselConfig
+  carouselConfig,
+  config = {}
 }: CategoryCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -65,6 +68,19 @@ export default function CategoryCarousel({
   const minSwipeDistance = 40;
 
   const carouselItems = useMemo(() => {
+    // Si el modo es productos destacados
+    if (config.CAROUSEL_MODE === 'featured') {
+      const featured = allProducts.filter(p => p.Destacado === true || p.Destacado === 'true');
+      return featured.map((p: any) => ({
+        id: p.id || p.ID_Producto,
+        title: p.Nombre,
+        description: p.Descripcion || `Precio: $${p.Precio_Unitario}`,
+        image: p.Imagen_URL || GENERIC_IMAGE,
+        category: p.Categoria || 'Destacado',
+        product: p
+      }));
+    }
+
     // Si hay configuración dinámica y tiene items activos, usarlos
     if (carouselConfig && carouselConfig.length > 0) {
       const activeItems = carouselConfig.filter((item: any) => item.active);
@@ -89,7 +105,7 @@ export default function CategoryCarousel({
         image: DEFAULT_CATEGORY_IMAGES[cat] || GENERIC_IMAGE,
         category: cat
       }));
-  }, [categories, carouselConfig]);
+  }, [categories, carouselConfig, config.CAROUSEL_MODE, allProducts]);
 
   const nextSlide = useCallback(() => {
     if (carouselItems.length === 0) return;
@@ -136,9 +152,12 @@ export default function CategoryCarousel({
   // Filtrar productos para el modal
   const modalProducts = useMemo(() => {
     if (!selectedModalCategory) return [];
+    if (config.CAROUSEL_MODE === 'featured') {
+      return [selectedModalCategory.product].filter(Boolean);
+    }
     if (selectedModalCategory.category === 'ALL') return allProducts;
     return allProducts.filter(p => p.Categoria === selectedModalCategory.category);
-  }, [selectedModalCategory, allProducts]);
+  }, [selectedModalCategory, allProducts, config.CAROUSEL_MODE]);
 
   if (carouselItems.length === 0) return null;
 
@@ -147,7 +166,7 @@ export default function CategoryCarousel({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
           <Layers className="text-indigo-500" size={24} />
-          Categorías Destacadas
+          {config.CAROUSEL_MODE === 'featured' ? 'Selección Destacada' : 'Categorías Destacadas'}
         </h2>
         <div className="flex gap-2">
            <button 
