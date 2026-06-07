@@ -5,6 +5,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function analyzeProductImage(base64Image: string) {
+    if (!process.env.GEMINI_API_KEY) {
+        return { error: "La API Key de Gemini (GEMINI_API_KEY) no está configurada en las variables de entorno del servidor (ej. Vercel)." };
+    }
+
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
@@ -46,6 +50,6 @@ export async function analyzeProductImage(base64Image: string) {
         return JSON.parse(text);
     } catch (error: any) {
         console.error("Gemini analysis error:", error);
-        throw new Error(error.message);
+        return { error: error.message || "Error al analizar la imagen con la IA." };
     }
 }

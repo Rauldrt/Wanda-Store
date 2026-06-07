@@ -1574,6 +1574,7 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
 
             const [analysis, uploadRes] = await Promise.all([analysisPromise, uploadPromise]);
 
+            if (analysis && analysis.error) throw new Error(analysis.error);
             if (uploadRes.error) throw new Error(uploadRes.error);
 
             // 4. Update Form Data
@@ -1584,7 +1585,7 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                 Costo: analysis.precio_costo || prev.Costo,
                 Precio_Unitario: analysis.precio_venta || prev.Precio_Unitario,
                 Imagen_URL: uploadRes.url || prev.Imagen_URL,
-                Unidad: analysis.unidad && analysis.unidad.toLowerCase().includes('kg') ? 'Kg' : (prev.Unidad || 'Unid'),
+                Unidad: analysis.unidad && typeof analysis.unidad === 'string' && analysis.unidad.toLowerCase().includes('kg') ? 'Kg' : (prev.Unidad || 'Unid'),
                 Descripcion: analysis.descripcion || prev.Descripcion
             }));
 
