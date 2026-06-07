@@ -16,11 +16,42 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
+    const [config, setConfig] = useState<any>({
+        EMPRESA: "WANDA",
+        APP_LOGO: "/wanda-3d-logo.png",
+        APP_TAGLINE: "Online Tendence"
+    });
 
-    // No limpiamos el vendedor al entrar al login para permitir recargas y persistencia
     useEffect(() => {
-        // localStorage.removeItem("vendedor_name");
-        // localStorage.removeItem("vendedor_id");
+        // Cargar de caché primero para respuesta instantánea
+        const cached = localStorage.getItem("wanda_cloud_data_cache");
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                if (parsed?.config) {
+                    setConfig({
+                        EMPRESA: parsed.config.EMPRESA || "WANDA",
+                        APP_LOGO: parsed.config.APP_LOGO || "/wanda-3d-logo.png",
+                        APP_TAGLINE: parsed.config.APP_TAGLINE || "Online Tendence"
+                    });
+                }
+            } catch (e) {
+                console.error("Error reading cache at login page:", e);
+            }
+        }
+
+        // Cargar de firebase
+        wandaApi.getConfig().then((res: any) => {
+            if (res) {
+                setConfig({
+                    EMPRESA: res.EMPRESA || "WANDA",
+                    APP_LOGO: res.APP_LOGO || "/wanda-3d-logo.png",
+                    APP_TAGLINE: res.APP_TAGLINE || "Online Tendence"
+                });
+            }
+        }).catch((e: any) => {
+            console.error("Error loading remote config at login page:", e);
+        });
     }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -117,14 +148,18 @@ export default function LoginPage() {
                         <div className="absolute inset-0 bg-indigo-500/30 blur-[30px] rounded-full animate-pulse" />
                         <div className="relative w-full h-full bg-slate-900 rounded-[2.5rem] border border-white/10 flex items-center justify-center shadow-2xl shadow-indigo-500/10 transition-transform group-hover:scale-110 duration-500 overflow-hidden">
                             <img 
-                                src="/wanda-3d-logo.png" 
-                                alt="Wanda Store Logo" 
+                                src={config.APP_LOGO || "/wanda-3d-logo.png"} 
+                                alt={`${config.EMPRESA || "App"} Logo`} 
                                 className="w-full h-full object-cover scale-125"
                             />
                         </div>
                     </div>
-                    <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">WANDA</h1>
-                    <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-1">Online Tendence</p>
+                    <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+                        {config.EMPRESA ? config.EMPRESA.toUpperCase() : "WANDA"}
+                    </h1>
+                    <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-1">
+                        {config.APP_TAGLINE || "Online Tendence"}
+                    </p>
                 </div>
 
                 {error && (
@@ -246,7 +281,7 @@ export default function LoginPage() {
                         </button>
 
                         <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                            Protección de Acceso Wanda © 2024
+                            Protección de Acceso {config.EMPRESA || "Wanda"} © 2026
                         </p>
                     </motion.form>
                 )}

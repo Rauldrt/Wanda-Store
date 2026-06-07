@@ -48,7 +48,9 @@ export default function SettingsPage() {
         REMITO_DIRECCION: "",
         REMITO_TELEFONO: "",
         SHOW_DASHBOARD: "true",
-        SHOW_LOGISTICS: "true"
+        SHOW_LOGISTICS: "true",
+        APP_LOGO: "",
+        APP_TAGLINE: "Online Tendence"
     });
 
     const categories = useMemo(() => {
@@ -98,7 +100,9 @@ export default function SettingsPage() {
                         AUTH_ADMIN_PASSWORD: res.AUTH_ADMIN_PASSWORD || "admin123",
                         AUTH_PREVENTA_PASSWORD: res.AUTH_PREVENTA_PASSWORD || "wanda2024",
                         SHOW_DASHBOARD: res.SHOW_DASHBOARD !== undefined ? String(res.SHOW_DASHBOARD) : "true",
-                        SHOW_LOGISTICS: res.SHOW_LOGISTICS !== undefined ? String(res.SHOW_LOGISTICS) : "true"
+                        SHOW_LOGISTICS: res.SHOW_LOGISTICS !== undefined ? String(res.SHOW_LOGISTICS) : "true",
+                        APP_LOGO: res.APP_LOGO || "",
+                        APP_TAGLINE: res.APP_TAGLINE || "Online Tendence"
                     }));
                 }
             } catch (err) {
@@ -225,22 +229,71 @@ export default function SettingsPage() {
                 <p className="text-sm text-slate-500 italic">Gestiona los avisos, parámetros globales y seguridad del sistema.</p>
             </div>
 
-            {/* Sección Membrete / Empresa */}
+            {/* Sección Identidad y Personalización de Marca */}
             <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                    <Layers size={14} className="text-indigo-500" /> Identidad y Remitos
+                    <Layers size={14} className="text-indigo-500" /> Identidad de Marca Blanca
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nombre de Empresa</label>
+                <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-slate-100 dark:border-slate-800/50">
+                    <div className="relative group w-20 h-20 shrink-0">
+                        <div className="w-20 h-20 rounded-[24px] overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-100 dark:border-slate-800 shadow-inner">
+                            {config.APP_LOGO ? (
+                                <img src={config.APP_LOGO} className="w-full h-full object-cover" alt="Logo" />
+                            ) : (
+                                <img src="/wanda-3d-logo.png" className="w-full h-full object-cover scale-125" alt="Logo por defecto" />
+                            )}
+                        </div>
                         <input
-                            value={config.EMPRESA}
-                            onChange={e => setConfig({ ...config, EMPRESA: e.target.value })}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
-                            placeholder="WANDA DISTRIBUCIONES"
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setIsSyncing(true);
+                                try {
+                                    const compressed = await compressImage(file, 400, 400, 0.85);
+                                    const res = await wandaApi.uploadImage(compressed.file, `brand/logo_${Date.now()}.jpg`);
+                                    if (res.error) throw new Error(res.error);
+                                    if (res.url) {
+                                        setConfig(prev => ({ ...prev, APP_LOGO: res.url }));
+                                    }
+                                } catch (error) {
+                                    alert("Error al subir el logo");
+                                } finally {
+                                    setIsSyncing(false);
+                                }
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
                         />
+                        <div className="absolute inset-0 bg-black/40 rounded-[24px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                            <span className="text-[9px] font-black uppercase text-white tracking-widest text-center px-1">Subir Logo</span>
+                        </div>
                     </div>
+                    
+                    <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1 text-left">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nombre de Empresa / App</label>
+                            <input
+                                value={config.EMPRESA || ""}
+                                onChange={e => setConfig({ ...config, EMPRESA: e.target.value })}
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                                placeholder="WANDA DISTRIBUCIONES"
+                            />
+                        </div>
+                        <div className="space-y-1 text-left">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Eslogan Comercial</label>
+                            <input
+                                value={config.APP_TAGLINE || ""}
+                                onChange={e => setConfig({ ...config, APP_TAGLINE: e.target.value })}
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                                placeholder="Online Tendence"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Título del Remito</label>
                         <input

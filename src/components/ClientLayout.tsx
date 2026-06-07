@@ -42,10 +42,32 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
   const { data, loading, isSyncing, error } = useData();
+  const [cachedConfig, setCachedConfig] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
+    try {
+      const saved = localStorage.getItem("wanda_cloud_data_cache");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.config) {
+          setCachedConfig(parsed.config);
+        }
+      }
+    } catch (e) {
+      console.error("Error reading cached config:", e);
+    }
   }, []);
+
+  const config = data?.config || cachedConfig || {};
+  const showDashboard = config.SHOW_DASHBOARD !== 'false' && config.SHOW_DASHBOARD !== false;
+  const showLogistics = config.SHOW_LOGISTICS !== 'false' && config.SHOW_LOGISTICS !== false;
+
+  useEffect(() => {
+    if (config.EMPRESA) {
+      document.title = config.EMPRESA;
+    }
+  }, [config.EMPRESA]);
 
   // --- MIGRACIÓN DE DATOS LOCALES ---
   useEffect(() => {
@@ -60,25 +82,24 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("is_logged_in");
     const role = localStorage.getItem("user_role");
-    const config = data?.config || {};
-    const showDashboard = config.SHOW_DASHBOARD !== 'false' && config.SHOW_DASHBOARD !== false;
-    const showLogistics = config.SHOW_LOGISTICS !== 'false' && config.SHOW_LOGISTICS !== false;
+    const currentShowDashboard = config.SHOW_DASHBOARD !== 'false' && config.SHOW_DASHBOARD !== false;
 
     if (!isLoggedIn && pathname !== '/login' && pathname !== '/tienda') {
       router.push('/login');
     } else if (isLoggedIn && pathname === '/login') {
       if (role === 'admin') {
-        router.push(showDashboard ? '/' : '/pedidos');
+        router.push(currentShowDashboard ? '/' : '/pedidos');
       }
       else if (role === 'cliente') router.push('/tienda');
       else router.push('/tienda'); 
     }
 
     if (role === 'admin') {
-      if (pathname === '/' && !showDashboard) {
+      if (pathname === '/' && !currentShowDashboard) {
         router.push('/pedidos');
       }
-      if (pathname === '/logistica' && !showLogistics) {
+      const currentShowLogistics = config.SHOW_LOGISTICS !== 'false' && config.SHOW_LOGISTICS !== false;
+      if (pathname === '/logistica' && !currentShowLogistics) {
         router.push('/pedidos');
       }
     }
@@ -108,7 +129,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [pathname, router, data]);
+  }, [pathname, router, config]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -120,10 +141,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     setDeferredPrompt(null);
     setShowInstallBtn(false);
   };
-
-  const config = data?.config || {};
-  const showDashboard = config.SHOW_DASHBOARD !== 'false' && config.SHOW_DASHBOARD !== false;
-  const showLogistics = config.SHOW_LOGISTICS !== 'false' && config.SHOW_LOGISTICS !== false;
 
   const navItems = [
     ...(showDashboard ? [{ href: "/", icon: <LayoutDashboard size={18} />, label: "Dashboard" }] : []),
@@ -177,8 +194,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             
                 <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] bg-slate-900 border border-white/10 flex items-center justify-center shadow-[0_0_50px_rgba(99,102,241,0.3)] overflow-hidden">
                    <img 
-                     src="/wanda-3d-logo.png" 
-                     alt="Wanda Store Logo" 
+                     src={config.APP_LOGO || "/wanda-3d-logo.png"} 
+                     alt="App Logo" 
                      className="w-full h-full object-cover scale-125"
                    />
                {/* Efecto de brillo barriendo */}
@@ -198,11 +215,31 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             className="text-center mt-10 space-y-2"
           >
             <div className="flex items-center justify-center gap-2">
-              <span className="text-2xl md:text-3xl font-black text-white tracking-widest uppercase italic">Wanda</span>
-              <span className="text-2xl md:text-3xl font-black text-indigo-500 tracking-widest uppercase italic">Store</span>
+              {config.EMPRESA ? (
+                <span className="text-2xl md:text-3xl font-black text-white tracking-widest uppercase italic text-center">
+                  {(() => {
+                    const words = config.EMPRESA.trim().split(/\s+/);
+                    if (words.length > 1) {
+                      const first = words[0];
+                      const rest = words.slice(1).join(" ");
+                      return (
+                        <>
+                          {first} <span className="text-indigo-500">{rest}</span>
+                        </>
+                      );
+                    }
+                    return config.EMPRESA;
+                  })()}
+                </span>
+              ) : (
+                <>
+                  <span className="text-2xl md:text-3xl font-black text-white tracking-widest uppercase italic">Wanda</span>
+                  <span className="text-2xl md:text-3xl font-black text-indigo-500 tracking-widest uppercase italic">Store</span>
+                </>
+              )}
             </div>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.4em] animate-pulse">
-              Online Tendence
+              {config.APP_TAGLINE || "Online Tendence"}
             </p>
           </motion.div>
         </div>
@@ -247,13 +284,30 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <div className="p-4 md:p-6 h-full flex flex-col overflow-y-auto custom-scroll overflow-x-hidden">
           <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} mb-10 relative`}>
             <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-              <div className="relative group/logo cursor-pointer shrink-0" onClick={() => router.push('/landing')} title="Wanda Store">
+              <div className="relative group/logo cursor-pointer shrink-0" onClick={() => router.push('/landing')} title={config.EMPRESA || "Wanda Store"}>
                 <div className="absolute inset-0 bg-indigo-500 blur opacity-20 group-hover:opacity-40 transition-opacity" />
                 <div className="relative w-10 h-10 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden">
-                  <img src="/wanda-3d-logo.png" alt="Wanda" className="w-full h-full object-cover scale-125" />
+                  <img src={config.APP_LOGO || "/wanda-3d-logo.png"} alt="Logo" className="w-full h-full object-cover scale-125" />
                 </div>
               </div>
-              {!isSidebarCollapsed && <span className="font-black text-xl uppercase italic whitespace-nowrap">Wanda <span className="text-indigo-500">Store</span></span>}
+              {!isSidebarCollapsed && (
+                <span className="font-black text-xl uppercase italic whitespace-nowrap">
+                  {(() => {
+                    const empName = config.EMPRESA || "Wanda Store";
+                    const words = empName.trim().split(/\s+/);
+                    if (words.length > 1) {
+                      const first = words[0];
+                      const rest = words.slice(1).join(" ");
+                      return (
+                        <>
+                          {first} <span className="text-indigo-500">{rest}</span>
+                        </>
+                      );
+                    }
+                    return empName;
+                  })()}
+                </span>
+              )}
             </div>
             
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 shrink-0">
