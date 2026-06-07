@@ -6,11 +6,12 @@ import { Shield, User, Lock, ArrowRight, Store, ChevronRight, Globe, Loader2, Al
 import { useRouter } from "next/navigation";
 import { wandaApi } from "@/lib/api";
 import { auth, googleProvider } from "@/lib/firebase";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function LoginPage() {
     const [role, setRole] = useState<'admin' | null>(null);
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -30,22 +31,43 @@ export default function LoginPage() {
         try {
             if (!role) return;
 
-            // En un entorno real, usaríamos un login seguro contra el backend
-            const res = await wandaApi.verifyLogin(role, password);
+            if (role === 'admin') {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
 
-            if (res && res.success) {
-                localStorage.setItem("user_role", role);
+                localStorage.setItem("user_role", "admin");
                 localStorage.setItem("is_logged_in", "true");
-                localStorage.setItem("user_name", res.displayName || "Admin");
+                localStorage.setItem("user_email", user.email || "");
+                localStorage.setItem("user_name", user.displayName || user.email?.split('@')[0] || "Admin");
 
-                if (role === 'admin') router.push('/');
-                else router.push('/tienda');
+                router.push('/');
             } else {
-                setError(res?.error || "Credenciales incorrectas");
+                // En caso de otros roles
+                const res = await wandaApi.verifyLogin(role, password);
+
+                if (res && res.success) {
+                    localStorage.setItem("user_role", role);
+                    localStorage.setItem("is_logged_in", "true");
+                    localStorage.setItem("user_name", res.displayName || "Usuario");
+
+                    router.push('/tienda');
+                } else {
+                    setError(res?.error || "Credenciales incorrectas");
+                }
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Login error:", err);
-            setError("Error al conectar con el servidor de seguridad");
+            if (role === 'admin') {
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+                    setError("Usuario o contraseña incorrectos");
+                } else if (err.code === 'auth/invalid-email') {
+                    setError("Formato de correo inválido");
+                } else {
+                    setError("Error al iniciar sesión: " + (err.message || err.code));
+                }
+            } else {
+                setError("Error al conectar con el servidor de seguridad");
+            }
         } finally {
             setLoading(false);
         }
@@ -170,13 +192,27 @@ export default function LoginPage() {
                         <div className="flex items-center gap-3 mb-6">
                             <button
                                 type="button"
-                                onClick={() => { setRole(null); setPassword(""); setError(null); }}
+                                onClick={() => { setRole(null); setEmail(""); setPassword(""); setError(null); }}
                                 className="p-2 -ml-2 text-slate-400 hover:text-slate-600 transition-colors"
                             >
                                 <ArrowRight className="rotate-180" size={20} />
                             </button>
                             <h2 className="text-xl font-black text-slate-800 dark:text-white capitalize">{role}</h2>
                         </div>
+
+                        {role === 'admin' && (
+                            <div className="relative">
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                                <input
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                                    placeholder="Introduce tu correo"
+                                    className={`w-full bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800 border-2 ${error ? 'border-red-500/50' : 'border-slate-100 dark:border-slate-800'} focus:border-indigo-500/20 focus:bg-white dark:focus:bg-slate-800 rounded-2xl py-4 pl-12 pr-4 outline-none transition-all font-bold text-slate-800 dark:text-white`}
+                                />
+                            </div>
+                        )}
 
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
