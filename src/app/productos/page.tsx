@@ -1920,46 +1920,55 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    <div className="flex items-center gap-6 p-6 rounded-[32px] bg-rose-500/5 border border-rose-500/10">
-                                        <div className="flex-1">
-                                            <p className="text-sm font-black text-slate-800 dark:text-white">En Oferta</p>
-                                            <p className="text-[10px] text-slate-400 font-medium">Priorizar en carrusel</p>
+                                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-[32px] border border-slate-100 dark:border-slate-800 p-6 space-y-5">
+                                    {/* Item 1: En Oferta */}
+                                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/50">
+                                        <div className="text-left">
+                                            <p className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                                <span className="text-rose-500">🔥</span> En Oferta
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Priorizar en carrusel</p>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => setFormData({ ...formData, Es_Oferta: !formData.Es_Oferta })}
-                                            className={`w-14 h-8 rounded-full transition-all relative ${formData.Es_Oferta ? 'bg-rose-500 shadow-lg shadow-rose-500/30' : 'bg-slate-200'}`}
+                                            className={`w-12 h-6 rounded-full transition-all relative ${formData.Es_Oferta ? 'bg-rose-500 shadow-lg shadow-rose-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}
                                         >
-                                            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${formData.Es_Oferta ? 'left-7' : 'left-1'}`} />
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.Es_Oferta ? 'left-7' : 'left-1'}`} />
                                         </button>
                                     </div>
 
-                                    <div className="flex items-center gap-6 p-6 rounded-[32px] bg-indigo-500/5 border border-indigo-500/10">
-                                        <div className="flex-1">
-                                            <p className="text-sm font-black text-slate-800 dark:text-white">Visible Online</p>
-                                            <p className="text-[10px] text-slate-400 font-medium">Mostrar en Tienda</p>
+                                    {/* Item 2: Visible Online */}
+                                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/50">
+                                        <div className="text-left">
+                                            <p className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                                <span className="text-indigo-500">🌐</span> Visible Online
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Mostrar en Tienda</p>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => setFormData({ ...formData, Visible_Online: !formData.Visible_Online })}
-                                            className={`w-14 h-8 rounded-full transition-all relative ${formData.Visible_Online !== false ? 'bg-indigo-500 shadow-lg shadow-indigo-500/30' : 'bg-slate-200'}`}
+                                            className={`w-12 h-6 rounded-full transition-all relative ${formData.Visible_Online !== false ? 'bg-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}
                                         >
-                                            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${formData.Visible_Online !== false ? 'left-7' : 'left-1'}`} />
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.Visible_Online !== false ? 'left-7' : 'left-1'}`} />
                                         </button>
                                     </div>
 
-                                    <div className="flex items-center gap-6 p-6 rounded-[32px] bg-amber-500/5 border border-amber-500/10">
-                                        <div className="flex-1">
-                                            <p className="text-sm font-black text-slate-800 dark:text-white">Destacado</p>
-                                            <p className="text-[10px] text-slate-400 font-medium">Priorizar en Home</p>
+                                    {/* Item 3: Destacado */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-left">
+                                            <p className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                                <span className="text-amber-500">⭐</span> Destacado
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Priorizar en Home</p>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => setFormData({ ...formData, Destacado: !formData.Destacado })}
-                                            className={`w-14 h-8 rounded-full transition-all relative ${formData.Destacado ? 'bg-amber-500 shadow-lg shadow-amber-500/30' : 'bg-slate-200'}`}
+                                            className={`w-12 h-6 rounded-full transition-all relative ${formData.Destacado ? 'bg-amber-500 shadow-lg shadow-amber-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}
                                         >
-                                            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${formData.Destacado ? 'left-7' : 'left-1'}`} />
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.Destacado ? 'left-7' : 'left-1'}`} />
                                         </button>
                                     </div>
                                 </div>
