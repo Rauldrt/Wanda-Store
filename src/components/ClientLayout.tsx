@@ -41,7 +41,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [mounted, setMounted] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
-  const { loading, isSyncing, error } = useData();
+  const { data, loading, isSyncing, error } = useData();
 
   useEffect(() => {
     setMounted(true);
@@ -60,13 +60,27 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("is_logged_in");
     const role = localStorage.getItem("user_role");
+    const config = data?.config || {};
+    const showDashboard = config.SHOW_DASHBOARD !== 'false' && config.SHOW_DASHBOARD !== false;
+    const showLogistics = config.SHOW_LOGISTICS !== 'false' && config.SHOW_LOGISTICS !== false;
 
     if (!isLoggedIn && pathname !== '/login' && pathname !== '/tienda') {
       router.push('/login');
     } else if (isLoggedIn && pathname === '/login') {
-      if (role === 'admin') router.push('/');
+      if (role === 'admin') {
+        router.push(showDashboard ? '/' : '/pedidos');
+      }
       else if (role === 'cliente') router.push('/tienda');
       else router.push('/tienda'); 
+    }
+
+    if (role === 'admin') {
+      if (pathname === '/' && !showDashboard) {
+        router.push('/pedidos');
+      }
+      if (pathname === '/logistica' && !showLogistics) {
+        router.push('/pedidos');
+      }
     }
 
     if (role === 'cliente' && pathname !== '/tienda' && pathname !== '/login') {
@@ -94,7 +108,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [pathname, router]);
+  }, [pathname, router, data]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -107,10 +121,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     setShowInstallBtn(false);
   };
 
+  const config = data?.config || {};
+  const showDashboard = config.SHOW_DASHBOARD !== 'false' && config.SHOW_DASHBOARD !== false;
+  const showLogistics = config.SHOW_LOGISTICS !== 'false' && config.SHOW_LOGISTICS !== false;
+
   const navItems = [
-    { href: "/", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
+    ...(showDashboard ? [{ href: "/", icon: <LayoutDashboard size={18} />, label: "Dashboard" }] : []),
     { href: "/pedidos", icon: <Store size={18} />, label: "Pedidos" },
-    { href: "/logistica", icon: <Truck size={18} />, label: "Logística" },
+    ...(showLogistics ? [{ href: "/logistica", icon: <Truck size={18} />, label: "Logística" }] : []),
     { href: "/productos", icon: <Package size={18} />, label: "Productos" },
     { href: "/clientes", icon: <Users size={18} />, label: "Clientes" },
     { href: "/settings", icon: <Settings size={18} />, label: "Configuración" },

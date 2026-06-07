@@ -46,7 +46,9 @@ export default function SettingsPage() {
         EMPRESA: "WANDA DISTRIBUCIONES",
         REMITO_TITULO: "REMITO",
         REMITO_DIRECCION: "",
-        REMITO_TELEFONO: ""
+        REMITO_TELEFONO: "",
+        SHOW_DASHBOARD: "true",
+        SHOW_LOGISTICS: "true"
     });
 
     const categories = useMemo(() => {
@@ -94,7 +96,9 @@ export default function SettingsPage() {
                         REMITO_DIRECCION: res.REMITO_DIRECCION || prev.REMITO_DIRECCION,
                         REMITO_TELEFONO: res.REMITO_TELEFONO || prev.REMITO_TELEFONO,
                         AUTH_ADMIN_PASSWORD: res.AUTH_ADMIN_PASSWORD || "admin123",
-                        AUTH_PREVENTA_PASSWORD: res.AUTH_PREVENTA_PASSWORD || "wanda2024"
+                        AUTH_PREVENTA_PASSWORD: res.AUTH_PREVENTA_PASSWORD || "wanda2024",
+                        SHOW_DASHBOARD: res.SHOW_DASHBOARD !== undefined ? String(res.SHOW_DASHBOARD) : "true",
+                        SHOW_LOGISTICS: res.SHOW_LOGISTICS !== undefined ? String(res.SHOW_LOGISTICS) : "true"
                     }));
                 }
             } catch (err) {
@@ -183,6 +187,13 @@ export default function SettingsPage() {
 
     const updateCarouselItem = (id: string, updates: Partial<CarouselItem>) => {
         setCarouselItems(carouselItems.map(i => i.id === id ? { ...i, ...updates } : i));
+    };
+
+    const toggleField = (field: string) => {
+        setConfig(prev => ({
+            ...prev,
+            [field]: prev[field] === "true" ? "false" : "true"
+        }));
     };
 
     const handleCarouselImageUpload = async (id: string, file: File) => {
@@ -306,6 +317,41 @@ export default function SettingsPage() {
                         <AlertCircle size={12} />
                         RECOMENDACIÓN: Cambia estas claves regularmente para mantener la seguridad de Wanda Store. Estas claves afectarán el inicio de sesión de todos los usuarios.
                     </p>
+                </div>
+            </div>
+
+            {/* Sección Módulos Activos */}
+            <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-6">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <Layers size={14} className="text-indigo-500" /> Módulos del Sistema (Sidebar)
+                </h3>
+
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
+                        <div className="text-left">
+                            <h4 className="text-sm font-bold text-slate-800 dark:text-white">Panel Dashboard</h4>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Estadísticas y resumen operativo al ingresar</p>
+                        </div>
+                        <button
+                            onClick={() => toggleField("SHOW_DASHBOARD")}
+                            className={`w-12 h-6 rounded-full transition-all relative ${config.SHOW_DASHBOARD === 'true' ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${config.SHOW_DASHBOARD === 'true' ? 'left-7' : 'left-1'}`} />
+                        </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
+                        <div className="text-left">
+                            <h4 className="text-sm font-bold text-slate-800 dark:text-white">Panel Logística</h4>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Seguimiento de rutas de reparto y choferes</p>
+                        </div>
+                        <button
+                            onClick={() => toggleField("SHOW_LOGISTICS")}
+                            className={`w-12 h-6 rounded-full transition-all relative ${config.SHOW_LOGISTICS === 'true' ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${config.SHOW_LOGISTICS === 'true' ? 'left-7' : 'left-1'}`} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
