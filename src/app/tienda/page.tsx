@@ -688,7 +688,7 @@ export default function TiendaOnlinePage() {
                         exit={{ y: 100, opacity: 0 }}
                         className="fixed left-6 right-6 z-50"
                         style={{
-                            bottom: `${viewportOffset > 0 ? viewportOffset + 16 : 24}px`,
+                            bottom: `${viewportOffset > 0 ? Math.max(12, viewportOffset - 16) : 24}px`,
                             transition: 'bottom 0.15s cubic-bezier(0.1, 0.8, 0.3, 1)'
                         }}
                     >
