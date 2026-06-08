@@ -41,6 +41,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [mounted, setMounted] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const { data, loading, isSyncing, error } = useData();
   const [cachedConfig, setCachedConfig] = useState<any>(null);
 
@@ -56,6 +59,16 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       }
     } catch (e) {
       console.error("Error reading cached config:", e);
+    }
+
+    if (typeof window !== "undefined") {
+      const checkIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      const checkStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+      setIsIOS(checkIOS);
+      setIsStandalone(!!checkStandalone);
+
+      const dismissed = localStorage.getItem("wanda_install_banner_dismissed") === "true";
+      setIsBannerDismissed(dismissed);
     }
   }, []);
 
@@ -140,6 +153,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
     setDeferredPrompt(null);
     setShowInstallBtn(false);
+  };
+
+  const dismissInstallBanner = () => {
+    localStorage.setItem("wanda_install_banner_dismissed", "true");
+    setIsBannerDismissed(true);
   };
 
   const navItems = [
@@ -259,8 +277,56 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   const isMinimalLayout = pathname === '/login' || pathname === '/preventa' || pathname === '/tienda' || pathname === '/landing';
 
+  const bannerElement = (
+    <AnimatePresence>
+      {(!isStandalone && !isBannerDismissed && (showInstallBtn || isIOS)) && (
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          className="fixed bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[999] bg-slate-900/90 dark:bg-slate-950/95 backdrop-blur-md text-white p-5 rounded-[24px] shadow-2xl border border-white/10 flex items-start gap-4"
+        >
+          <div className="w-10 h-10 rounded-xl bg-indigo-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30">
+            <Package size={20} className="animate-bounce" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <h4 className="text-sm font-black tracking-wide uppercase">Instalar {config.EMPRESA || "Wanda Store"}</h4>
+            {isIOS ? (
+              <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                Presiona el botón <span className="font-bold text-indigo-400">Compartir</span> en tu navegador y selecciona <span className="font-bold text-indigo-400">"Agregar a Inicio"</span> para instalar.
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                Descarga nuestra aplicación para acceder de forma rápida, recibir notificaciones y comprar sin conexión.
+              </p>
+            )}
+            {!isIOS && (
+              <button
+                onClick={handleInstallClick}
+                className="mt-3 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2"
+              >
+                Instalar Ahora
+              </button>
+            )}
+          </div>
+          <button 
+            onClick={dismissInstallBanner} 
+            className="text-slate-400 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors shrink-0"
+          >
+            <X size={16} />
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   if (isMinimalLayout) {
-    return <main className="flex-1 w-full h-full min-h-screen">{children}</main>;
+    return (
+      <main className="flex-1 w-full h-full min-h-screen relative">
+        {children}
+        {bannerElement}
+      </main>
+    );
   }
 
   return (
@@ -428,6 +494,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           {children}
         </main>
       </div>
+      {bannerElement}
     </div>
   );
 }
