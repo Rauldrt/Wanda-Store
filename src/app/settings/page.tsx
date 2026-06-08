@@ -51,7 +51,10 @@ export default function SettingsPage() {
         SHOW_LOGISTICS: "true",
         APP_LOGO: "",
         APP_TAGLINE: "Online Tendence",
-        CAROUSEL_MODE: "categories"
+        CAROUSEL_MODE: "categories",
+        MP_ACCESS_TOKEN: "",
+        MP_PUBLIC_KEY: "",
+        MP_SANDBOX: "true"
     });
 
     const categories = useMemo(() => {
@@ -104,7 +107,10 @@ export default function SettingsPage() {
                         SHOW_LOGISTICS: res.SHOW_LOGISTICS !== undefined ? String(res.SHOW_LOGISTICS) : "true",
                         APP_LOGO: res.APP_LOGO || "",
                         APP_TAGLINE: res.APP_TAGLINE || "Online Tendence",
-                        CAROUSEL_MODE: res.CAROUSEL_MODE || "categories"
+                        CAROUSEL_MODE: res.CAROUSEL_MODE || "categories",
+                        MP_ACCESS_TOKEN: res.MP_ACCESS_TOKEN || "",
+                        MP_PUBLIC_KEY: res.MP_PUBLIC_KEY || "",
+                        MP_SANDBOX: res.MP_SANDBOX !== undefined ? String(res.MP_SANDBOX) : "true"
                     }));
                 }
             } catch (err) {
@@ -443,6 +449,50 @@ export default function SettingsPage() {
                         ? "El carrusel de la tienda mostrará las categorías del catálogo." 
                         : "El carrusel de la tienda mostrará los productos marcados como 'Destacado'."}
                 </p>
+            </div>
+
+            {/* Sección Pasarela de Pagos (Mercado Pago) */}
+            <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-6">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <ShoppingCart size={14} className="text-indigo-500" /> Pasarela de Pagos (Mercado Pago)
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Access Token (API Key)</label>
+                        <input
+                            type="password"
+                            value={config.MP_ACCESS_TOKEN || ""}
+                            onChange={e => setConfig({ ...config, MP_ACCESS_TOKEN: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                            placeholder="APP_USR-..."
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Public Key</label>
+                        <input
+                            type="text"
+                            value={config.MP_PUBLIC_KEY || ""}
+                            onChange={e => setConfig({ ...config, MP_PUBLIC_KEY: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                            placeholder="APP_USR-..."
+                        />
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
+                    <div className="text-left">
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-white">Modo Sandbox (Pruebas)</h4>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Utiliza tarjetas de prueba y simulación de pagos de Mercado Pago</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => toggleField("MP_SANDBOX")}
+                        className={`w-12 h-6 rounded-full transition-all relative shrink-0 ${config.MP_SANDBOX === 'true' ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                    >
+                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${config.MP_SANDBOX === 'true' ? 'left-7' : 'left-1'}`} />
+                    </button>
+                </div>
             </div>
 
             {/* Sección Promociones */}

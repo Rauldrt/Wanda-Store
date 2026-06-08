@@ -75,6 +75,8 @@ export default function TiendaOnlinePage() {
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [showStickySearch, setShowStickySearch] = useState(false);
     const [viewportOffset, setViewportOffset] = useState(0);
+    const [metodoPago, setMetodoPago] = useState<'efectivo' | 'mercadopago'>('efectivo');
+    const [isCartLoaded, setIsCartLoaded] = useState(false);
     const productInputRef = useRef<HTMLInputElement>(null);
     const stickyInputRef = useRef<HTMLInputElement>(null);
 
@@ -187,6 +189,58 @@ export default function TiendaOnlinePage() {
             window.visualViewport?.removeEventListener('scroll', handleResize);
         };
     }, []);
+
+    // Persistir carrito en localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem("wanda_shopping_cart");
+        if (saved) {
+            try {
+                setCarrito(JSON.parse(saved));
+            } catch (e) {}
+        }
+        setIsCartLoaded(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isCartLoaded) return;
+        localStorage.setItem("wanda_shopping_cart", JSON.stringify(carrito));
+    }, [carrito, isCartLoaded]);
+
+    // Escuchar parámetros de retorno de pago de Mercado Pago
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        const mpStatus = params.get("mp_status");
+        const orderId = params.get("order_id");
+
+        if (mpStatus && orderId) {
+            const processPayment = async () => {
+                if (mpStatus === "approved") {
+                    try {
+                        // Actualizar estado del pedido en base de datos a Pendiente
+                        await wandaApi.updateStatus(orderId, "Pendiente", "Pago aprobado por Mercado Pago");
+                        
+                        // Limpiar carrito
+                        setCarrito({});
+                        localStorage.removeItem("wanda_shopping_cart");
+                        
+                        alert("🎉 ¡Pago aprobado con éxito! Tu pedido ya está siendo procesado.");
+                    } catch (e) {
+                        console.error("Error al actualizar estado tras el pago:", e);
+                        alert("Ocurrió un error al procesar el pago. Por favor contacta soporte.");
+                    }
+                } else if (mpStatus === "pending") {
+                    alert("⏳ Tu pago está pendiente. Procesaremos el pedido una vez aprobado.");
+                } else if (mpStatus === "failure") {
+                    alert("❌ El pago fue rechazado o cancelado. Puedes intentar nuevamente.");
+                }
+                
+                // Limpiar la URL para evitar reprocesamiento
+                router.replace("/tienda");
+            };
+            processPayment();
+        }
+    }, [isCartLoaded]);
 
     // Sincronizar Historial desde Firestore + Local (Offline)
     const combinedHistory = useMemo(() => {
@@ -374,7 +428,6 @@ export default function TiendaOnlinePage() {
                 const finalItemPrice = isB ? piecePrice * ub : piecePrice;
                 const subtotal = finalItemPrice * qty;
 
-                // --- NUEVOS CAMPOS ENRICHIDOS PARA BULTOS/UNIDADES ---
                 const total_unidades = isB ? qty * ub : qty;
                 const total_bultos = ub > 0 ? (total_unidades / ub) : 0;
                 const stringBulto = (Math.floor(total_bultos * 100) / 100).toString().replace('.', ',');
@@ -422,12 +475,13 @@ export default function TiendaOnlinePage() {
             }),
             total: cartTotal,
             vendedor: "Venta Online",
-            notas: "Pedido realizado desde la tienda online",
-            id_interno: Date.now().toString()
+            notas: `Pedido realizado desde la tienda online. Método de Pago: ${metodoPago === 'mercadopago' ? 'Mercado Pago' : 'Efectivo/Transferencia'}.`,
+            id_interno: Date.now().toString(),
+            estado: metodoPago === 'mercadopago' ? 'Pendiente de Pago' : 'Pendiente'
         };
 
         try {
-            // Intentar guardar en Firestore para sincronización entre dispositivos
+            // Sincronizar perfil
             if (userInfo.email) {
                 try {
                     await wandaApi.saveClientProfile(userInfo.email, {
@@ -440,39 +494,73 @@ export default function TiendaOnlinePage() {
                 }
             }
 
+            // Guardar pedido
             const res = await wandaApi.submitOrder(orderData);
             if (res.error) throw new Error(res.error);
 
-            alert("✅ ¡Pedido enviado con éxito!");
-            setCarrito({});
-            setIsCartOpen(false);
+            const createdOrderId = res.id; // Obtenemos el ID de orden generado por el servidor
 
-            // Forzar actualización de datos para ver el pedido en el historial si hay red
-            if (typeof window !== 'undefined') window.location.reload();
-        } catch (err) {
-            console.error("Error al enviar pedido:", err);
+            if (metodoPago === 'mercadopago') {
+                // Flujo Mercado Pago
+                const checkoutRes = await fetch("/api/checkout", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        items: orderData.items,
+                        cliente: {
+                            name: userInfo.name,
+                            email: userInfo.email,
+                            telefono: checkoutData.telefono,
+                            direccion: checkoutData.direccion
+                        },
+                        orderId: createdOrderId
+                    })
+                });
 
-            // LÓGICA OFFLINE: Guardar en pedidos pendientes
-            try {
-                const savedPending = localStorage.getItem("order_history_online");
-                const pendingOrders = savedPending ? JSON.parse(savedPending) : [];
+                const checkoutJson = await checkoutRes.json();
+                if (checkoutJson.error) {
+                    throw new Error(checkoutJson.error);
+                }
 
-                // Agregamos marca de tiempo local para el historial offline
-                const offlineOrder = {
-                    ...orderData,
-                    fecha: new Date().toISOString(),
-                    isOffline: true
-                };
-
-                pendingOrders.push(offlineOrder);
-                localStorage.setItem("order_history_online", JSON.stringify(pendingOrders));
-
-                alert("📡 Sin conexión. Tu pedido se guardó en el dispositivo y se enviará automáticamente cuando recuperes internet.");
-
+                if (checkoutJson.initPoint) {
+                    // Redirigir a Mercado Pago
+                    window.location.href = checkoutJson.initPoint;
+                } else {
+                    throw new Error("No se pudo generar la pasarela de pagos de Mercado Pago.");
+                }
+            } else {
+                // Flujo tradicional Efectivo/Transferencia
+                alert("✅ ¡Pedido enviado con éxito!");
                 setCarrito({});
                 setIsCartOpen(false);
-            } catch (localErr) {
-                alert("❌ Error al guardar el pedido. Verifica tu conexión.");
+                if (typeof window !== 'undefined') window.location.reload();
+            }
+        } catch (err: any) {
+            console.error("Error al enviar pedido:", err);
+
+            // Si es flujo de pago y falló la API local/red, informamos
+            if (metodoPago === 'mercadopago') {
+                alert(`❌ Error al iniciar el pago con Mercado Pago: ${err.message || err}.`);
+            } else {
+                // LÓGICA OFFLINE tradicional
+                try {
+                    const savedPending = localStorage.getItem("order_history_online");
+                    const pendingOrders = savedPending ? JSON.parse(savedPending) : [];
+                    const offlineOrder = {
+                        ...orderData,
+                        fecha: new Date().toISOString(),
+                        isOffline: true
+                    };
+                    pendingOrders.push(offlineOrder);
+                    localStorage.setItem("order_history_online", JSON.stringify(pendingOrders));
+                    alert("📡 Sin conexión. Tu pedido se guardó en el dispositivo y se enviará automáticamente cuando recuperes internet.");
+                    setCarrito({});
+                    setIsCartOpen(false);
+                } catch (localErr) {
+                    alert("❌ Error al guardar el pedido. Verifica tu conexión.");
+                }
             }
         } finally {
             setIsSubmitting(false);
@@ -850,6 +938,42 @@ export default function TiendaOnlinePage() {
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
+                                </div>
+
+                                {/* Selección de Método de Pago */}
+                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                    <div className="p-4 bg-slate-100/50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                                            <ShoppingCart size={18} />
+                                        </div>
+                                        <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">Método de Pago</h3>
+                                    </div>
+                                    <div className="p-4 flex gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setMetodoPago('efectivo')}
+                                            className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center gap-2 ${
+                                                metodoPago === 'efectivo'
+                                                    ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
+                                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                                            }`}
+                                        >
+                                            <span className="text-lg">💵</span>
+                                            <span>Efectivo / Transf.</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMetodoPago('mercadopago')}
+                                            className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center gap-2 ${
+                                                metodoPago === 'mercadopago'
+                                                    ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
+                                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                                            }`}
+                                        >
+                                            <span className="text-lg">💳</span>
+                                            <span>Mercado Pago</span>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="flex justify-between items-center px-2">

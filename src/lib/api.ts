@@ -276,7 +276,7 @@ export const wandaApi: Record<string, any> = {
             cliente_nombre: clienteNombre,
             vendedor: orderData.vendedor || "Web",
             total: orderData.total,
-            estado: "Pendiente",
+            estado: orderData.estado || "Pendiente",
             reparto: "",
             notas: notas,
             gps: orderData.gps || orderData.cliente?.Ubicacion || "",
