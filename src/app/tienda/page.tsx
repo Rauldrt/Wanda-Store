@@ -74,6 +74,7 @@ export default function TiendaOnlinePage() {
     const [isDeliveryFormOpen, setIsDeliveryFormOpen] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [showStickySearch, setShowStickySearch] = useState(false);
+    const [viewportOffset, setViewportOffset] = useState(0);
     const productInputRef = useRef<HTMLInputElement>(null);
     const stickyInputRef = useRef<HTMLInputElement>(null);
 
@@ -166,6 +167,25 @@ export default function TiendaOnlinePage() {
         };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === "undefined" || !window.visualViewport) return;
+
+        const handleResize = () => {
+            const offset = window.innerHeight - (window.visualViewport?.height || window.innerHeight);
+            setViewportOffset(offset > 50 ? offset : 0);
+        };
+
+        window.visualViewport.addEventListener('resize', handleResize);
+        window.visualViewport.addEventListener('scroll', handleResize);
+
+        handleResize();
+
+        return () => {
+            window.visualViewport?.removeEventListener('resize', handleResize);
+            window.visualViewport?.removeEventListener('scroll', handleResize);
+        };
     }, []);
 
     // Sincronizar Historial desde Firestore + Local (Offline)
@@ -666,7 +686,11 @@ export default function TiendaOnlinePage() {
                         initial={{ y: 100, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
-                        className="fixed bottom-6 left-6 right-6 z-50"
+                        className="fixed left-6 right-6 z-50"
+                        style={{
+                            bottom: `${viewportOffset > 0 ? viewportOffset + 16 : 24}px`,
+                            transition: 'bottom 0.15s cubic-bezier(0.1, 0.8, 0.3, 1)'
+                        }}
                     >
                         <button
                             onClick={() => setIsCartOpen(true)}
