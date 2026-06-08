@@ -482,7 +482,7 @@ export default function TiendaOnlinePage() {
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-slate-950 font-sans pb-24 transition-colors">
+        <div className="min-h-screen bg-transparent font-sans pb-24 transition-colors">
             {/* Header Rediseñado */}
             <div className="sticky top-0 z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl px-4 sm:px-6 py-3 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 h-[72px]">
                 <div className="flex items-center gap-3 shrink-0">

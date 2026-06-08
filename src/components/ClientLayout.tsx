@@ -160,6 +160,18 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     setIsBannerDismissed(true);
   };
 
+  // --- PARALLAX SCROLL LISTENER ---
+  useEffect(() => {
+    const handleScroll = () => {
+      document.documentElement.style.setProperty('--scroll-y', `${window.scrollY}px`);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
   const navItems = [
     ...(showDashboard ? [{ href: "/", icon: <LayoutDashboard size={18} />, label: "Dashboard" }] : []),
     { href: "/pedidos", icon: <Store size={18} />, label: "Pedidos" },
@@ -320,9 +332,36 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     </AnimatePresence>
   );
 
+  const backgroundBackdrop = (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-[-1] bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+      {/* Auras desenfocadas de fondo */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-indigo-500/10 dark:bg-indigo-600/5 blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-500/10 dark:bg-purple-600/5 blur-[120px]" />
+      
+      {/* Objeto flotante 1 con efecto Parallax */}
+      <div 
+        className="absolute top-[25%] right-[10%] md:right-[20%] w-48 h-48 md:w-80 md:h-80 rounded-[4rem] bg-gradient-to-tr from-indigo-500/20 to-pink-500/20 dark:from-indigo-500/10 dark:to-pink-500/10 blur-2xl md:blur-3xl"
+        style={{
+          transform: 'translateY(calc(var(--scroll-y, 0px) * -0.2)) rotate(calc(var(--scroll-y, 0px) * 0.04deg))',
+          transition: 'transform 0.1s cubic-bezier(0.1, 0.8, 0.3, 1)'
+        }}
+      />
+
+      {/* Objeto flotante 2 con efecto Parallax */}
+      <div 
+        className="absolute top-[65%] left-[5%] md:left-[15%] w-64 h-64 md:w-96 md:h-96 rounded-full bg-gradient-to-br from-emerald-500/15 to-cyan-500/15 dark:from-emerald-500/5 dark:to-cyan-500/5 blur-2xl md:blur-3xl"
+        style={{
+          transform: 'translateY(calc(var(--scroll-y, 0px) * 0.12))',
+          transition: 'transform 0.1s cubic-bezier(0.1, 0.8, 0.3, 1)'
+        }}
+      />
+    </div>
+  );
+
   if (isMinimalLayout) {
     return (
       <main className="flex-1 w-full h-full min-h-screen relative">
+        {backgroundBackdrop}
         {children}
         {bannerElement}
       </main>
@@ -330,7 +369,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className={`flex w-full min-h-screen ${inter.className}`}>
+    <div className={`flex w-full min-h-screen relative ${inter.className}`}>
+      {backgroundBackdrop}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
