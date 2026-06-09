@@ -231,7 +231,7 @@ function OrderCard({ order, globalData, onSelect, onUpdateStatus, onDelete }: an
                     </div>
                     <h3 className="text-base font-black text-slate-800 dark:text-white line-clamp-1">{order.cliente_nombre}</h3>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                    <button 
                         onClick={() => printOrders([order], globalData?.config, globalData?.products, globalData?.orders)} 
                         className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all"
@@ -265,7 +265,7 @@ function OrderCard({ order, globalData, onSelect, onUpdateStatus, onDelete }: an
                                 const gps = order.gps || order.notas?.match(/GPS: (.*?) \|/)?.[1] || order.notas?.match(/GPS: (.*?)$/)?.[1];
                                 if (gps) window.open(`https://www.google.com/maps/search/?api=1&query=${gps}`, '_blank');
                             }}
-                            className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 opacity-0 group-hover/map:opacity-100 transition-all hover:bg-indigo-500 hover:text-white"
+                            className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 opacity-100 md:opacity-0 md:group-hover/map:opacity-100 transition-all hover:bg-indigo-500 hover:text-white"
                             title="Ver en Google Maps"
                         >
                             <ExternalLink size={12} />
