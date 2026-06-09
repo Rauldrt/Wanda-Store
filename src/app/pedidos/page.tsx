@@ -28,7 +28,7 @@ import {
 import { useData } from "@/context/DataContext";
 import { wandaApi } from "@/lib/api";
 import { printOrders } from "@/lib/pdfUtils";
-import { Printer } from "lucide-react";
+import { Printer, Receipt } from "lucide-react";
 
 export default function PedidosAdmin() {
     const { data, loading, refreshData } = useData();
@@ -233,11 +233,18 @@ function OrderCard({ order, globalData, onSelect, onUpdateStatus, onDelete }: an
                 </div>
                 <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                    <button 
-                        onClick={() => printOrders([order], globalData?.config, globalData?.products, globalData?.orders)} 
+                        onClick={() => printOrders([order], globalData?.config, globalData?.products, globalData?.orders, 'remito')} 
                         className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all"
-                        title="Imprimir Remito"
+                        title="Imprimir Remito (A4)"
                    >
                         <Printer size={18} />
+                   </button>
+                   <button 
+                        onClick={() => printOrders([order], globalData?.config, globalData?.products, globalData?.orders, 'ticket')} 
+                        className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                        title="Imprimir Ticket (Térmico)"
+                   >
+                        <Receipt size={18} />
                    </button>
                    <button onClick={onSelect} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"><Eye size={18} /></button>
                    <button onClick={() => onDelete(order.id)} className="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 hover:bg-rose-100 transition-all"><Trash2 size={18} /></button>
@@ -326,12 +333,18 @@ function OrderDetailModal({ order, globalData, onClose }: any) {
                         <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em]">Detalle de Pedido</span>
                         <h2 className="text-2xl font-black text-slate-800 dark:text-white">#{order.id.slice(-8)}</h2>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <button 
-                            onClick={() => printOrders([order], globalData?.config, globalData?.products, globalData?.orders)}
-                            className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 transition-all shadow-sm"
+                            onClick={() => printOrders([order], globalData?.config, globalData?.products, globalData?.orders, 'remito')}
+                            className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm cursor-pointer"
                         >
-                            <Printer size={16} /> Imprimir Comprobante
+                            <Printer size={16} /> Remito A4
+                        </button>
+                        <button 
+                            onClick={() => printOrders([order], globalData?.config, globalData?.products, globalData?.orders, 'ticket')}
+                            className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm cursor-pointer"
+                        >
+                            <Receipt size={16} /> Ticket 80mm
                         </button>
                         <button onClick={onClose} className="w-12 h-12 flex items-center justify-center hover:bg-rose-500 hover:text-white rounded-2xl transition-all group">
                             <XCircle size={20} className="group-hover:rotate-90 transition-transform" />

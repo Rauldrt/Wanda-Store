@@ -25,7 +25,8 @@ import {
     Info,
     ExternalLink,
     MapPinned,
-    Printer
+    Printer,
+    Receipt
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from "@/context/DataContext";
@@ -745,11 +746,18 @@ function ClientDrawer({ mode, data, setData, onClose, onSave, saving, onDelete, 
                                                             </p>
                                                         </div>
                                                         <button 
-                                                            onClick={() => printOrders([order], config, products, allOrders)}
+                                                            onClick={() => printOrders([order], config, products, allOrders, 'remito')}
                                                             className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-indigo-500 transition-all active:scale-90"
-                                                            title="Imprimir Remito"
+                                                            title="Imprimir Remito (A4)"
                                                         >
                                                             <Printer size={16} />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => printOrders([order], config, products, allOrders, 'ticket')}
+                                                            className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-indigo-500 transition-all active:scale-90"
+                                                            title="Imprimir Ticket (Térmico)"
+                                                        >
+                                                            <Receipt size={16} />
                                                         </button>
                                                     </div>
                                                 </div>

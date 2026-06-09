@@ -1,10 +1,153 @@
 
-export const printOrders = (rawOrderList: any[], config: any, products: any[], allOrders: any[] = []) => {
+export const printOrders = (rawOrderList: any[], config: any, products: any[], allOrders: any[] = [], format: 'remito' | 'ticket' = 'remito') => {
     // Filtrar pedidos vacíos (total 0)
     const orderList = rawOrderList.filter(o => (parseFloat(String(o.total).replace(',', '.')) || 0) > 0);
 
     const printWindow = window.open('', '_blank');
     if (!printWindow || orderList.length === 0) return;
+
+    if (format === 'ticket') {
+        const html = `
+            <html>
+            <head>
+                <title>Ticket de Entrega</title>
+                <style>
+                    body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 6px; color: #000; font-size: 11px; line-height: 1.3; }
+                    .ticket-page { page-break-after: always; }
+                    .ticket { width: 72mm; max-width: 100%; margin: 0 auto; box-sizing: border-box; }
+                    .header { text-align: center; margin-bottom: 8px; }
+                    .company { font-size: 14px; font-weight: bold; text-transform: uppercase; }
+                    .tagline { font-size: 9px; text-transform: uppercase; margin-bottom: 2px; }
+                    .contact { font-size: 9px; }
+                    .divider { border-top: 1px dashed #000; margin: 6px 0; }
+                    .section-title { font-weight: bold; text-transform: uppercase; font-size: 10px; margin-bottom: 4px; }
+                    .info-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+                    .info-val { font-weight: bold; text-align: right; }
+                    .table-header { display: flex; font-weight: bold; border-bottom: 1px dashed #000; padding-bottom: 3px; margin-bottom: 4px; }
+                    .item-row { display: flex; margin-bottom: 4px; align-items: flex-start; }
+                    .col-qty { width: 15%; text-align: left; }
+                    .col-desc { width: 60%; text-align: left; word-break: break-word; }
+                    .col-tot { width: 25%; text-align: right; }
+                    .price-details { font-size: 9px; color: #555; padding-left: 15%; margin-top: -2px; margin-bottom: 4px; }
+                    .total-box { margin-top: 8px; }
+                    .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin-top: 2px; }
+                    .footer-text { text-align: center; font-size: 8px; color: #666; margin-top: 15px; margin-bottom: 25px; line-height: 1.2; text-transform: uppercase; }
+                    @media print {
+                        @page { size: 80mm auto; margin: 0; }
+                        body { width: 72mm; margin: 0; padding: 4px; }
+                        .ticket-page { page-break-after: always; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${orderList.map((order, index) => {
+                    const activeItems = (order.items || []).filter((it: any) => {
+                        const q = parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.'));
+                        return q > 0;
+                    });
+                    
+                    return `
+                        <div class="ticket-page">
+                            <div class="ticket">
+                                <div class="header">
+                                    <div class="company">${config?.EMPRESA || 'WANDA DISTRIBUCIONES'}</div>
+                                    <div class="tagline">${config?.APP_TAGLINE || ''}</div>
+                                    <div class="contact">
+                                        ${config?.REMITO_DIRECCION ? `<div>${config.REMITO_DIRECCION}</div>` : ''}
+                                        ${config?.REMITO_TELEFONO ? `<div>Tel: ${config.REMITO_TELEFONO}</div>` : ''}
+                                    </div>
+                                </div>
+                                
+                                <div class="divider"></div>
+                                
+                                <div class="section-title">Comprobante de Entrega</div>
+                                <div class="info-row"><span>PEDIDO ID:</span> <span class="info-val">${order.id.slice(-8)}</span></div>
+                                <div class="info-row"><span>Fecha:</span> <span class="info-val">${order.fecha?.split('T')[0] || 'S/D'} ${order.fecha?.split('T')[1]?.slice(0, 5) || ''}</span></div>
+                                <div class="info-row"><span>Vendedor:</span> <span class="info-val">${order.vendedor || 'S/V'}</span></div>
+                                
+                                <div class="divider"></div>
+                                
+                                <div class="info-row"><span>Cliente:</span> <span class="info-val" style="text-align: right;">${order.cliente_nombre}</span></div>
+                                <div class="info-row"><span>Domicilio:</span> <span class="info-val" style="text-align: right;">${order.direccion || 'Retiro en Local'}</span></div>
+                                ${order.notas ? `<div style="margin-top: 4px; font-size: 9px;"><strong>Notas:</strong> ${order.notas}</div>` : ''}
+                                
+                                <div class="divider"></div>
+                                
+                                <div class="table-header">
+                                    <div class="col-qty">CANT</div>
+                                    <div class="col-desc">PRODUCTO</div>
+                                    <div class="col-tot">TOTAL</div>
+                                </div>
+                                
+                                ${activeItems.map((item: any) => {
+                                    let qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
+                                    let displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
+                                    const pId = item.id_prod || item.id_producto || item.id;
+                                    const prod = (products || []).find((p: any) => String(p.ID_Producto) === String(pId));
+                                    const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
+                                    const unitLabel = isKg ? 'kg' : 'un';
+                                    
+                                    const itemIsBulto = item.esBulto === true || 
+                                                        String(item.detalle || '').toUpperCase() === 'BULTO' || 
+                                                        String(item.formato || item._formato || '').toUpperCase() === 'BULTO' || 
+                                                        String(item.nombre || '').toUpperCase().includes('BULTO');
+
+                                    let qtyDisplay = '';
+                                    if (isKg) {
+                                        qtyDisplay = `${parseFloat(String(qty)).toFixed(3)}kg`;
+                                    } else {
+                                        const bul = item.bultos || item.BULTOS || 0;
+                                        const uni = item.unidades || item.UNIDADES || 0;
+                                        if (bul > 0 || uni > 0) {
+                                            if (bul > 0 && uni > 0) qtyDisplay = `${bul}B/${uni}${unitLabel}`;
+                                            else if (bul > 0) qtyDisplay = `${bul}B`;
+                                            else qtyDisplay = `${uni}${unitLabel}`;
+                                        } else {
+                                            qtyDisplay = itemIsBulto ? `${qty}B` : `${qty}${unitLabel}`;
+                                        }
+                                    }
+
+                                    const _subtotal = parseFloat(String(item.subtotal).replace(',', '.')) || 0;
+                                    const _descuento = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
+                                    
+                                    return `
+                                        <div class="item-row">
+                                            <div class="col-qty">${qtyDisplay}</div>
+                                            <div class="col-desc">${item.nombre}</div>
+                                            <div class="col-tot">$${_subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                        </div>
+                                        <div class="price-details">
+                                            P.Unit: $${displayedPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            ${_descuento > 0 ? ` | Desc: ${_descuento}%` : ''}
+                                        </div>
+                                    `;
+                                }).join('')}
+                                
+                                <div class="divider"></div>
+                                
+                                <div class="total-box">
+                                    <div class="info-row"><span>Subtotal:</span> <span>$${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                    <div class="total-row"><span>TOTAL:</span> <span>$${(parseFloat(String(order.total).replace(',', '.')) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                </div>
+                                
+                                <div class="divider"></div>
+                                
+                                <div class="footer-text">
+                                    ESTE DOCUMENTO NO TIENE VALOR FISCAL.<br>
+                                    ¡MUCHAS GRACIAS POR SU COMPRA!
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+                <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(html);
+        printWindow.document.close();
+        return;
+    }
 
     const html = `
         <html>
