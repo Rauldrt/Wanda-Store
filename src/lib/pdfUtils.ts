@@ -1,10 +1,345 @@
 
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+
+// Helper to generate A4 Remito PDF
+const generateRemitoPDF = (order: any, config: any, products: any[]) => {
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    const activeItems = (order.items || []).filter((it: any) => {
+        const q = parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.'));
+        return q > 0;
+    });
+
+    // Outer border for A4 page
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.rect(8, 8, 194, 281);
+
+    // Draw header box divider
+    doc.line(8, 50, 202, 50);
+
+    // Company info
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text(config?.EMPRESA || 'WANDA DISTRIBUCIONES', 12, 18);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(config?.APP_TAGLINE || 'Online Tendence', 12, 23);
+    doc.text(config?.REMITO_DIRECCION || '', 12, 28);
+    doc.text(`Tel: ${config?.REMITO_TELEFONO || ''}`, 12, 33);
+
+    // "X" Box in center
+    doc.rect(95, 8, 20, 20);
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("X", 102, 21);
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "normal");
+    doc.text("DOCUMENTO NO VALIDO\n  COMO FACTURA", 96, 25);
+
+    // Right side: Order info
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("REMITO", 135, 16);
+    doc.setFontSize(10);
+    doc.text(`Nº: ${order.id.slice(-8)}`, 135, 22);
+    doc.text(`Fecha: ${order.fecha?.split('T')[0] || ''}`, 135, 28);
+    doc.text(`Vendedor: ${order.vendedor || 'S/V'}`, 135, 34);
+
+    // Client Info Box
+    doc.setDrawColor(200, 200, 200);
+    doc.setFillColor(245, 245, 245);
+    doc.rect(10, 52, 190, 26, "F");
+    doc.rect(10, 52, 190, 26);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Cliente:", 14, 58);
+    doc.setFont("helvetica", "normal");
+    doc.text(order.cliente_nombre || '', 28, 58);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Domicilio:", 14, 64);
+    doc.setFont("helvetica", "normal");
+    doc.text(order.direccion || 'Retiro en Local', 32, 64);
+
+    if (order.notas) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Notas:", 14, 70);
+        doc.setFont("helvetica", "normal");
+        doc.text(order.notas, 26, 70, { maxWidth: 170 });
+    }
+
+    // Products table using autoTable
+    const tableData = activeItems.map((item: any) => {
+        let qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
+        let displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
+        
+        const pId = item.id_prod || item.id_producto || item.id;
+        const prod = (products || []).find((p: any) => String(p.ID_Producto) === String(pId));
+        const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
+        const unitLabel = isKg ? 'kg' : 'un';
+        
+        const itemIsBulto = item.esBulto === true || 
+                            String(item.detalle || '').toUpperCase() === 'BULTO' || 
+                            String(item.formato || item._formato || '').toUpperCase() === 'BULTO' || 
+                            String(item.nombre || '').toUpperCase().includes('BULTO');
+
+        let qtyDisplay = '';
+        if (isKg) {
+            qtyDisplay = `${parseFloat(String(qty)).toFixed(3)} Kg`;
+        } else {
+            const bul = item.bultos || item.BULTOS || 0;
+            const uni = item.unidades || item.UNIDADES || 0;
+            if (bul > 0 || uni > 0) {
+                if (bul > 0 && uni > 0) qtyDisplay = `${bul} B / ${uni} ${unitLabel}`;
+                else if (bul > 0) qtyDisplay = `${bul} BUL`;
+                else qtyDisplay = `${uni} ${unitLabel}`;
+            } else {
+                qtyDisplay = itemIsBulto ? `${qty} BUL` : `${qty} ${unitLabel}`;
+            }
+        }
+
+        const factor = prod?.UB || prod?.Unidades_Bulto || 1;
+        const factorDisplay = itemIsBulto ? `x${factor}` : '-';
+        const _subtotal = parseFloat(String(item.subtotal).replace(',', '.')) || 0;
+        const _descuento = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
+
+        return [
+            qtyDisplay,
+            factorDisplay,
+            item.nombre,
+            `$${displayedPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+            _descuento > 0 ? `${_descuento}%` : '-',
+            `$${_subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+        ];
+    });
+
+    autoTable(doc, {
+        startY: 82,
+        head: [['CANT', 'FACTOR', 'DESCRIPCION', 'P. UNIT', 'BONIF.', 'TOTAL']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 9, cellPadding: 1.5, lineColor: [0, 0, 0], textColor: [0, 0, 0] },
+        columnStyles: {
+            0: { halign: 'center', cellWidth: 20 },
+            1: { halign: 'center', cellWidth: 15 },
+            2: { halign: 'left' },
+            3: { halign: 'right', cellWidth: 25 },
+            4: { halign: 'center', cellWidth: 15 },
+            5: { halign: 'right', cellWidth: 25 }
+        },
+        margin: { left: 10, right: 10 },
+        didDrawPage: (data) => {
+            const finalY = data.cursor ? data.cursor.y : 82;
+            const footerY = Math.max(finalY + 10, 250);
+
+            doc.setFontSize(7);
+            doc.setFont("helvetica", "normal");
+            doc.text("ESTE DOCUMENTO NO TIENE VALOR FISCAL. ENTREGA SUJETA A DISPONIBILIDAD DE STOCK. EL RECEPTOR CONFORMA LA RECEPCIÓN DE LA MERCADERÍA.", 10, 280, { maxWidth: 100 });
+
+            doc.rect(130, footerY, 70, 25);
+            doc.setFontSize(9);
+            doc.text("Subtotal:", 132, footerY + 6);
+            doc.text(`$${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 195, footerY + 6, { align: "right" });
+
+            doc.text("Descuentos:", 132, footerY + 12);
+            doc.text("$0.00", 195, footerY + 12, { align: "right" });
+
+            doc.line(130, footerY + 16, 200, footerY + 16);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.text("TOTAL:", 132, footerY + 21);
+            doc.text(`$${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 195, footerY + 21, { align: "right" });
+        }
+    });
+
+    return doc;
+};
+
+// Helper to generate 80mm Ticket PDF
+const generateTicketPDF = (order: any, config: any, products: any[]) => {
+    const activeItems = (order.items || []).filter((it: any) => {
+        const q = parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.'));
+        return q > 0;
+    });
+
+    const pageHeight = Math.max(120, 75 + activeItems.length * 10);
+
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, pageHeight]
+    });
+
+    // Header
+    doc.setFont("courier", "bold");
+    doc.setFontSize(11);
+    doc.text(config?.EMPRESA || 'WANDA DISTRIBUCIONES', 40, 8, { align: "center" });
+
+    doc.setFontSize(8);
+    doc.setFont("courier", "normal");
+    doc.text(config?.APP_TAGLINE || '', 40, 12, { align: "center" });
+    if (config?.REMITO_DIRECCION) doc.text(config.REMITO_DIRECCION, 40, 16, { align: "center" });
+    if (config?.REMITO_TELEFONO) doc.text(`Tel: ${config.REMITO_TELEFONO}`, 40, 20, { align: "center" });
+
+    doc.text("------------------------------------------", 40, 24, { align: "center" });
+
+    doc.setFont("courier", "bold");
+    doc.setFontSize(9);
+    doc.text("COMPROBANTE DE ENTREGA", 5, 29);
+    
+    doc.setFont("courier", "normal");
+    doc.setFontSize(8);
+    doc.text(`PEDIDO ID: ${order.id.slice(-8)}`, 5, 34);
+    doc.text(`Fecha: ${order.fecha?.split('T')[0] || 'S/D'} ${order.fecha?.split('T')[1]?.slice(0, 5) || ''}`, 5, 38);
+    doc.text(`Vendedor: ${order.vendedor || 'S/V'}`, 5, 42);
+
+    doc.text("------------------------------------------", 40, 46, { align: "center" });
+
+    doc.text(`Cliente: ${order.cliente_nombre}`, 5, 51);
+    doc.text(`Domicilio: ${order.direccion || 'Retiro en Local'}`, 5, 55);
+    if (order.notas) {
+        doc.text(`Notas: ${order.notas}`, 5, 59, { maxWidth: 70 });
+    }
+
+    doc.text("------------------------------------------", 40, order.notas ? 66 : 63, { align: "center" });
+
+    const startTableY = order.notas ? 69 : 66;
+
+    const tableData = activeItems.map((item: any) => {
+        let qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
+        let displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
+        
+        const pId = item.id_prod || item.id_producto || item.id;
+        const prod = (products || []).find((p: any) => String(p.ID_Producto) === String(pId));
+        const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
+        const unitLabel = isKg ? 'kg' : 'un';
+        
+        const itemIsBulto = item.esBulto === true || 
+                            String(item.detalle || '').toUpperCase() === 'BULTO' || 
+                            String(item.formato || item._formato || '').toUpperCase() === 'BULTO' || 
+                            String(item.nombre || '').toUpperCase().includes('BULTO');
+
+        let qtyDisplay = '';
+        if (isKg) {
+            qtyDisplay = `${parseFloat(String(qty)).toFixed(3)}kg`;
+        } else {
+            const bul = item.bultos || item.BULTOS || 0;
+            const uni = item.unidades || item.UNIDADES || 0;
+            if (bul > 0 || uni > 0) {
+                if (bul > 0 && uni > 0) qtyDisplay = `${bul}B/${uni}${unitLabel}`;
+                else if (bul > 0) qtyDisplay = `${bul}B`;
+                else qtyDisplay = `${uni}${unitLabel}`;
+            } else {
+                qtyDisplay = itemIsBulto ? `${qty}B` : `${qty}${unitLabel}`;
+            }
+        }
+
+        const _subtotal = parseFloat(String(item.subtotal).replace(',', '.')) || 0;
+        const _descuento = parseFloat(String(item.descuento || 0).replace(',', '.')) || 0;
+
+        return [
+            qtyDisplay,
+            `${item.nombre} (P.U: $${displayedPrice.toLocaleString()}${_descuento > 0 ? ` -${_descuento}%` : ''})`,
+            `$${_subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+        ];
+    });
+
+    autoTable(doc, {
+        startY: startTableY,
+        head: [['CANT', 'PRODUCTO', 'TOTAL']],
+        body: tableData,
+        theme: 'plain',
+        headStyles: { textColor: [0, 0, 0], fontSize: 8, font: 'courier', fontStyle: 'bold', borderBottom: '1px dashed #000' },
+        styles: { fontSize: 8, font: 'courier', cellPadding: 1, textColor: [0, 0, 0] },
+        columnStyles: {
+            0: { cellWidth: 15 },
+            1: { cellWidth: 40 },
+            2: { halign: 'right', cellWidth: 17 }
+        },
+        margin: { left: 4, right: 4 },
+        didDrawPage: (data) => {
+            const finalY = data.cursor ? data.cursor.y : startTableY;
+            
+            doc.setFont("courier", "normal");
+            doc.setFontSize(8);
+            doc.text("------------------------------------------", 40, finalY + 4, { align: "center" });
+
+            doc.text("Subtotal:", 5, finalY + 9);
+            doc.text(`$${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 75, finalY + 9, { align: "right" });
+
+            doc.setFont("courier", "bold");
+            doc.setFontSize(9);
+            doc.text("TOTAL:", 5, finalY + 14);
+            doc.text(`$${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 75, finalY + 14, { align: "right" });
+
+            doc.setFont("courier", "normal");
+            doc.setFontSize(8);
+            doc.text("------------------------------------------", 40, finalY + 18, { align: "center" });
+
+            doc.setFontSize(7);
+            doc.text("ESTE DOCUMENTO NO TIENE VALOR FISCAL.", 40, finalY + 23, { align: "center" });
+            doc.setFontSize(8);
+            doc.setFont("courier", "bold");
+            doc.text("¡MUCHAS GRACIAS POR SU COMPRA!", 40, finalY + 28, { align: "center" });
+        }
+    });
+
+    return doc;
+};
+
 export const printOrders = (rawOrderList: any[], config: any, products: any[], allOrders: any[] = [], format: 'remito' | 'ticket' = 'remito') => {
     // Filtrar pedidos vacíos (total 0)
     const orderList = rawOrderList.filter(o => (parseFloat(String(o.total).replace(',', '.')) || 0) > 0);
 
+    if (orderList.length === 0) return;
+
+    // Detectar si es un dispositivo móvil
+    const isMobile = typeof window !== 'undefined' && 
+                     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile) {
+        try {
+            const doc = format === 'ticket' 
+                ? generateTicketPDF(orderList[0], config, products)
+                : generateRemitoPDF(orderList[0], config, products);
+            
+            const blob = doc.output('blob');
+            const fileName = `pedido-${orderList[0].id.slice(-8)}.pdf`;
+            const file = new File([blob], fileName, { type: 'application/pdf' });
+
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                    files: [file],
+                    title: `Pedido #${orderList[0].id.slice(-8)}`,
+                    text: `Comprobante de Pedido - ${config?.EMPRESA || 'Wanda Store'}`
+                }).catch(err => {
+                    console.error("Error sharing PDF via Web Share API", err);
+                    doc.save(fileName);
+                });
+            } else {
+                // Fallback: abrir en nueva pestaña creando un object URL
+                const fileURL = URL.createObjectURL(blob);
+                window.open(fileURL, '_blank');
+            }
+        } catch (e) {
+            console.error("Error generating/sharing PDF", e);
+            alert("Error al generar el PDF. Inténtalo de nuevo.");
+        }
+        return;
+    }
+
     const printWindow = window.open('', '_blank');
-    if (!printWindow || orderList.length === 0) return;
+    if (!printWindow) return;
 
     if (format === 'ticket') {
         const html = `
