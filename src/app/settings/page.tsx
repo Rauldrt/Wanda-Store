@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target, Shield, Lock, Image as ImageIcon } from "lucide-react";
+import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target, Shield, Lock, Image as ImageIcon, Instagram, Facebook } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 import { compressImage } from "@/lib/utils";
@@ -54,7 +54,11 @@ export default function SettingsPage() {
         CAROUSEL_MODE: "categories",
         MP_ACCESS_TOKEN: "",
         MP_PUBLIC_KEY: "",
-        MP_SANDBOX: "true"
+        MP_SANDBOX: "true",
+        CONTACT_WHATSAPP: "",
+        SOCIAL_INSTAGRAM: "",
+        SOCIAL_FACEBOOK: "",
+        SOCIAL_TIKTOK: ""
     });
 
     const categories = useMemo(() => {
@@ -110,7 +114,11 @@ export default function SettingsPage() {
                         CAROUSEL_MODE: res.CAROUSEL_MODE || "categories",
                         MP_ACCESS_TOKEN: res.MP_ACCESS_TOKEN || "",
                         MP_PUBLIC_KEY: res.MP_PUBLIC_KEY || "",
-                        MP_SANDBOX: res.MP_SANDBOX !== undefined ? String(res.MP_SANDBOX) : "true"
+                        MP_SANDBOX: res.MP_SANDBOX !== undefined ? String(res.MP_SANDBOX) : "true",
+                        CONTACT_WHATSAPP: res.CONTACT_WHATSAPP || "",
+                        SOCIAL_INSTAGRAM: res.SOCIAL_INSTAGRAM || "",
+                        SOCIAL_FACEBOOK: res.SOCIAL_FACEBOOK || "",
+                        SOCIAL_TIKTOK: res.SOCIAL_TIKTOK || ""
                     }));
                 }
             } catch (err) {
@@ -326,6 +334,57 @@ export default function SettingsPage() {
                             value={config.REMITO_TELEFONO}
                             onChange={e => setConfig({ ...config, REMITO_TELEFONO: e.target.value })}
                             className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Sección Contacto y Redes Sociales */}
+            <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-6">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <MessageSquare size={14} className="text-indigo-500" /> Contacto y Redes Sociales
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">WhatsApp (Número de Contacto Directo)</label>
+                        <input
+                            type="text"
+                            value={config.CONTACT_WHATSAPP || ""}
+                            onChange={e => setConfig({ ...config, CONTACT_WHATSAPP: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                            placeholder="Ej: 5491122334455 (código de país sin + ni espacios)"
+                        />
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider ml-1 mt-1">Ingresa el número con código de país para crear el enlace automático wa.me.</p>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Instagram (URL Completa)</label>
+                        <input
+                            type="text"
+                            value={config.SOCIAL_INSTAGRAM || ""}
+                            onChange={e => setConfig({ ...config, SOCIAL_INSTAGRAM: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                            placeholder="https://instagram.com/tu_usuario"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Facebook (URL Completa)</label>
+                        <input
+                            type="text"
+                            value={config.SOCIAL_FACEBOOK || ""}
+                            onChange={e => setConfig({ ...config, SOCIAL_FACEBOOK: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                            placeholder="https://facebook.com/tu_pagina"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">TikTok (URL Completa)</label>
+                        <input
+                            type="text"
+                            value={config.SOCIAL_TIKTOK || ""}
+                            onChange={e => setConfig({ ...config, SOCIAL_TIKTOK: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                            placeholder="https://tiktok.com/@tu_usuario"
                         />
                     </div>
                 </div>
