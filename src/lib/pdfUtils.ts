@@ -259,7 +259,7 @@ const generateTicketPDF = (order: any, config: any, products: any[]) => {
         head: [['CANT', 'PRODUCTO', 'TOTAL']],
         body: tableData,
         theme: 'plain',
-        headStyles: { textColor: [0, 0, 0], fontSize: 8, font: 'courier', fontStyle: 'bold', borderBottom: '1px dashed #000' },
+        headStyles: { textColor: [0, 0, 0], fontSize: 8, font: 'courier', fontStyle: 'bold' },
         styles: { fontSize: 8, font: 'courier', cellPadding: 1, textColor: [0, 0, 0] },
         columnStyles: {
             0: { cellWidth: 15 },

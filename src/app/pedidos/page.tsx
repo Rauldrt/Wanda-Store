@@ -189,7 +189,7 @@ export default function PedidosAdmin() {
             <AnimatePresence>
                 {selectedOrderId && (
                     <OrderDetailModal 
-                        order={data.orders.find((o:any) => o.id === selectedOrderId)} 
+                        order={data?.orders?.find((o:any) => o.id === selectedOrderId)} 
                         globalData={data}
                         onClose={() => setSelectedOrderId(null)} 
                     />
