@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ChevronRight, Star, MapPin, Play, Pause, X, Send, Monitor, Smartphone, MonitorSmartphone, Layers, Tag, Box, ShoppingBag, ArrowRight } from 'lucide-react';
+import { ChevronRight, Star, MapPin, Play, Pause, X, Send, Monitor, Smartphone, MonitorSmartphone, Layers, Tag, Box, ShoppingBag, ArrowRight, Sparkles, Gift, ShieldCheck, Heart, ArrowUpRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShopProductCard } from './ShopProductCard';
 
@@ -68,6 +68,57 @@ export default function CategoryCarousel({
   const minSwipeDistance = 40;
 
   const carouselItems = useMemo(() => {
+    // Si el modo es características/valor agregado
+    if (config.CAROUSEL_MODE === 'features') {
+      return [
+        {
+          id: 'feat-arabes',
+          title: 'Perfumes Árabes',
+          description: 'Aromas intensos y de gran duración inspirados en Oriente.',
+          image: 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&q=80&w=1000',
+          category: 'features_arabes',
+          type: 'feature',
+          details: 'Los perfumes árabes son tendencia mundial por su fijación extrema y estela única (vainilla, oud, flores y maderas preciosas).'
+        },
+        {
+          id: 'feat-decants',
+          title: 'Decants de 10ml',
+          description: 'Tu perfume favorito en formato práctico y económico.',
+          image: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&q=80&w=1000',
+          category: 'features_decants',
+          type: 'feature',
+          details: 'Los decants son versiones fraccionadas del frasco original. Ideales para llevar en el bolso, probar nuevos aromas o usar a diario sin gastar de más.'
+        },
+        {
+          id: 'feat-armado',
+          title: 'Cómo lo armamos',
+          description: 'Extracción estéril y directa para conservar el 100% de la pureza.',
+          image: 'https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?auto=format&fit=crop&q=80&w=1000',
+          category: 'features_armado',
+          type: 'feature',
+          details: 'Utilizamos jeringas exclusivas adaptadas para cada perfume, trasvasando el líquido de forma directa sin alterar la composición ni la estela original.'
+        },
+        {
+          id: 'feat-exclusivo',
+          title: 'Servicio Sorpresa',
+          description: 'Entregas discretas y planificadas si tu compra es para regalar.',
+          image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=1000',
+          category: 'features_exclusivo',
+          type: 'feature',
+          details: 'Nos encargamos de que la experiencia sea perfecta. Coordinamos fecha, hora y dedicatoria personalizada para sorprender a quien más quieras.'
+        },
+        {
+          id: 'feat-comunidad',
+          title: 'Grupo Exclusivo',
+          description: 'Unite a nuestra comunidad de WhatsApp para ofertas flash.',
+          image: 'https://images.unsplash.com/photo-1614680376593-902f74fa0d41?auto=format&fit=crop&q=80&w=1000',
+          category: 'features_comunidad',
+          type: 'feature',
+          details: 'Participá de liquidaciones flash, enterate de los ingresos antes que nadie y chateá directamente con asesoras de fragancias.'
+        }
+      ];
+    }
+
     // Si el modo es productos destacados
     if (config.CAROUSEL_MODE === 'featured') {
       const featured = allProducts.filter(p => p.Destacado === true || p.Destacado === 'true');
@@ -159,6 +210,268 @@ export default function CategoryCarousel({
     return allProducts.filter(p => p.Categoria === selectedModalCategory.category);
   }, [selectedModalCategory, allProducts, config.CAROUSEL_MODE]);
 
+  const renderFeatureContent = (id: string) => {
+    if (id === 'feat-arabes') {
+      const arabicProducts = allProducts.filter((p: any) => 
+        p.Nombre?.toLowerCase().includes('árabe') || 
+        p.Nombre?.toLowerCase().includes('arabe') || 
+        p.Descripcion?.toLowerCase().includes('árabe') ||
+        p.Descripcion?.toLowerCase().includes('arabe') ||
+        p.Nombre?.toLowerCase().includes('lattafa') ||
+        p.Nombre?.toLowerCase().includes('armaf') ||
+        p.Nombre?.toLowerCase().includes('haramein') ||
+        p.Nombre?.toLowerCase().includes('afnan') ||
+        p.Nombre?.toLowerCase().includes('al haramain')
+      );
+
+      return (
+        <div className="space-y-6">
+          <div className="p-6 bg-gradient-to-br from-amber-500/10 to-amber-600/5 dark:from-amber-500/5 dark:to-amber-950/20 border border-amber-500/10 rounded-[32px] space-y-4 text-left">
+            <h4 className="text-base font-black text-amber-600 dark:text-amber-400 flex items-center gap-2 uppercase tracking-wide">
+              <Sparkles size={18} /> El Secreto de las Fragancias Orientales
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+              Los perfumes árabes son reconocidos mundialmente por sus aromas intensos, elegantes y de <strong>larga duración</strong>. Se elaboran con ingredientes nobles como el <em>Oud</em> (madera resinosa preciosa), el almizcle, el sándalo, ámbar y notas de vainilla. Al estar altamente concentrados, se fijan profundamente en la piel, creando una estela imponente que te acompañará todo el día.
+            </p>
+          </div>
+
+          <div className="space-y-4 text-left">
+            <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+              ✨ Fragancias Árabes Disponibles ({arabicProducts.length})
+            </h4>
+
+            {arabicProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {arabicProducts.map(p => {
+                  const pid = String(p.ID_Producto);
+                  const itemCarrito = carrito[pid];
+                  const qty = itemCarrito?.cantidad || 0;
+                  const isBulto = itemCarrito?.modoBulto || false;
+
+                  return (
+                    <ShopProductCard 
+                      key={pid}
+                      product={p}
+                      qty={qty}
+                      isBulto={isBulto}
+                      onInitialAdd={onInitialAdd}
+                      onUpdateQty={onUpdateQty}
+                      onSetQtyExact={onSetQtyExact}
+                      onToggleBulto={onToggleBulto}
+                      onSelectImage={onSelectImage}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-slate-50 dark:bg-slate-900 rounded-[28px] border border-dashed dark:border-slate-800 space-y-3">
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">No se encontraron productos árabes etiquetados en el catálogo</p>
+                <button
+                  onClick={() => {
+                    onSelectCategory("Perfumería");
+                    setSelectedModalCategory(null);
+                  }}
+                  className="px-6 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full font-black text-[10px] uppercase tracking-widest transition-colors flex items-center gap-2 mx-auto"
+                >
+                  Ver Toda la Perfumería <ArrowRight size={12} />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (id === 'feat-decants') {
+      const decantProducts = allProducts.filter((p: any) => 
+        p.Nombre?.toLowerCase().includes('decant') ||
+        p.Descripcion?.toLowerCase().includes('decant') ||
+        p.Categoria?.toLowerCase().includes('perfumería') ||
+        p.Categoria?.toLowerCase().includes('perfumeria')
+      ).slice(0, 4);
+
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+            <div className="p-5 bg-rose-500/5 border border-rose-500/10 rounded-[28px] space-y-2">
+              <span className="text-xs font-black text-rose-500 uppercase tracking-widest">Frasco Original (100ml)</span>
+              <ul className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 font-medium list-disc list-inside">
+                <li>Costo de inversión inicial muy elevado.</li>
+                <li>Riesgo de aburrirse antes de terminarlo.</li>
+                <li>Incómodo y pesado para llevar de viaje o en la cartera.</li>
+                <li>Difícil probar fragancias nuevas frecuentemente.</li>
+              </ul>
+            </div>
+            <div className="p-5 bg-indigo-500/5 border border-indigo-500/10 rounded-[28px] space-y-2 ring-2 ring-indigo-500/20">
+              <span className="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1">Decant de 10ml ⭐ Recomendado</span>
+              <ul className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 font-medium list-disc list-inside">
+                <li>Solo pagás el 10% del precio de la botella.</li>
+                <li>Atomizadores de vidrio premium reutilizables.</li>
+                <li>Llevalo a la facultad, trabajo, boliche o viaje.</li>
+                <li>Coleccioná más perfumes por el mismo dinero.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="space-y-4 text-left">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                🧪 Decants y Perfumes en Tendencia
+              </h4>
+              <button 
+                onClick={() => {
+                  onSelectCategory("Perfumería");
+                  setSelectedModalCategory(null);
+                }}
+                className="text-[10px] font-black text-indigo-500 uppercase hover:underline"
+              >
+                Ver todos
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {decantProducts.map(p => {
+                const pid = String(p.ID_Producto);
+                const itemCarrito = carrito[pid];
+                const qty = itemCarrito?.cantidad || 0;
+                const isBulto = itemCarrito?.modoBulto || false;
+
+                return (
+                  <ShopProductCard 
+                    key={pid}
+                    product={p}
+                    qty={qty}
+                    isBulto={isBulto}
+                    onInitialAdd={onInitialAdd}
+                    onUpdateQty={onUpdateQty}
+                    onSetQtyExact={onSetQtyExact}
+                    onToggleBulto={onToggleBulto}
+                    onSelectImage={onSelectImage}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (id === 'feat-armado') {
+      const steps = [
+        { num: '01', title: 'Sanitización Estéril', desc: 'Desinfectamos los atomizadores de vidrio y jeringas de precisión.' },
+        { num: '02', title: 'Extracción Sellada', desc: 'Extraemos el líquido directamente del frasco madre sin contacto con el exterior.' },
+        { num: '03', title: 'Trasvase Directo', desc: 'Inyectamos la fragancia en el decant de 10ml cuidando de no alterar sus notas.' },
+        { num: '04', title: 'Sellado y Rotulado', desc: 'Sellamos el pulverizador y colocamos la etiqueta identificadora del perfume.' }
+      ];
+
+      return (
+        <div className="space-y-6 text-left">
+          <div className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] space-y-4">
+            <h4 className="text-base font-black text-indigo-500 uppercase tracking-wide flex items-center gap-2">
+              <ShieldCheck size={18} /> Garantía de Autenticidad y Pureza
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+              No diluimos, no mezclamos y no alteramos los perfumes. Cada decant es <strong>100% perfume puro original</strong>, fraccionado higiénicamente bajo estrictas medidas para asegurar que recibas el mismo aroma, duración y proyección que la botella cerrada.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {steps.map((st, idx) => (
+              <div key={idx} className="flex gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px]">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 font-black flex items-center justify-center text-sm shrink-0">
+                  {st.num}
+                </div>
+                <div className="space-y-1">
+                  <h5 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">{st.title}</h5>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-normal">{st.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (id === 'feat-exclusivo') {
+      const handleContactWhatsApp = (message: string) => {
+        const waVal = config.CONTACT_WHATSAPP || '';
+        const cleaned = waVal.replace(/[^0-9]/g, '');
+        const url = `https://wa.me/${cleaned}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      };
+
+      return (
+        <div className="space-y-6 text-left">
+          <div className="p-6 bg-gradient-to-br from-pink-500/10 to-rose-500/5 dark:from-pink-500/5 dark:to-rose-950/20 border border-pink-500/10 rounded-[32px] space-y-4">
+            <h4 className="text-base font-black text-pink-600 dark:text-pink-400 flex items-center gap-2 uppercase tracking-wide">
+              <Gift size={18} /> ¿Querés hacer un regalo sorpresa?
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+              Nosotros nos encargamos de que sea inolvidable. Realizamos envíos sorpresas con un packaging de lujo, tarjetones dedicados con tu texto personalizado y la máxima discreción. Coordinamos día, horario y ubicación exacta directamente con el agasajado o con vos.
+            </p>
+          </div>
+
+          <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] text-center space-y-4">
+            <Heart className="w-12 h-12 text-rose-500 mx-auto animate-pulse" />
+            <div className="space-y-1">
+              <h5 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">Agregá Dedicatoria y Envoltura Gratis</h5>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Consultanos ahora y coordiná tu regalo especial a través de nuestro WhatsApp oficial.</p>
+            </div>
+            <button
+              onClick={() => handleContactWhatsApp("¡Hola! Me interesa coordinar un envío sorpresa de regalo con dedicatoria.")}
+              className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-full font-black text-xs uppercase tracking-widest transition-colors flex items-center gap-2 mx-auto shadow-lg shadow-rose-500/20 active:scale-95 transition-transform"
+            >
+              Coordinar Regalo Sorpresa <Send size={14} />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (id === 'feat-comunidad') {
+      const handleJoinGroup = () => {
+        const waVal = config.CONTACT_WHATSAPP || '';
+        const cleaned = waVal.replace(/[^0-9]/g, '');
+        const url = `https://wa.me/${cleaned}?text=${encodeURIComponent("¡Hola! Quiero unirme al grupo exclusivo de ofertas VIP de Wanda Essence.")}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      };
+
+      return (
+        <div className="space-y-6 text-left">
+          <div className="p-6 bg-emerald-500/5 dark:bg-emerald-950/10 border border-emerald-500/10 rounded-[32px] space-y-4">
+            <h4 className="text-base font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-2 uppercase tracking-wide">
+              💬 Comunidad Exclusiva Wanda
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+              Al formar parte de nuestro grupo de difusión y ofertas en WhatsApp, accedés a beneficios que no se publican en ningún otro lado:
+            </p>
+            <ul className="text-[11px] text-slate-500 dark:text-slate-400 space-y-2 font-medium list-inside">
+              <li>🚀 <strong>Ingresos Anticipados</strong>: Reservá las fragancias más virales antes de que aparezcan en el catálogo general.</li>
+              <li>⚡ <strong>Liquidaciones Flash</strong>: Descuentos por tiempo limitado de hasta un 30% en fragancias seleccionadas.</li>
+              <li>💡 <strong>Asesoramiento VIP</strong>: Respuestas directas a consultas sobre notas, familias olfativas y recomendaciones.</li>
+            </ul>
+          </div>
+
+          <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] text-center space-y-4 ring-2 ring-emerald-500/15">
+            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-[9px] font-black uppercase tracking-widest">Acceso Directo</span>
+            <div className="space-y-1">
+              <h5 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">Unite a nuestro WhatsApp VIP</h5>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Hacé clic abajo para solicitar tu acceso instantáneo a la comunidad.</p>
+            </div>
+            <button
+              onClick={handleJoinGroup}
+              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-black text-xs uppercase tracking-widest transition-colors flex items-center gap-2 mx-auto shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform"
+            >
+              Quiero Unirme a la Comunidad <ArrowUpRight size={14} />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   if (carouselItems.length === 0) return null;
 
   return (
@@ -166,7 +479,11 @@ export default function CategoryCarousel({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
           <Layers className="text-indigo-500" size={24} />
-          {config.CAROUSEL_MODE === 'featured' ? 'Selección Destacada' : 'Categorías Destacadas'}
+          {config.CAROUSEL_MODE === 'featured' 
+            ? 'Selección Destacada' 
+            : config.CAROUSEL_MODE === 'features'
+            ? '¿Por qué elegirnos?'
+            : 'Categorías Destacadas'}
         </h2>
         <div className="flex gap-2">
            <button 
@@ -292,19 +609,27 @@ export default function CategoryCarousel({
                     {selectedModalCategory.description}
                   </p>
                   
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white text-[10px] font-black uppercase tracking-wider">
-                      {modalProducts.length} Productos
-                    </span>
-                    <button 
-                      onClick={() => {
-                        onSelectCategory(selectedModalCategory.category);
-                        setSelectedModalCategory(null);
-                      }}
-                      className="px-4 py-1 bg-indigo-500 rounded-full text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1 hover:bg-indigo-400 transition-colors"
-                    >
-                      Ver en tienda <ArrowRight size={12} />
-                    </button>
+                  <div className="mt-6 flex flex-wrap gap-2 text-left">
+                    {config.CAROUSEL_MODE !== 'features' ? (
+                      <>
+                        <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white text-[10px] font-black uppercase tracking-wider">
+                          {modalProducts.length} Productos
+                        </span>
+                        <button 
+                          onClick={() => {
+                            onSelectCategory(selectedModalCategory.category);
+                            setSelectedModalCategory(null);
+                          }}
+                          className="px-4 py-1 bg-indigo-500 rounded-full text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1 hover:bg-indigo-400 transition-colors"
+                        >
+                          Ver en tienda <ArrowRight size={12} />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white text-[10px] font-black uppercase tracking-wider">
+                        ✨ Información
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -316,47 +641,64 @@ export default function CategoryCarousel({
                 </button>
               </div>
 
-              {/* Lado Derecho: Grid de Productos */}
-              <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-900">
-                <div className="p-6 md:p-8 border-b dark:border-slate-800 flex items-center justify-between">
-                  <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Selección Exclusiva</h3>
-                  <button onClick={() => setSelectedModalCategory(null)} className="md:hidden p-2 text-slate-400"><X size={24} /></button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
-                  {modalProducts.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                      {modalProducts.map(p => {
-                        const pid = String(p.ID_Producto);
-                        const itemCarrito = carrito[pid];
-                        const qty = itemCarrito?.cantidad || 0;
-                        const isBulto = itemCarrito?.modoBulto || false;
-
-                        return (
-                          <ShopProductCard 
-                            key={pid}
-                            product={p}
-                            qty={qty}
-                            isBulto={isBulto}
-                            onInitialAdd={onInitialAdd}
-                            onUpdateQty={onUpdateQty}
-                            onSetQtyExact={onSetQtyExact}
-                            onToggleBulto={onToggleBulto}
-                            onSelectImage={onSelectImage}
-                          />
-                        );
-                      })}
+              {/* Lado Derecho: Grid de Productos o Detalle de Característica */}
+              <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-900 overflow-hidden">
+                {config.CAROUSEL_MODE === 'features' ? (
+                  <div className="flex-1 flex flex-col h-full overflow-hidden">
+                    <div className="p-6 md:p-8 border-b dark:border-slate-800 flex items-center justify-between shrink-0">
+                      <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">
+                        Detalles Especiales
+                      </h3>
+                      <button onClick={() => setSelectedModalCategory(null)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors"><X size={24} /></button>
                     </div>
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-10">
-                      <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-[32px] flex items-center justify-center text-slate-300 mb-4">
-                        <ShoppingBag size={40} />
-                      </div>
-                      <h4 className="text-xl font-black text-slate-800 dark:text-white">Sin stock disponible</h4>
-                      <p className="text-slate-500 text-sm mt-2">Estamos trabajando para reponer estos productos pronto.</p>
+
+                    <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+                      {renderFeatureContent(selectedModalCategory.id)}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-6 md:p-8 border-b dark:border-slate-800 flex items-center justify-between shrink-0">
+                      <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Selección Exclusiva</h3>
+                      <button onClick={() => setSelectedModalCategory(null)} className="p-2 text-slate-400 hover:text-indigo-500 transition-colors"><X size={24} /></button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+                      {modalProducts.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                          {modalProducts.map(p => {
+                            const pid = String(p.ID_Producto);
+                            const itemCarrito = carrito[pid];
+                            const qty = itemCarrito?.cantidad || 0;
+                            const isBulto = itemCarrito?.modoBulto || false;
+
+                            return (
+                              <ShopProductCard 
+                                key={pid}
+                                product={p}
+                                qty={qty}
+                                isBulto={isBulto}
+                                onInitialAdd={onInitialAdd}
+                                onUpdateQty={onUpdateQty}
+                                onSetQtyExact={onSetQtyExact}
+                                onToggleBulto={onToggleBulto}
+                                onSelectImage={onSelectImage}
+                              />
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-10">
+                          <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-[32px] flex items-center justify-center text-slate-300 mb-4">
+                            <ShoppingBag size={40} />
+                          </div>
+                          <h4 className="text-xl font-black text-slate-800 dark:text-white">Sin stock disponible</h4>
+                          <p className="text-slate-500 text-sm mt-2">Estamos trabajando para reponer estos productos pronto.</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>

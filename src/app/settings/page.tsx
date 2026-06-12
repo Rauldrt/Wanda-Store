@@ -481,10 +481,10 @@ export default function SettingsPage() {
                     <Layers size={14} className="text-indigo-500" /> Modo del Carrusel (Tienda Online)
                 </h3>
 
-                <div className="flex gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button
                         onClick={() => setConfig({ ...config, CAROUSEL_MODE: 'categories' })}
-                        className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
+                        className={`py-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
                             (config.CAROUSEL_MODE || 'categories') === 'categories'
                                 ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
                                 : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
@@ -494,19 +494,31 @@ export default function SettingsPage() {
                     </button>
                     <button
                         onClick={() => setConfig({ ...config, CAROUSEL_MODE: 'featured' })}
-                        className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
+                        className={`py-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
                             (config.CAROUSEL_MODE || 'categories') === 'featured'
                                 ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
                                 : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
                         }`}
                     >
-                        ⭐ Mostrar Productos Destacados
+                        ⭐ Productos Destacados
+                    </button>
+                    <button
+                        onClick={() => setConfig({ ...config, CAROUSEL_MODE: 'features' })}
+                        className={`py-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
+                            (config.CAROUSEL_MODE || 'categories') === 'features'
+                                ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
+                                : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        ✨ Valor Agregado
                     </button>
                 </div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-left">
                     {(config.CAROUSEL_MODE || 'categories') === 'categories' 
                         ? "El carrusel de la tienda mostrará las categorías del catálogo." 
-                        : "El carrusel de la tienda mostrará los productos marcados como 'Destacado'."}
+                        : (config.CAROUSEL_MODE === 'featured')
+                        ? "El carrusel de la tienda mostrará los productos marcados como 'Destacado'."
+                        : "El carrusel mostrará el valor agregado y características destacadas (ideal para Wanda Essence)."}
                 </p>
             </div>
 
