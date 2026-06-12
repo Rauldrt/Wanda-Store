@@ -70,6 +70,25 @@ export default function CategoryCarousel({
   const carouselItems = useMemo(() => {
     // Si el modo es características/valor agregado
     if (config.CAROUSEL_MODE === 'features') {
+      const customFeaturesRaw = config.SYSTEM_CAROUSEL_FEATURES;
+      if (customFeaturesRaw) {
+        try {
+          const parsed = JSON.parse(customFeaturesRaw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.filter((item: any) => item.active).map((item: any) => ({
+              id: item.id,
+              title: item.title,
+              description: item.description,
+              image: item.image || GENERIC_IMAGE,
+              category: item.category,
+              details: item.details || item.description,
+              type: 'feature'
+            }));
+          }
+        } catch (e) {
+          console.error("Error parsing carousel features", e);
+        }
+      }
       return [
         {
           id: 'feat-arabes',
@@ -210,7 +229,9 @@ export default function CategoryCarousel({
     return allProducts.filter(p => p.Categoria === selectedModalCategory.category);
   }, [selectedModalCategory, allProducts, config.CAROUSEL_MODE]);
 
-  const renderFeatureContent = (id: string) => {
+  const renderFeatureContent = (item: any) => {
+    const { id, title, description, details, category } = item;
+
     if (id === 'feat-arabes') {
       const arabicProducts = allProducts.filter((p: any) => 
         p.Nombre?.toLowerCase().includes('árabe') || 
@@ -231,7 +252,7 @@ export default function CategoryCarousel({
               <Sparkles size={18} /> El Secreto de las Fragancias Orientales
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-              Los perfumes árabes son reconocidos mundialmente por sus aromas intensos, elegantes y de <strong>larga duración</strong>. Se elaboran con ingredientes nobles como el <em>Oud</em> (madera resinosa preciosa), el almizcle, el sándalo, ámbar y notas de vainilla. Al estar altamente concentrados, se fijan profundamente en la piel, creando una estela imponente que te acompañará todo el día.
+              Los perfumes árabes son reconocidos mundialmente por sus aromas intensos, elegantes y de <strong>larga duración</strong>. Se elaboran con ingredientes nobles como el <em>Oud</em> (madera resinosa preciosa), el almizcle, el sándalo, ámbar y notas de vainilla. Al estar altamente concentrados, se fijan profundamente en la piel, creando una estela inconfundible que te acompañará todo el día.
             </p>
           </div>
 
@@ -469,7 +490,75 @@ export default function CategoryCarousel({
       );
     }
 
-    return null;
+    const whatsappMessage = `¡Hola! Me interesa saber más sobre: ${title}.`;
+    const waVal = config.CONTACT_WHATSAPP || '';
+    const cleaned = waVal.replace(/[^0-9]/g, '');
+    const whatsappUrl = `https://wa.me/${cleaned}?text=${encodeURIComponent(whatsappMessage)}`;
+    
+    const linkedProducts = category && category !== 'ALL' 
+      ? allProducts.filter((p: any) => p.Categoria === category)
+      : [];
+
+    return (
+      <div className="space-y-6 text-left">
+        <div className="p-6 bg-indigo-500/5 dark:bg-indigo-950/15 border border-indigo-500/10 rounded-[32px] space-y-4">
+          <h4 className="text-base font-black text-indigo-500 uppercase tracking-wide flex items-center gap-2">
+            <Sparkles size={18} /> {title}
+          </h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+            {details || description}
+          </p>
+        </div>
+
+        {linkedProducts.length > 0 ? (
+          <div className="space-y-4">
+            <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+              🛍️ Productos en {category} ({linkedProducts.length})
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {linkedProducts.slice(0, 4).map(p => {
+                const pid = String(p.ID_Producto);
+                const itemCarrito = carrito[pid];
+                const qty = itemCarrito?.cantidad || 0;
+                const isBulto = itemCarrito?.modoBulto || false;
+
+                return (
+                  <ShopProductCard 
+                    key={pid}
+                    product={p}
+                    qty={qty}
+                    isBulto={isBulto}
+                    onInitialAdd={onInitialAdd}
+                    onUpdateQty={onUpdateQty}
+                    onSetQtyExact={onSetQtyExact}
+                    onToggleBulto={onToggleBulto}
+                    onSelectImage={onSelectImage}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] text-center space-y-4">
+            <div className="w-12 h-12 bg-indigo-500/10 text-indigo-500 rounded-full flex items-center justify-center mx-auto">
+              <Send size={20} className="animate-bounce" />
+            </div>
+            <div className="space-y-1">
+              <h5 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">¿Querés más información?</h5>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Consultanos ahora y sacate todas las dudas que tengas con una de nuestras asesoras.</p>
+            </div>
+            {config.CONTACT_WHATSAPP && (
+              <button
+                onClick={() => window.open(whatsappUrl, '_blank', 'noopener,noreferrer')}
+                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-black text-xs uppercase tracking-widest transition-colors flex items-center gap-2 mx-auto shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform"
+              >
+                Chateá con nosotros <Send size={14} />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (carouselItems.length === 0) return null;
@@ -653,7 +742,7 @@ export default function CategoryCarousel({
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
-                      {renderFeatureContent(selectedModalCategory.id)}
+                      {renderFeatureContent(selectedModalCategory)}
                     </div>
                   </div>
                 ) : (

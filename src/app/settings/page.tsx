@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target, Shield, Lock, Image as ImageIcon, Instagram, Facebook } from "lucide-react";
+import { Bell, Save, Loader2, MessageSquare, AlertCircle, Plus, Trash2, Layers, Tag, Package, ShoppingCart, Target, Shield, Lock, Image as ImageIcon, Instagram, Facebook, Sparkles } from "lucide-react";
 import { wandaApi } from "@/lib/api";
 import { useData } from "@/context/DataContext";
 import { compressImage } from "@/lib/utils";
@@ -42,6 +42,7 @@ export default function SettingsPage() {
     const [notifications, setNotifications] = useState<SystemNotification[]>([]);
     const [promotions, setPromotions] = useState<Promotion[]>([]);
     const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
+    const [carouselFeatures, setCarouselFeatures] = useState<any[]>([]);
     const [config, setConfig] = useState<Record<string, string>>({
         EMPRESA: "WANDA DISTRIBUCIONES",
         REMITO_TITULO: "REMITO",
@@ -98,6 +99,14 @@ export default function SettingsPage() {
                             setCarouselItems([]);
                         }
                     }
+                    if (res.SYSTEM_CAROUSEL_FEATURES) {
+                        try {
+                            setCarouselFeatures(JSON.parse(res.SYSTEM_CAROUSEL_FEATURES));
+                        } catch (e) {
+                            console.error("Error parsing carousel features", e);
+                            setCarouselFeatures([]);
+                        }
+                    }
                     // Cargar otros campos
                     setConfig(prev => ({
                         ...prev,
@@ -137,7 +146,8 @@ export default function SettingsPage() {
                 ...config,
                 SYSTEM_NOTIFICATIONS: JSON.stringify(notifications),
                 SYSTEM_PROMOTIONS: JSON.stringify(promotions),
-                SYSTEM_CAROUSEL: JSON.stringify(carouselItems)
+                SYSTEM_CAROUSEL: JSON.stringify(carouselItems),
+                SYSTEM_CAROUSEL_FEATURES: JSON.stringify(carouselFeatures)
             });
             await refreshData(true);
             alert("Configuración guardada correctamente");
@@ -189,24 +199,90 @@ export default function SettingsPage() {
         setPromotions(promotions.map(p => p.id === id ? { ...p, ...updates } : p));
     };
 
+    const isFeaturesMode = config.CAROUSEL_MODE === 'features';
+
     const addCarouselItem = () => {
-        const newItem: CarouselItem = {
-            id: Date.now().toString(),
-            title: "Nueva Categoría",
-            description: "Descripción de la categoría...",
+        const newItem: any = {
+            id: `slide-${new Date().getTime()}`,
+            title: isFeaturesMode ? "Nueva Característica" : "Nueva Categoría",
+            description: "Descripción breve...",
             image: "",
             category: "ALL",
             active: true
         };
-        setCarouselItems([...carouselItems, newItem]);
+        if (isFeaturesMode) {
+            newItem.details = "Contenido detallado para el modal...";
+            setCarouselFeatures([...carouselFeatures, newItem]);
+        } else {
+            setCarouselItems([...carouselItems, newItem]);
+        }
     };
 
     const removeCarouselItem = (id: string) => {
-        setCarouselItems(carouselItems.filter(i => i.id !== id));
+        if (isFeaturesMode) {
+            setCarouselFeatures(carouselFeatures.filter(i => i.id !== id));
+        } else {
+            setCarouselItems(carouselItems.filter(i => i.id !== id));
+        }
     };
 
-    const updateCarouselItem = (id: string, updates: Partial<CarouselItem>) => {
-        setCarouselItems(carouselItems.map(i => i.id === id ? { ...i, ...updates } : i));
+    const updateCarouselItem = (id: string, updates: Partial<any>) => {
+        if (isFeaturesMode) {
+            setCarouselFeatures(carouselFeatures.map(i => i.id === id ? { ...i, ...updates } : i));
+        } else {
+            setCarouselItems(carouselItems.map(i => i.id === id ? { ...i, ...updates } : i));
+        }
+    };
+
+    const loadDefaultFeatures = () => {
+        const defaults = [
+            {
+                id: 'feat-arabes',
+                title: 'Perfumes Árabes',
+                description: 'Aromas intensos y de gran duración inspirados en Oriente.',
+                image: 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&q=80&w=1000',
+                category: 'features_arabes',
+                active: true,
+                details: 'Los perfumes árabes son tendencia mundial por su fijación extrema y estela única (vainilla, oud, flores y maderas preciosas).'
+            },
+            {
+                id: 'feat-decants',
+                title: 'Decants de 10ml',
+                description: 'Tu perfume favorito en formato práctico y económico.',
+                image: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&q=80&w=1000',
+                category: 'features_decants',
+                active: true,
+                details: 'Los decants son versiones fraccionadas del frasco original. Ideales para llevar en el bolso, probar nuevos aromas o usar a diario sin gastar de más.'
+            },
+            {
+                id: 'feat-armado',
+                title: 'Cómo lo armamos',
+                description: 'Extracción estéril y directa para conservar el 100% de la pureza.',
+                image: 'https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?auto=format&fit=crop&q=80&w=1000',
+                category: 'features_armado',
+                active: true,
+                details: 'Utilizamos jeringas exclusivas adaptadas para cada perfume, trasvasando el líquido de forma directa sin alterar la composición ni la estela original.'
+            },
+            {
+                id: 'feat-exclusivo',
+                title: 'Servicio Sorpresa',
+                description: 'Entregas discretas y planificadas si tu compra es para regalar.',
+                image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=1000',
+                category: 'features_exclusivo',
+                active: true,
+                details: 'Nos encargamos de que la experiencia sea perfecta. Coordinamos fecha, hora y dedicatoria personalizada para sorprender a quien más quieras.'
+            },
+            {
+                id: 'feat-comunidad',
+                title: 'Grupo Exclusivo',
+                description: 'Unite a nuestra comunidad de WhatsApp para ofertas flash.',
+                image: 'https://images.unsplash.com/photo-1614680376593-902f74fa0d41?auto=format&fit=crop&q=80&w=1000',
+                category: 'features_comunidad',
+                active: true,
+                details: 'Participá de liquidaciones flash, enterate de los ingresos antes que nadie y chateá directamente con asesoras de fragancias.'
+            }
+        ];
+        setCarouselFeatures(defaults);
     };
 
     const toggleField = (field: string) => {
@@ -799,20 +875,30 @@ export default function SettingsPage() {
 
             {/* Sección Administrador de Carrusel */}
             <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
                     <h3 className="text-lg font-black uppercase tracking-widest text-slate-400 text-[10px] flex items-center gap-2">
-                        <Layers size={14} className="text-indigo-500" /> Carrusel de Categorías
+                        <Layers size={14} className="text-indigo-500" /> {isFeaturesMode ? 'Carrusel de Características' : 'Carrusel de Categorías'}
                     </h3>
-                    <button
-                        onClick={addCarouselItem}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 hover:text-white transition-all active:scale-95"
-                    >
-                        <Plus size={14} /> Nuevo Item
-                    </button>
+                    <div className="flex gap-2">
+                        {isFeaturesMode && carouselFeatures.length === 0 && (
+                            <button
+                                onClick={loadDefaultFeatures}
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
+                            >
+                                <Sparkles size={14} /> Cargar Predeterminados
+                            </button>
+                        )}
+                        <button
+                            onClick={addCarouselItem}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 hover:text-white transition-all active:scale-95"
+                        >
+                            <Plus size={14} /> Nuevo Item
+                        </button>
+                    </div>
                 </div>
 
                 <AnimatePresence mode="popLayout">
-                    {carouselItems.length === 0 ? (
+                    {(isFeaturesMode ? carouselFeatures : carouselItems).length === 0 ? (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -821,11 +907,15 @@ export default function SettingsPage() {
                             <div className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mx-auto text-slate-400">
                                 <Layers size={20} />
                             </div>
-                            <p className="text-sm text-slate-500 font-medium">No hay items en el carrusel. Se usarán las categorías por defecto.</p>
+                            <p className="text-sm text-slate-500 font-medium">
+                                {isFeaturesMode 
+                                    ? "No hay características en el carrusel. Usa Cargar Predeterminados o crea una nueva." 
+                                    : "No hay items en el carrusel. Se usarán las categorías por defecto."}
+                            </p>
                         </motion.div>
                     ) : (
                         <div className="space-y-4 pb-24">
-                            {carouselItems.map((item) => (
+                            {(isFeaturesMode ? carouselFeatures : carouselItems).map((item) => (
                                 <motion.div
                                     key={item.id}
                                     layout
@@ -836,8 +926,8 @@ export default function SettingsPage() {
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className="relative group w-12 h-12">
-                                                <div className={`w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center ${item.active ? 'ring-2 ring-indigo-500' : ''}`}>
+                                            <div className="relative group w-12 h-12 flex-shrink-0">
+                                                <div className={`w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center ${item.active ? 'ring-2 ring-indigo-500' : ''}`}>
                                                     {item.image ? (
                                                         <img src={item.image} className="w-full h-full object-cover" alt="" />
                                                     ) : (
@@ -851,14 +941,16 @@ export default function SettingsPage() {
                                                     className="absolute inset-0 opacity-0 cursor-pointer"
                                                 />
                                             </div>
-                                            <div>
+                                            <div className="text-left">
                                                 <input
                                                     value={item.title}
                                                     onChange={(e) => updateCarouselItem(item.id, { title: e.target.value })}
                                                     className="text-sm font-black bg-transparent border-none p-0 focus:ring-0 outline-none text-slate-800 dark:text-slate-100"
                                                     placeholder="Título del slide..."
                                                 />
-                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">Slide de Carrusel</p>
+                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">
+                                                    {isFeaturesMode ? 'Slide de Característica' : 'Slide de Categoría'}
+                                                </p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -902,9 +994,23 @@ export default function SettingsPage() {
                                                 onChange={(e) => updateCarouselItem(item.id, { description: e.target.value })}
                                                 className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-[11px] font-bold outline-none"
                                                 placeholder="Breve descripción..."
-                                            />
+                                             />
                                         </div>
                                     </div>
+
+                                    {isFeaturesMode && (
+                                        <div className="space-y-1 text-left">
+                                            <label className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
+                                                <Tag size={10} /> Contenido Detallado (Texto largo para el Modal)
+                                            </label>
+                                            <textarea
+                                                value={item.details || ""}
+                                                onChange={(e) => updateCarouselItem(item.id, { details: e.target.value })}
+                                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-[11px] font-bold outline-none min-h-[80px]"
+                                                placeholder="Escribe la explicación detallada que se verá al hacer clic en el slide..."
+                                            />
+                                        </div>
+                                    )}
                                 </motion.div>
                             ))}
                         </div>
