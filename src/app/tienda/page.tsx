@@ -78,7 +78,7 @@ export default function TiendaOnlinePage() {
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [showStickySearch, setShowStickySearch] = useState(false);
     const [viewportOffset, setViewportOffset] = useState(0);
-    const [metodoPago, setMetodoPago] = useState<'efectivo' | 'mercadopago'>('efectivo');
+    const [metodoPago, setMetodoPago] = useState<'efectivo' | 'mercadopago' | 'astropay'>('efectivo');
     const [isCartLoaded, setIsCartLoaded] = useState(false);
     const productInputRef = useRef<HTMLInputElement>(null);
     const stickyInputRef = useRef<HTMLInputElement>(null);
@@ -209,19 +209,25 @@ export default function TiendaOnlinePage() {
         localStorage.setItem("wanda_shopping_cart", JSON.stringify(carrito));
     }, [carrito, isCartLoaded]);
 
-    // Escuchar parámetros de retorno de pago de Mercado Pago
+    // Escuchar parámetros de retorno de pago de Mercado Pago y AstroPay
     useEffect(() => {
         if (typeof window === "undefined") return;
         const params = new URLSearchParams(window.location.search);
         const mpStatus = params.get("mp_status");
+        const astropayStatus = params.get("astropay_status");
         const orderId = params.get("order_id");
 
-        if (mpStatus && orderId) {
+        if ((mpStatus || astropayStatus) && orderId) {
             const processPayment = async () => {
-                if (mpStatus === "approved") {
+                const isApproved = mpStatus === "approved" || astropayStatus === "approved";
+                const isPending = mpStatus === "pending" || astropayStatus === "pending";
+                const isFailure = mpStatus === "failure" || astropayStatus === "failure";
+
+                if (isApproved) {
                     try {
+                        const gatewayName = mpStatus ? "Mercado Pago" : "AstroPay";
                         // Actualizar estado del pedido en base de datos a Pendiente
-                        await wandaApi.updateStatus(orderId, "Pendiente", "Pago aprobado por Mercado Pago");
+                        await wandaApi.updateStatus(orderId, "Pendiente", `Pago aprobado por ${gatewayName}`);
                         
                         // Limpiar carrito
                         setCarrito({});
@@ -232,9 +238,9 @@ export default function TiendaOnlinePage() {
                         console.error("Error al actualizar estado tras el pago:", e);
                         alert("Ocurrió un error al procesar el pago. Por favor contacta soporte.");
                     }
-                } else if (mpStatus === "pending") {
+                } else if (isPending) {
                     alert("⏳ Tu pago está pendiente. Procesaremos el pedido una vez aprobado.");
-                } else if (mpStatus === "failure") {
+                } else if (isFailure) {
                     alert("❌ El pago fue rechazado o cancelado. Puedes intentar nuevamente.");
                 }
                 
@@ -478,9 +484,11 @@ export default function TiendaOnlinePage() {
             }),
             total: cartTotal,
             vendedor: "Venta Online",
-            notas: `Pedido realizado desde la tienda online. Método de Pago: ${metodoPago === 'mercadopago' ? 'Mercado Pago' : 'Efectivo/Transferencia'}.`,
+            notas: `Pedido realizado desde la tienda online. Método de Pago: ${
+                metodoPago === 'mercadopago' ? 'Mercado Pago' : metodoPago === 'astropay' ? 'AstroPay' : 'Efectivo/Transferencia'
+            }.`,
             id_interno: Date.now().toString(),
-            estado: metodoPago === 'mercadopago' ? 'Pendiente de Pago' : 'Pendiente'
+            estado: (metodoPago === 'mercadopago' || metodoPago === 'astropay') ? 'Pendiente de Pago' : 'Pendiente'
         };
 
         try {
@@ -533,6 +541,36 @@ export default function TiendaOnlinePage() {
                 } else {
                     throw new Error("No se pudo generar la pasarela de pagos de Mercado Pago.");
                 }
+            } else if (metodoPago === 'astropay') {
+                // Flujo AstroPay
+                const checkoutRes = await fetch("/api/checkout/astropay", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        items: orderData.items,
+                        cliente: {
+                            name: userInfo.name,
+                            email: userInfo.email,
+                            telefono: checkoutData.telefono,
+                            direccion: checkoutData.direccion
+                        },
+                        orderId: createdOrderId
+                    })
+                });
+
+                const checkoutJson = await checkoutRes.json();
+                if (checkoutJson.error) {
+                    throw new Error(checkoutJson.error);
+                }
+
+                if (checkoutJson.initPoint) {
+                    // Redirigir a AstroPay
+                    window.location.href = checkoutJson.initPoint;
+                } else {
+                    throw new Error("No se pudo generar la pasarela de pagos de AstroPay.");
+                }
             } else {
                 // Flujo tradicional Efectivo/Transferencia
                 alert("✅ ¡Pedido enviado con éxito!");
@@ -546,6 +584,8 @@ export default function TiendaOnlinePage() {
             // Si es flujo de pago y falló la API local/red, informamos
             if (metodoPago === 'mercadopago') {
                 alert(`❌ Error al iniciar el pago con Mercado Pago: ${err.message || err}.`);
+            } else if (metodoPago === 'astropay') {
+                alert(`❌ Error al iniciar el pago con AstroPay: ${err.message || err}.`);
             } else {
                 // LÓGICA OFFLINE tradicional
                 try {
@@ -1046,31 +1086,49 @@ export default function TiendaOnlinePage() {
                                         </div>
                                         <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">Método de Pago</h3>
                                     </div>
-                                    <div className="p-4 flex gap-3">
+                                    <div className="p-4 flex flex-col sm:flex-row gap-3">
                                         <button
                                             type="button"
                                             onClick={() => setMetodoPago('efectivo')}
-                                            className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center gap-2 ${
+                                            className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center justify-center gap-2 ${
                                                 metodoPago === 'efectivo'
                                                     ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
                                                     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
                                             }`}
                                         >
                                             <span className="text-lg">💵</span>
-                                            <span>Efectivo / Transf.</span>
+                                            <span className="text-center">Efectivo / Transf.</span>
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setMetodoPago('mercadopago')}
-                                            className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center gap-2 ${
-                                                metodoPago === 'mercadopago'
-                                                    ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
-                                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
-                                            }`}
-                                        >
-                                            <span className="text-lg">💳</span>
-                                            <span>Mercado Pago</span>
-                                        </button>
+
+                                        {config.ENABLE_MERCADOPAGO !== 'false' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setMetodoPago('mercadopago')}
+                                                className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center justify-center gap-2 ${
+                                                    metodoPago === 'mercadopago'
+                                                        ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
+                                                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                                                }`}
+                                            >
+                                                <span className="text-lg">💳</span>
+                                                <span className="text-center">Mercado Pago</span>
+                                            </button>
+                                        )}
+
+                                        {config.ENABLE_ASTROPAY === 'true' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setMetodoPago('astropay')}
+                                                className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center justify-center gap-2 ${
+                                                    metodoPago === 'astropay'
+                                                        ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
+                                                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                                                }`}
+                                            >
+                                                <span className="text-lg">🪙</span>
+                                                <span className="text-center">AstroPay</span>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 

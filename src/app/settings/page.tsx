@@ -56,6 +56,12 @@ export default function SettingsPage() {
         MP_ACCESS_TOKEN: "",
         MP_PUBLIC_KEY: "",
         MP_SANDBOX: "true",
+        ASTROPAY_CLIENT_ID: "",
+        ASTROPAY_CLIENT_SECRET: "",
+        ASTROPAY_SANDBOX: "true",
+        ASTROPAY_CURRENCY: "ARS",
+        ENABLE_MERCADOPAGO: "true",
+        ENABLE_ASTROPAY: "false",
         CONTACT_WHATSAPP: "",
         SOCIAL_INSTAGRAM: "",
         SOCIAL_FACEBOOK: "",
@@ -124,6 +130,12 @@ export default function SettingsPage() {
                         MP_ACCESS_TOKEN: res.MP_ACCESS_TOKEN || "",
                         MP_PUBLIC_KEY: res.MP_PUBLIC_KEY || "",
                         MP_SANDBOX: res.MP_SANDBOX !== undefined ? String(res.MP_SANDBOX) : "true",
+                        ASTROPAY_CLIENT_ID: res.ASTROPAY_CLIENT_ID || "",
+                        ASTROPAY_CLIENT_SECRET: res.ASTROPAY_CLIENT_SECRET || "",
+                        ASTROPAY_SANDBOX: res.ASTROPAY_SANDBOX !== undefined ? String(res.ASTROPAY_SANDBOX) : "true",
+                        ASTROPAY_CURRENCY: res.ASTROPAY_CURRENCY || "ARS",
+                        ENABLE_MERCADOPAGO: res.ENABLE_MERCADOPAGO !== undefined ? String(res.ENABLE_MERCADOPAGO) : "true",
+                        ENABLE_ASTROPAY: res.ENABLE_ASTROPAY !== undefined ? String(res.ENABLE_ASTROPAY) : "false",
                         CONTACT_WHATSAPP: res.CONTACT_WHATSAPP || "",
                         SOCIAL_INSTAGRAM: res.SOCIAL_INSTAGRAM || "",
                         SOCIAL_FACEBOOK: res.SOCIAL_FACEBOOK || "",
@@ -600,46 +612,139 @@ export default function SettingsPage() {
 
             {/* Sección Pasarela de Pagos (Mercado Pago) */}
             <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-6">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                    <ShoppingCart size={14} className="text-indigo-500" /> Pasarela de Pagos (Mercado Pago)
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Access Token (API Key)</label>
-                        <input
-                            type="password"
-                            value={config.MP_ACCESS_TOKEN || ""}
-                            onChange={e => setConfig({ ...config, MP_ACCESS_TOKEN: e.target.value })}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
-                            placeholder="APP_USR-..."
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Public Key</label>
-                        <input
-                            type="text"
-                            value={config.MP_PUBLIC_KEY || ""}
-                            onChange={e => setConfig({ ...config, MP_PUBLIC_KEY: e.target.value })}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
-                            placeholder="APP_USR-..."
-                        />
+                <div className="flex items-center justify-between">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                        <ShoppingCart size={14} className="text-indigo-500" /> Pasarela de Pagos (Mercado Pago)
+                    </h3>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Habilitar</span>
+                        <button
+                            type="button"
+                            onClick={() => toggleField("ENABLE_MERCADOPAGO")}
+                            className={`w-12 h-6 rounded-full transition-all relative shrink-0 ${config.ENABLE_MERCADOPAGO === 'true' ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${config.ENABLE_MERCADOPAGO === 'true' ? 'left-7' : 'left-1'}`} />
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
-                    <div className="text-left">
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-white">Modo Sandbox (Pruebas)</h4>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Utiliza tarjetas de prueba y simulación de pagos de Mercado Pago</p>
+                {config.ENABLE_MERCADOPAGO === 'true' && (
+                    <div className="space-y-6 animate-fadeIn">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Access Token (API Key)</label>
+                                <input
+                                    type="password"
+                                    value={config.MP_ACCESS_TOKEN || ""}
+                                    onChange={e => setConfig({ ...config, MP_ACCESS_TOKEN: e.target.value })}
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                                    placeholder="APP_USR-..."
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Public Key</label>
+                                <input
+                                    type="text"
+                                    value={config.MP_PUBLIC_KEY || ""}
+                                    onChange={e => setConfig({ ...config, MP_PUBLIC_KEY: e.target.value })}
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                                    placeholder="APP_USR-..."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
+                            <div className="text-left">
+                                <h4 className="text-sm font-bold text-slate-800 dark:text-white">Modo Sandbox (Pruebas)</h4>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Utiliza tarjetas de prueba y simulación de pagos de Mercado Pago</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => toggleField("MP_SANDBOX")}
+                                className={`w-12 h-6 rounded-full transition-all relative shrink-0 ${config.MP_SANDBOX === 'true' ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${config.MP_SANDBOX === 'true' ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => toggleField("MP_SANDBOX")}
-                        className={`w-12 h-6 rounded-full transition-all relative shrink-0 ${config.MP_SANDBOX === 'true' ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
-                    >
-                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${config.MP_SANDBOX === 'true' ? 'left-7' : 'left-1'}`} />
-                    </button>
+                )}
+            </div>
+
+            {/* Sección Pasarela de Pagos (AstroPay) */}
+            <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 border border-slate-100 dark:border-slate-800 shadow-xl shadow-black/5 space-y-6">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                        <ShoppingCart size={14} className="text-indigo-500" /> Pasarela de Pagos (AstroPay)
+                    </h3>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Habilitar</span>
+                        <button
+                            type="button"
+                            onClick={() => toggleField("ENABLE_ASTROPAY")}
+                            className={`w-12 h-6 rounded-full transition-all relative shrink-0 ${config.ENABLE_ASTROPAY === 'true' ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${config.ENABLE_ASTROPAY === 'true' ? 'left-7' : 'left-1'}`} />
+                        </button>
+                    </div>
                 </div>
+
+                {config.ENABLE_ASTROPAY === 'true' && (
+                    <div className="space-y-6 animate-fadeIn">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Client ID (App ID)</label>
+                                <input
+                                    type="text"
+                                    value={config.ASTROPAY_CLIENT_ID || ""}
+                                    onChange={e => setConfig({ ...config, ASTROPAY_CLIENT_ID: e.target.value })}
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                                    placeholder="Ingresa tu AstroPay Client ID..."
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Secret Key</label>
+                                <input
+                                    type="password"
+                                    value={config.ASTROPAY_CLIENT_SECRET || ""}
+                                    onChange={e => setConfig({ ...config, ASTROPAY_CLIENT_SECRET: e.target.value })}
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                                    placeholder="Ingresa tu AstroPay Secret Key..."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Moneda del Checkout</label>
+                                <select
+                                    value={config.ASTROPAY_CURRENCY || "ARS"}
+                                    onChange={e => setConfig({ ...config, ASTROPAY_CURRENCY: e.target.value })}
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/5 outline-none"
+                                >
+                                    <option value="ARS">ARS - Peso Argentino</option>
+                                    <option value="USD">USD - Dólar Estadounidense</option>
+                                    <option value="EUR">EUR - Euro</option>
+                                    <option value="BRL">BRL - Real Brasileño</option>
+                                    <option value="MXN">MXN - Peso Mexicano</option>
+                                </select>
+                            </div>
+
+                            <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
+                                <div className="text-left">
+                                    <h4 className="text-sm font-bold text-slate-800 dark:text-white">Modo Sandbox (Pruebas)</h4>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Operar en el entorno de pruebas de AstroPay</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => toggleField("ASTROPAY_SANDBOX")}
+                                    className={`w-12 h-6 rounded-full transition-all relative shrink-0 ${config.ASTROPAY_SANDBOX === 'true' ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                                >
+                                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${config.ASTROPAY_SANDBOX === 'true' ? 'left-7' : 'left-1'}`} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Sección Promociones */}
