@@ -627,6 +627,27 @@ export default function TiendaOnlinePage() {
                 }
             } else {
                 // Flujo tradicional Efectivo/Transferencia
+                try {
+                    const waVal = config.CONTACT_WHATSAPP;
+                    if (waVal) {
+                        const cleaned = waVal.replace(/\D/g, '');
+                        if (cleaned) {
+                            const itemsText = orderData.items.map((item: any) => {
+                                return `• ${item.nombre} ${item.esDecant ? `(Decant ${item.decantVolumen})` : ''} x ${item.cantidad} - $${item.subtotal.toLocaleString()}`;
+                            }).join('\n');
+
+                            const message = `¡Hola Wanda Essence! 🌸\nAcabo de realizar un pedido desde la tienda online.\n\n📋 *Detalles de la Entrega:*\n• Cliente: ${orderData.cliente.Nombre_Negocio}\n• Teléfono: ${orderData.cliente.Telefono}\n• Dirección: ${orderData.cliente.Direccion}\n• Ubicación GPS: ${orderData.cliente.Ubicacion}\n\n🛍️ *Productos:*\n${itemsText}\n\n💰 *Total a pagar:* $${orderData.total.toLocaleString()}\n💵 *Método de Pago:* Efectivo / Transferencia${
+                                isRegalo ? `\n\n🎁 *[REGALO SORPRESA - SERVICIO CONFIDENCIAL]*\n• Recibe: ${regaloNombre || 'No especificado'}\n• Dedicatoria: ${regaloMensaje || 'Sin dedicatoria'}\n• Instrucciones: ${regaloInstrucciones || 'Sin instrucciones'}` : ''
+                            }`;
+
+                            const whatsappUrl = `https://wa.me/${cleaned}?text=${encodeURIComponent(message)}`;
+                            window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                        }
+                    }
+                } catch (waErr) {
+                    console.error("No se pudo abrir WhatsApp:", waErr);
+                }
+
                 alert("✅ ¡Pedido enviado con éxito!");
                 setCarrito({});
                 setIsCartOpen(false);

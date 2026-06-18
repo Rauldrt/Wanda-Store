@@ -44,7 +44,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
-  const { data, loading, isSyncing, error } = useData();
+  const { data, loading, isSyncing, error, activeAlert, setActiveAlert } = useData();
   const [cachedConfig, setCachedConfig] = useState<any>(null);
 
   useEffect(() => {
@@ -535,6 +535,54 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </main>
       </div>
       {bannerElement}
+
+      {/* Toast Alert de Nuevo Pedido en Administración */}
+      <AnimatePresence>
+        {activeAlert && (
+          <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -50, opacity: 0 }}
+            className="fixed top-20 right-6 z-[999] bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white p-5 rounded-[24px] shadow-2xl border border-indigo-500/20 max-w-sm w-full flex items-start gap-4"
+          >
+            <div className="w-10 h-10 rounded-xl bg-indigo-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30">
+              <Bell size={20} className="animate-bounce" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <h4 className="text-xs font-black tracking-widest uppercase text-indigo-400">¡NUEVO PEDIDO ONLINE! 🛍️</h4>
+              <p className="text-sm font-black text-white leading-tight">
+                {activeAlert.client}
+              </p>
+              <p className="text-[11px] text-slate-300 font-bold">
+                Total: <span className="text-emerald-400 font-extrabold">${activeAlert.total.toLocaleString()}</span>
+              </p>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => {
+                    setActiveAlert(null);
+                    router.push('/pedidos');
+                  }}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer"
+                >
+                  Ver Pedidos
+                </button>
+                <button
+                  onClick={() => setActiveAlert(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer"
+                >
+                  Descartar
+                </button>
+              </div>
+            </div>
+            <button 
+              onClick={() => setActiveAlert(null)} 
+              className="text-slate-400 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors shrink-0 cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
