@@ -14,16 +14,14 @@ export default function SeedPage() {
         addLog('Iniciando carga de datos...');
 
         const products = [
-            { ID_Producto: 'PROD-001', Nombre: 'Queso Cremoso Wanda (4kg)', Precio_Unitario: 4500, Stock_Actual: 100, Categoria: 'Quesos' },
-            { ID_Producto: 'PROD-002', Nombre: 'Queso Sardo Wanda (1kg)', Precio_Unitario: 5500, Stock_Actual: 50, Categoria: 'Quesos' },
-            { ID_Producto: 'PROD-003', Nombre: 'Leche Entera Wanda (1L)', Precio_Unitario: 1200, Stock_Actual: 240, Categoria: 'Lácteos' },
-            { ID_Producto: 'PROD-004', Nombre: 'Manteca Superior Wanda (200g)', Precio_Unitario: 800, Stock_Actual: 150, Categoria: 'Lácteos' },
-            { ID_Producto: 'PROD-005', Nombre: 'Dulce de Leche Repostero (400g)', Precio_Unitario: 1800, Stock_Actual: 80, Categoria: 'Dulces' },
-            { ID_Producto: 'PROD-006', Nombre: 'Yogur Entero Vainilla Wanda', Precio_Unitario: 1100, Stock_Actual: 120, Categoria: 'Lácteos' },
-            { ID_Producto: 'PROD-007', Nombre: 'Mozzarella Trozada Wanda', Precio_Unitario: 4800, Stock_Actual: 60, Categoria: 'Quesos' },
-            { ID_Producto: 'PROD-008', Nombre: 'Queso Tybo en Fetas', Precio_Unitario: 5200, Stock_Actual: 40, Categoria: 'Quesos' },
-            { ID_Producto: 'PROD-009', Nombre: 'Crema de Leche Wanda (250cc)', Precio_Unitario: 1500, Stock_Actual: 90, Categoria: 'Lácteos' },
-            { ID_Producto: 'PROD-010', Nombre: 'Ricotta Entera Wanda', Precio_Unitario: 2100, Stock_Actual: 35, Categoria: 'Quesos' },
+            { ID_Producto: 'PERF-001', Nombre: 'Yara Lattafa (Femenino)', Precio_Unitario: 35000, Stock_Actual: 20, Categoria: 'FEMENINOS', Costo: 20000, Precio_Decant: 4500, Stock_Decant: 15, Volumen_Decant: '10ml', Unidad: 'Unid' },
+            { ID_Producto: 'PERF-002', Nombre: 'Asad Lattafa (Masculino)', Precio_Unitario: 32000, Stock_Actual: 15, Categoria: 'MASCULINOS', Costo: 18000, Precio_Decant: 4200, Stock_Decant: 10, Volumen_Decant: '10ml', Unidad: 'Unid' },
+            { ID_Producto: 'PERF-003', Nombre: 'Khamrah Lattafa (Unisex)', Precio_Unitario: 40000, Stock_Actual: 25, Categoria: 'UNISEX', Costo: 25000, Precio_Decant: 5000, Stock_Decant: 20, Volumen_Decant: '10ml', Unidad: 'Unid' },
+            { ID_Producto: 'PERF-004', Nombre: 'Club de Nuit Intense Man', Precio_Unitario: 38000, Stock_Actual: 18, Categoria: 'MASCULINOS', Costo: 22000, Precio_Decant: 4800, Stock_Decant: 12, Volumen_Decant: '8ml', Unidad: 'Unid' },
+            { ID_Producto: 'PERF-005', Nombre: 'Santal Oud (Unisex)', Precio_Unitario: 28000, Stock_Actual: 10, Categoria: 'UNISEX', Costo: 15000, Precio_Decant: 3800, Stock_Decant: 8, Volumen_Decant: '10ml', Unidad: 'Unid' },
+            { ID_Producto: 'PERF-006', Nombre: 'Baby Musk Sweet (Infantil)', Precio_Unitario: 12000, Stock_Actual: 30, Categoria: 'INFANTILES', Costo: 7000, Unidad: 'Unid' },
+            { ID_Producto: 'PERF-007', Nombre: 'Crema Velvet Oud (Cuidado)', Precio_Unitario: 9500, Stock_Actual: 45, Categoria: 'CUIDADO PERSONAL', Costo: 5000, Unidad: 'Unid' },
+            { ID_Producto: 'PERF-008', Nombre: 'Royal Amber Room Spray', Precio_Unitario: 8500, Stock_Actual: 15, Categoria: 'PARA EL HOGAR', Costo: 4500, Unidad: 'Unid' }
         ];
 
         try {
