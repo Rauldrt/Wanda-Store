@@ -846,12 +846,12 @@ export default function TiendaOnlinePage() {
                     <motion.div 
                         initial={{ opacity: 0, y: -5 }} 
                         animate={{ opacity: 1, y: 0 }} 
-                        className="py-6 px-1 mb-6 flex flex-col gap-2"
+                        className="py-6 px-1 mb-6 flex flex-col gap-2 items-center text-center"
                     >
                         <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-[0.15em] leading-tight">
                             {CATEGORY_DESCRIPTIONS[categoryFilter.toUpperCase()].title}
                         </h3>
-                        <p className="text-sm sm:text-base md:text-lg text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-4xl">
+                        <p className="text-sm sm:text-base md:text-lg text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
                             {CATEGORY_DESCRIPTIONS[categoryFilter.toUpperCase()].desc}
                         </p>
                     </motion.div>
