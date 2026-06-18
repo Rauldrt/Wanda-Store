@@ -4,6 +4,7 @@ import {
     writeBatch, query, where, increment, updateDoc
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Product, Client, Order, OrderItem, Seller, Liquidation, ClientRequest, WandaConfig } from "@/types/wanda";
 
 // --- CONFIGURACIÓN DE APIS (FIREBASE ONLY) ---
 // El backend de Google Sheets ha sido desactivado a petición del usuario.
@@ -12,23 +13,23 @@ export interface WandaApiResponse {
     result?: string;
     error?: string;
     id?: string;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
-export const wandaApi: Record<string, any> = {
+export const wandaApi = {
     // ---------------- LECTURAS ----------------
 
-    getCatalog: async () => {
+    getCatalog: async (): Promise<Product[]> => {
         const snap = await getDocs(collection(db, "products"));
-        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
     },
-    getClients: async () => {
+    getClients: async (): Promise<Client[]> => {
         const snap = await getDocs(collection(db, "clients"));
-        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Client[];
     },
-    getOrders: async () => {
+    getOrders: async (): Promise<Order[]> => {
         const snap = await getDocs(collection(db, "orders"));
-        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as Order[];
     },
     getAll: async () => {
         const [prodSnap, cliSnap, ordSnap, liqSnap, cfgSnap, reqSnap, sellSnap] = await Promise.all([
@@ -42,28 +43,28 @@ export const wandaApi: Record<string, any> = {
         ]);
 
         return {
-            products: prodSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-            clients: cliSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-            orders: ordSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-            liquidaciones: liqSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-            config: cfgSnap.exists() ? cfgSnap.data() : {},
-            client_requests: reqSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-            sellers: sellSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+            products: prodSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Product[],
+            clients: cliSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Client[],
+            orders: ordSnap.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as Order[],
+            liquidaciones: liqSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Liquidation[],
+            config: (cfgSnap.exists() ? cfgSnap.data() : {}) as WandaConfig,
+            client_requests: reqSnap.docs.map(d => ({ id: d.id, ...d.data() })) as ClientRequest[],
+            sellers: sellSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Seller[],
             result: "OK"
         };
     },
-    getConfig: async () => {
+    getConfig: async (): Promise<WandaConfig> => {
         const cfgRef = await getDoc(doc(db, "settings", "global"));
-        return cfgRef.exists() ? cfgRef.data() : {};
+        return (cfgRef.exists() ? cfgRef.data() : {}) as WandaConfig;
     },
-    getSellers: async () => {
+    getSellers: async (): Promise<Seller[]> => {
         const snap = await getDocs(collection(db, "sellers"));
-        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Seller[];
     },
 
     // ---------------- ESCRITURAS SIMPLES ----------------
 
-    saveProduct: async (product: any) => {
+    saveProduct: async (product: Partial<Product>): Promise<{ result: string }> => {
         let reqId = product.ID_Producto || product.id;
         if (!reqId || String(reqId).trim().toLowerCase() === 'auto') {
             reqId = `PROD-${new Date().getTime().toString().slice(-6)}`;
@@ -74,67 +75,67 @@ export const wandaApi: Record<string, any> = {
         await setDoc(doc(db, "products", id), product, { merge: true });
         return { result: "OK" };
     },
-    saveClient: async (client: any) => {
+    saveClient: async (client: Partial<Client>): Promise<{ result: string, id: string }> => {
         const id = String(client.ID_Cliente || client.id || `CLI-${new Date().getTime().toString().slice(-4)}`).replace(/\//g, "-").trim();
         client.id = id;
         client.ID_Cliente = id;
         await setDoc(doc(db, "clients", id), client, { merge: true });
         return { result: "OK", id: id };
     },
-    saveSeller: async (seller: any) => {
+    saveSeller: async (seller: Partial<Seller>): Promise<{ result: string, id: string }> => {
         const id = String(seller.id || seller.ID_Preventista || `PREV-${new Date().getTime().toString().slice(-4)}`).replace(/\//g, "-").trim();
         seller.id = id;
         seller.ID_Preventista = id;
         await setDoc(doc(db, "sellers", id), seller, { merge: true });
         return { result: "OK", id: id };
     },
-    saveClientRequest: async (client: any) => {
+    saveClientRequest: async (client: Partial<ClientRequest>): Promise<{ result: string, id: string }> => {
         const id = String(client.id || `REQ-${new Date().getTime().toString().slice(-4)}`).replace(/\//g, "-").trim();
         client.id = id;
         client.fecha_solicitud = new Date().toISOString();
         await setDoc(doc(db, "client_requests", id), client, { merge: true });
         return { result: "OK", id: id };
     },
-    approveClientRequest: async (requestId: string, clientData: any) => {
+    approveClientRequest: async (requestId: string, clientData: Partial<Client>): Promise<{ result: string, id: string }> => {
         const res = await wandaApi.saveClient(clientData);
         await deleteDoc(doc(db, "client_requests", requestId));
         return res;
     },
-    rejectClientRequest: async (requestId: string) => {
+    rejectClientRequest: async (requestId: string): Promise<{ result: string }> => {
         await deleteDoc(doc(db, "client_requests", requestId));
         return { result: "OK" };
     },
-    deleteProduct: async (id: string) => {
+    deleteProduct: async (id: string): Promise<{ result: string }> => {
         await deleteDoc(doc(db, "products", String(id)));
         return { result: "OK" };
     },
-    deleteClient: async (id: string) => {
+    deleteClient: async (id: string): Promise<{ result: string }> => {
         await deleteDoc(doc(db, "clients", String(id)));
         return { result: "OK" };
     },
-    deleteSeller: async (id: string) => {
+    deleteSeller: async (id: string): Promise<{ result: string }> => {
         await deleteDoc(doc(db, "sellers", String(id)));
         return { result: "OK" };
     },
-    deleteOrder: async (id: string) => {
+    deleteOrder: async (id: string): Promise<{ result: string }> => {
         await deleteDoc(doc(db, "orders", String(id)));
         return { result: "OK" };
     },
-    saveConfig: async (config: any) => {
+    saveConfig: async (config: Partial<WandaConfig>): Promise<{ result: string }> => {
         await setDoc(doc(db, "settings", "global"), config, { merge: true });
         return { result: "OK" };
     },
-    saveClientProfile: async (email: string, profile: any) => {
+    saveClientProfile: async (email: string, profile: Record<string, string | number | boolean>): Promise<{ result: string } | undefined> => {
         if (!email) return;
         await setDoc(doc(db, "profiles", email), profile, { merge: true });
         return { result: "OK" };
     },
-    getClientProfile: async (email: string) => {
+    getClientProfile: async (email: string): Promise<Record<string, unknown> | null> => {
         if (!email) return null;
         const snap = await getDoc(doc(db, "profiles", email));
         return snap.exists() ? snap.data() : null;
     },
-    bulkUpdateProducts: async (changes: any[]) => {
+    bulkUpdateProducts: async (changes: Partial<Product>[]): Promise<{ result: string }> => {
         const batch = writeBatch(db);
         changes.forEach(change => {
             const id = change.ID_Producto || change.id;
@@ -152,7 +153,7 @@ export const wandaApi: Record<string, any> = {
         await batch.commit();
         return { result: "OK" };
     },
-    bulkUpdateClients: async (changes: any[]) => {
+    bulkUpdateClients: async (changes: Partial<Client>[]): Promise<{ result: string }> => {
         const batch = writeBatch(db);
         changes.forEach(change => {
             const id = change.ID_Cliente || change.id;
@@ -170,7 +171,7 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
-    backfillZonas: async (sellersObj: Record<string, string>, orders: any[], clients: any[]) => {
+    backfillZonas: async (sellersObj: Record<string, string>, orders: Order[], clients: Client[]): Promise<{ result: string, count: number }> => {
         const batch = writeBatch(db);
         let changes = 0;
         
@@ -189,8 +190,8 @@ export const wandaApi: Record<string, any> = {
         for (const c of clients) {
             const cId = String(c.ID_Cliente || c.id);
             // Tomar el asignado directo en DB o deducir del mapa
-            let rawVName = c.Vendedor_Asignado || c.vendedor;
-            let vName = rawVName ? rawVName.trim().toUpperCase() : (clientSellerMap[cId] || "GLOBAL");
+            const rawVName = c.Vendedor_Asignado || c.vendedor;
+            const vName = rawVName ? rawVName.trim().toUpperCase() : (clientSellerMap[cId] || "GLOBAL");
             
             const correct = sellersObj[vName] || sellersObj["GLOBAL"] || "Global";
             
@@ -224,7 +225,7 @@ export const wandaApi: Record<string, any> = {
 
     // ---------------- LOGÍSTICA Y PEDIDOS (RÁPIDOS CON BATCH) ----------------
 
-    createOrder: async (orderData: any) => {
+    createOrder: async (orderData: Partial<Order> & { cliente?: Partial<Client> }): Promise<{ result: string, id: string }> => {
         const vendPrefix = (orderData.vendedor || "WEB").substring(0, 3).toUpperCase();
         const randSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
         const idPedido = `${vendPrefix}-${new Date().getTime()}-${randSuffix}`;
@@ -246,7 +247,7 @@ export const wandaApi: Record<string, any> = {
                 // El cliente no existe en DB, generar solicitud de aprobación
                 await wandaApi.saveClientRequest({
                     ...orderData.cliente,
-                    id: clienteId,
+                    id: String(clienteId),
                     Nombre_Negocio: clienteNombre,
                     origen: orderData.cliente?.Es_Online ? "Tienda Online" : (orderData.vendedor || "Preventa"),
                     fecha_pedido: new Date().toISOString(),
@@ -289,10 +290,11 @@ export const wandaApi: Record<string, any> = {
 
         // Descontar stock
         if (orderData.items && orderData.items.length > 0) {
-            orderData.items.forEach((item: any) => {
+            orderData.items.forEach((item: OrderItem) => {
                 const idProd = String(item.id_producto || item.id || item.id_prod).replace(/\//g, "-").trim();
+                const stockField = item.esDecant ? "Stock_Decant" : "Stock_Actual";
                 batch.update(doc(db, "products", idProd), {
-                    Stock_Actual: increment(-item.cantidad)
+                    [stockField]: increment(-item.cantidad)
                 });
             });
         }
@@ -301,15 +303,15 @@ export const wandaApi: Record<string, any> = {
         return { result: "success", id: idPedido };
     },
 
-    submitOrder: async (orderData: any) => {
+    submitOrder: async (orderData: Partial<Order> & { cliente?: Partial<Client> }): Promise<{ result: string, id: string }> => {
         return await wandaApi.createOrder(orderData);
     },
-    updateStatus: async (orderId: string, status: string, notes: string = "") => {
+    updateStatus: async (orderId: string, status: string, notes: string = ""): Promise<{ result: string }> => {
         await updateDoc(doc(db, "orders", String(orderId)), { estado: status, notas_logistica: notes });
         return { result: "OK" };
     },
 
-    asignarRepartoMasivo: async (ids: string[], reparto: string) => {
+    asignarRepartoMasivo: async (ids: string[], reparto: string): Promise<{ result: string }> => {
         const batch = writeBatch(db);
         ids.forEach((id: string) => {
             const orderStatus = (reparto && reparto !== "") ? "En Preparación" : "Pendiente";
@@ -322,7 +324,7 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
-    updateBulkOrders: async (orders: any[]) => {
+    updateBulkOrders: async (orders: Partial<Order>[]): Promise<{ result: string }> => {
         const batch = writeBatch(db);
         orders.forEach(order => {
             const orderRef = doc(db, "orders", String(order.id));
@@ -332,7 +334,7 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
-    liberarReparto: async (reparto: string) => {
+    liberarReparto: async (reparto: string): Promise<{ result: string }> => {
         const snap = await getDocs(query(collection(db, "orders"), where("reparto", "==", reparto)));
         const batch = writeBatch(db);
         snap.forEach(document => {
@@ -345,11 +347,11 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
-    saveOrderCorrection: async (pedidoEditado: any) => {
+    saveOrderCorrection: async (pedidoEditado: Partial<Order> & { cliente?: Partial<Client>, cliente_nombre?: string }): Promise<{ result: string }> => {
         const batch = writeBatch(db);
         const orderRef = doc(db, "orders", String(pedidoEditado.id));
 
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
             items: pedidoEditado.items,
             total: pedidoEditado.total,
             descuento_general: pedidoEditado.descuento_general || 0,
@@ -367,7 +369,7 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
-    markOrderAsTest: async (order: any) => {
+    markOrderAsTest: async (order: Order): Promise<{ result: string }> => {
         const batch = writeBatch(db);
         const orderRef = doc(db, "orders", String(order.id));
         
@@ -379,10 +381,11 @@ export const wandaApi: Record<string, any> = {
 
         // 2. Revertir stock
         if (order.items && order.items.length > 0) {
-            order.items.forEach((item: any) => {
+            order.items.forEach((item: OrderItem) => {
                 const idProd = String(item.id_producto || item.id || item.id_prod).replace(/\//g, "-").trim();
+                const stockField = item.esDecant ? "Stock_Decant" : "Stock_Actual";
                 batch.update(doc(db, "products", idProd), {
-                    Stock_Actual: increment(item.cantidad)
+                    [stockField]: increment(item.cantidad)
                 });
             });
         }
@@ -391,13 +394,13 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
-    deleteSettlementDraft: async (routeName: string) => {
+    deleteSettlementDraft: async (routeName: string): Promise<{ result: string }> => {
         const id = `DRAFT-${routeName}`.replace(/\//g, "-").trim();
         await deleteDoc(doc(db, "settlement_drafts", id));
         return { result: "OK" };
     },
 
-    saveSettlementDraft: async (routeName: string, draftData: any) => {
+    saveSettlementDraft: async (routeName: string, draftData: Record<string, unknown>): Promise<{ result: string }> => {
         const id = `DRAFT-${routeName}`.replace(/\//g, "-").trim();
         await setDoc(doc(db, "settlement_drafts", id), {
             id,
@@ -408,29 +411,41 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
-    getSettlementDraft: async (routeName: string) => {
+    getSettlementDraft: async (routeName: string): Promise<Record<string, unknown> | null> => {
         const id = `DRAFT-${routeName}`.replace(/\//g, "-").trim();
         const snap = await getDoc(doc(db, "settlement_drafts", id));
         return snap.exists() ? snap.data().data : null;
     },
 
-    liquidarRuta: async (data: any) => {
+    liquidarRuta: async (data: {
+        ordenes: Partial<Order>[],
+        stockAdjustments?: Record<string, unknown>[],
+        gastos?: { monto: string | number }[],
+        pagos: { efectivo: string | number, transferencia: string | number },
+        reparto: string,
+        chofer?: string,
+        total_cuentas_corrientes?: string | number,
+        total_devoluciones?: string | number,
+        notas?: string,
+        _full_draft?: unknown
+    }): Promise<{ result: string }> => {
         const batch = writeBatch(db);
         const liqId = `LIQ-${new Date().getTime()}`;
 
         // Procesar cambios en los pedidos
-        data.ordenes.forEach((ord: any) => {
+        data.ordenes.forEach((ord: Partial<Order>) => {
             const orderRef = doc(db, "orders", String(ord.id));
             if (ord.estado === 'Entregado') {
                 batch.update(orderRef, { estado: "Entregado" });
             } else if (ord.estado === 'Rechazado') {
                 batch.update(orderRef, { estado: "Rechazado" });
                 // Sumar al stock
-                (ord.items || []).forEach((item: any) => {
+                (ord.items || []).forEach((item: OrderItem) => {
                     const idProd = String(item.id_producto || item.id || item.id_prod);
                     // Seguridad: Solo actualizar stock si el ID es válido y no es una fecha accidental
                     if (idProd && idProd !== "undefined" && !/^\d{4}-\d{2}-\d{2}T/.test(idProd)) {
-                        batch.set(doc(db, "products", idProd), { Stock_Actual: increment(item.cantidad) }, { merge: true });
+                        const stockField = item.esDecant ? "Stock_Decant" : "Stock_Actual";
+                        batch.set(doc(db, "products", idProd), { [stockField]: increment(item.cantidad) }, { merge: true });
                     }
                 });
             } else if (ord.estado === 'Parcial') {
@@ -444,20 +459,24 @@ export const wandaApi: Record<string, any> = {
 
         // Procesar ajustes de stock explícitos (devoluciones manuales o deltas de parciales)
         if (data.stockAdjustments && Array.isArray(data.stockAdjustments)) {
-            data.stockAdjustments.forEach((adj: any) => {
+            data.stockAdjustments.forEach((adj: Record<string, unknown>) => {
                 const id = String(adj.id || adj.id_prod || "");
                 // Seguridad: Validar ID de producto antes de actualizar stock
                 if (id && id !== "undefined" && !/^\d{4}-\d{2}-\d{2}T/.test(id)) {
-                    batch.set(doc(db, "products", id), {
-                        Stock_Actual: increment(adj.Stock_Actual || adj.Stock || 0)
+                    const isDecant = id.endsWith("-decant") || !!adj.esDecant;
+                    const baseId = id.endsWith("-decant") ? id.replace("-decant", "") : id;
+                    const stockField = isDecant ? "Stock_Decant" : "Stock_Actual";
+                    const amt = (adj.Stock_Actual as number) || (adj.Stock as number) || (adj.cantidad as number) || 0;
+                    batch.set(doc(db, "products", baseId), {
+                        [stockField]: increment(amt)
                     }, { merge: true });
                 }
             });
         }
 
-        const gastosTotal = (data.gastos || []).reduce((acc: any, g: any) => acc + (parseFloat(g.monto) || 0), 0);
-        const efectivo = parseFloat(data.pagos.efectivo) || 0;
-        const transferencia = parseFloat(data.pagos.transferencia) || 0;
+        const gastosTotal = (data.gastos || []).reduce((acc: number, g: { monto: string | number }) => acc + (parseFloat(String(g.monto)) || 0), 0);
+        const efectivo = parseFloat(String(data.pagos.efectivo)) || 0;
+        const transferencia = parseFloat(String(data.pagos.transferencia)) || 0;
 
         const liquidacionData = {
             id: liqId,
@@ -468,8 +487,8 @@ export const wandaApi: Record<string, any> = {
             EFECTIVO: efectivo,
             TRANSF: transferencia,
             GASTOS: gastosTotal,
-            CUENTAS_CORRIENTES: parseFloat(data.total_cuentas_corrientes || 0),
-            DEVOLUCIONES: parseFloat(data.total_devoluciones || 0),
+            CUENTAS_CORRIENTES: parseFloat(String(data.total_cuentas_corrientes || 0)),
+            DEVOLUCIONES: parseFloat(String(data.total_devoluciones || 0)),
             TOTAL_NETO: (efectivo + transferencia) - gastosTotal,
             OBS: data.notas || "",
             ORDENES_JSON: JSON.stringify({ ordenes: data.ordenes || [] }), // Retro-compatibilidad visual
@@ -482,7 +501,7 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
-    revertLiquidacion: async (id: string) => {
+    revertLiquidacion: async (id: string): Promise<{ result: string }> => {
         const liqSnap = await getDoc(doc(db, "liquidations", String(id)));
         if (!liqSnap.exists()) return { result: "Error" };
 
@@ -494,21 +513,22 @@ export const wandaApi: Record<string, any> = {
             const routeName = liqData.REPARTO;
 
             if (ordWrapper && ordWrapper.ordenes) {
-                ordWrapper.ordenes.forEach((ord: any) => {
+                ordWrapper.ordenes.forEach((ord: Partial<Order>) => {
                     const orderRef = doc(db, "orders", String(ord.id));
                     // Regresar a estado en preparación
                     batch.update(orderRef, { estado: "En Preparación", reparto: routeName });
 
                     if (ord.estado === 'Rechazado') {
                         // Des-sumar stock
-                        (ord.items || []).forEach((item: any) => {
+                        (ord.items || []).forEach((item: OrderItem) => {
                             const idProd = String(item.id_producto || item.id || item.id_prod);
-                            batch.update(doc(db, "products", idProd), { Stock: increment(-item.cantidad) });
+                            const stockField = item.esDecant ? "Stock_Decant" : "Stock_Actual";
+                            batch.update(doc(db, "products", idProd), { [stockField]: increment(-item.cantidad) });
                         });
                     }
                 });
             }
-        } catch (e) { }
+        } catch { }
 
         batch.delete(doc(db, "liquidations", String(id)));
         await batch.commit();
@@ -516,17 +536,17 @@ export const wandaApi: Record<string, any> = {
         return { result: "OK" };
     },
 
-    verifyLogin: async (role: string, password: string) => {
-        let config: any = {};
+    verifyLogin: async (role: string, password: string): Promise<{ success: boolean, role?: string, displayName?: string, error?: string }> => {
+        let config: Partial<WandaConfig> = {};
         try {
             const cfgRef = await getDoc(doc(db, "settings", "global"));
-            config = cfgRef.exists() ? cfgRef.data() : {};
-        } catch (e) {
+            config = (cfgRef.exists() ? cfgRef.data() : {}) as WandaConfig;
+        } catch {
             console.log("Offline mode: Using cached config for login verification");
             const cachedData = localStorage.getItem("wanda_cloud_data_cache");
             if (cachedData) {
                 const parsed = JSON.parse(cachedData);
-                config = parsed.config || {};
+                config = (parsed.config || {}) as WandaConfig;
             }
         }
 
@@ -543,7 +563,7 @@ export const wandaApi: Record<string, any> = {
             return { success: false, error: "Rol no válido" };
         }
 
-        const savedPassword = config[key] || defaultPass;
+        const savedPassword = (config as Record<string, string>)[key] || defaultPass;
 
         if (String(password) === String(savedPassword)) {
             return {
@@ -556,15 +576,17 @@ export const wandaApi: Record<string, any> = {
         return { success: false, error: "Contraseña incorrecta" };
     },
 
-    uploadImage: async (file: File, path: string) => {
+    uploadImage: async (file: File, path: string): Promise<{ result: string, url: string } | { error: string }> => {
         try {
             const storageRef = ref(storage, path);
             const snapshot = await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(snapshot.ref);
             return { result: "OK", url: downloadURL };
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error uploading image:", error);
-            return { error: error.message };
+            const errMsg = error instanceof Error ? error.message : "Unknown error";
+            return { error: errMsg };
         }
     },
 };
+

@@ -1,4 +1,4 @@
-export const getImageUrl = (url?: any): string => {
+export const getImageUrl = (url?: string): string => {
     if (!url || typeof url !== 'string') return "";
     if (url.includes('drive.google.com')) {
         const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
@@ -9,8 +9,9 @@ export const getImageUrl = (url?: any): string => {
     return url;
 };
 
-export const normalizeText = (text: any): string =>
+export const normalizeText = (text: string | number | null | undefined): string =>
     String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
 
 export const smartSearch = (text: string, query: string): boolean => {
     if (!query) return true;

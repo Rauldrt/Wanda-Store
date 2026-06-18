@@ -1,6 +1,7 @@
 import { wandaApi } from "./api";
 import { db } from "./firebase";
 import { doc, setDoc } from "firebase/firestore";
+import { Seller } from "@/types/wanda";
 
 /**
  * Migra datos locales (localStorage) heredados de la versión anterior a Firebase Firestore.
@@ -30,8 +31,8 @@ export async function migrateLocalStorageToFirebase() {
                 migrationLog.push(`${localClients.length} clientes migrados.`);
                 localStorage.removeItem("local_clients");
             }
-        } catch (e) {
-            console.error("Error migrando clientes locales:", e);
+        } catch {
+            console.error("Error migrando clientes locales");
         }
     }
 
@@ -51,8 +52,8 @@ export async function migrateLocalStorageToFirebase() {
                 migrationLog.push(`${pendingOrders.length} pedidos pendientes sincronizados.`);
                 localStorage.removeItem("pending_orders");
             }
-        } catch (e) {
-            console.error("Error migrando pedidos pendientes:", e);
+        } catch {
+            console.error("Error migrando pedidos pendientes");
         }
     }
 
@@ -74,8 +75,8 @@ export async function migrateLocalStorageToFirebase() {
                 migrationLog.push(`${onlineHistory.length} pedidos online migrados.`);
                 localStorage.removeItem("order_history_online");
             }
-        } catch (e) {
-            console.error("Error migrando historial online:", e);
+        } catch {
+            console.error("Error migrando historial online");
         }
     }
 
@@ -85,7 +86,7 @@ export async function migrateLocalStorageToFirebase() {
     if (sellerName && sellerName !== "Admin" && sellerName !== "Preventista") {
         // Opcionalmente crear el perfil del vendedor automáticamente
         const sellers = await wandaApi.getSellers();
-        const exists = sellers.some((s: any) => s.Nombre === sellerName);
+        const exists = sellers.some((s: Seller) => s.Nombre === sellerName);
         if (!exists) {
             await wandaApi.saveSeller({
                 Nombre: sellerName,
@@ -122,8 +123,8 @@ export async function migrateLocalStorageToFirebase() {
                 user: sellerName || "default"
             });
         }
-    } catch (e) {
-        console.error("Error creando respaldo legacy:", e);
+    } catch {
+        console.error("Error creando respaldo legacy");
     }
 
     // --- LIMPIEZA DE DATOS MIGRADOS ---
@@ -137,3 +138,4 @@ export async function migrateLocalStorageToFirebase() {
     }
     return null;
 }
+

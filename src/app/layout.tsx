@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export async function generateMetadata(): Promise<Metadata> {
   let title = "Wanda Store";
-  let description = "Sistema de gestión inteligente para Wanda Lácteos";
+  const description = "Sistema de gestión inteligente para Wanda Lácteos";
   let logoUrl = "/icon.png";
 
   try {

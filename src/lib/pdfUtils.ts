@@ -1,16 +1,17 @@
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Order, OrderItem, Product, WandaConfig } from "@/types/wanda";
 
 // Helper to generate A4 Remito PDF
-const generateRemitoPDF = (order: any, config: any, products: any[]) => {
+const generateRemitoPDF = (order: Order, config: WandaConfig, products: Product[]): jsPDF => {
     const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
     });
 
-    const activeItems = (order.items || []).filter((it: any) => {
+    const activeItems = (order.items || []).filter((it: OrderItem) => {
         const q = parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.'));
         return q > 0;
     });
@@ -78,12 +79,12 @@ const generateRemitoPDF = (order: any, config: any, products: any[]) => {
     }
 
     // Products table using autoTable
-    const tableData = activeItems.map((item: any) => {
-        let qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
-        let displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
+    const tableData = activeItems.map((item: OrderItem) => {
+        const qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
+        const displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
         
         const pId = item.id_prod || item.id_producto || item.id;
-        const prod = (products || []).find((p: any) => String(p.ID_Producto) === String(pId));
+        const prod = (products || []).find((p: Product) => String(p.ID_Producto) === String(pId));
         const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
         const unitLabel = isKg ? 'kg' : 'un';
         
@@ -166,8 +167,8 @@ const generateRemitoPDF = (order: any, config: any, products: any[]) => {
 };
 
 // Helper to generate 80mm Ticket PDF
-const generateTicketPDF = (order: any, config: any, products: any[]) => {
-    const activeItems = (order.items || []).filter((it: any) => {
+const generateTicketPDF = (order: Order, config: WandaConfig, products: Product[]): jsPDF => {
+    const activeItems = (order.items || []).filter((it: OrderItem) => {
         const q = parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.'));
         return q > 0;
     });
@@ -215,12 +216,12 @@ const generateTicketPDF = (order: any, config: any, products: any[]) => {
 
     const startTableY = order.notas ? 69 : 66;
 
-    const tableData = activeItems.map((item: any) => {
-        let qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
-        let displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
+    const tableData = activeItems.map((item: OrderItem) => {
+        const qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
+        const displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
         
         const pId = item.id_prod || item.id_producto || item.id;
-        const prod = (products || []).find((p: any) => String(p.ID_Producto) === String(pId));
+        const prod = (products || []).find((p: Product) => String(p.ID_Producto) === String(pId));
         const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
         const unitLabel = isKg ? 'kg' : 'un';
         
@@ -297,7 +298,7 @@ const generateTicketPDF = (order: any, config: any, products: any[]) => {
     return doc;
 };
 
-export const printOrders = (rawOrderList: any[], config: any, products: any[], allOrders: any[] = [], format: 'remito' | 'ticket' = 'remito') => {
+export const printOrders = (rawOrderList: Order[], config: WandaConfig, products: Product[], allOrders: Order[] = [], format: 'remito' | 'ticket' = 'remito'): void => {
     // Filtrar pedidos vacíos (total 0)
     const orderList = rawOrderList.filter(o => (parseFloat(String(o.total).replace(',', '.')) || 0) > 0);
 
@@ -375,8 +376,8 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                 </style>
             </head>
             <body>
-                ${orderList.map((order, index) => {
-                    const activeItems = (order.items || []).filter((it: any) => {
+                ${orderList.map((order) => {
+                    const activeItems = (order.items || []).filter((it: OrderItem) => {
                         const q = parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.'));
                         return q > 0;
                     });
@@ -414,11 +415,11 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                                     <div class="col-tot">TOTAL</div>
                                 </div>
                                 
-                                ${activeItems.map((item: any) => {
-                                    let qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
-                                    let displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
+                                ${activeItems.map((item: OrderItem) => {
+                                    const qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
+                                    const displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
                                     const pId = item.id_prod || item.id_producto || item.id;
-                                    const prod = (products || []).find((p: any) => String(p.ID_Producto) === String(pId));
+                                    const prod = (products || []).find((p: Product) => String(p.ID_Producto) === String(pId));
                                     const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
                                     const unitLabel = isKg ? 'kg' : 'un';
                                     
@@ -549,7 +550,7 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
         <body>
             ${orderList.map((order, index) => {
                 // Filtrar items con cantidad 0
-                const activeItems = (order.items || []).filter((it: any) => {
+                const activeItems = (order.items || []).filter((it: OrderItem) => {
                     const q = parseFloat(String(it.cantidad || it.CANTIDAD || 0).replace(',', '.'));
                     return q > 0;
                 });
@@ -616,7 +617,7 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${activeItems.map((item: any) => {
+                                        ${activeItems.map((item: OrderItem) => {
                                             let qty = parseFloat(String(item.cantidad || item.CANTIDAD || 0).replace(',', '.'));
                                             let displayedPrice = parseFloat(String(item.precio || item.PRECIO || 0).replace(',', '.')) || 0;
 
@@ -624,7 +625,7 @@ export const printOrders = (rawOrderList: any[], config: any, products: any[], a
                                             const uni = item.unidades || item.UNIDADES || 0;
 
                                             const pId = item.id_prod || item.id_producto || item.id;
-                                            const prod = (products || []).find((p: any) => String(p.ID_Producto) === String(pId));
+                                            const prod = (products || []).find((p: Product) => String(p.ID_Producto) === String(pId));
                                             const isKg = item.unidad_medida === 'kg' || prod?.Unidad?.toLowerCase() === 'kg';
                                             const unitLabel = isKg ? 'kg' : 'un';
 

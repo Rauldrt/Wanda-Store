@@ -269,11 +269,10 @@ export default function ProductosPage() {
         }
         setIsMassEditing(!isMassEditing);
     };
-
     const handleBulkFieldChange = (id: any, field: string, value: any) => {
         setEditedProducts(prev => prev.map(p => {
             if (String(p.ID_Producto) === String(id)) {
-                let updated = { ...p, [field]: value };
+                const updated = { ...p, [field]: value };
                 
                 // Si cambia el costo, intentamos mantener el margen previo ajustando el precio
                 if (field === 'Costo') {
@@ -350,7 +349,10 @@ export default function ProductosPage() {
             Imagen_URL: '',
             Es_Oferta: false,
             Nota_Oferta: '',
-            Destacado: false
+            Destacado: false,
+            Precio_Decant: 0,
+            Stock_Decant: 0,
+            Volumen_Decant: ''
         });
         setIsDrawerOpen(true);
     };
@@ -387,10 +389,10 @@ export default function ProductosPage() {
 
     // Exportación a CSV
     const handleExportCSV = () => {
-        const headers = ["ID_Producto", "Nombre", "Categoria", "Unidad", "Precio_Unitario", "Costo", "Stock_Actual", "Peso_Promedio", "Unidades_Bulto"];
+        const headers = ["ID_Producto", "Nombre", "Categoria", "Unidad", "Precio_Unitario", "Costo", "Stock_Actual", "Peso_Promedio", "Unidades_Bulto", "Precio_Decant", "Stock_Decant", "Volumen_Decant"];
         const csvContent = [
             headers.join(";"),
-            ...filteredProducts.map((p: any) => headers.map(h => `"${p[h] || ''}"`).join(";"))
+            ...filteredProducts.map((p: any) => headers.map(h => `"${p[h] ?? ''}"`).join(";"))
         ].join("\n");
 
         const BOM = "\uFEFF";
@@ -419,7 +421,6 @@ export default function ProductosPage() {
         (window as any).handleDuplicateProduct = handleDuplicateProduct;
         (window as any).handleQuickImageAction = handleQuickImageAction;
         (window as any).triggerImportFile = () => fileInputRef.current?.click();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filteredProducts, quickImageTarget]);
 
     const handleSaveIndividual = async () => {
@@ -523,6 +524,9 @@ export default function ProductosPage() {
                 const costo = item.Costo || item.costo || "0";
                 const stock = item.Stock_Actual || item.Stock || item.StockActual || "0";
                 const unidadesBulto = item.Unidades_Bulto || item.UnidadesBulto || "1";
+                const precioDecant = item.Precio_Decant || item.precioDecant || "0";
+                const stockDecant = item.Stock_Decant || item.stockDecant || "0";
+                const volumenDecant = item.Volumen_Decant || item.volumenDecant || "";
 
                 const cleanNumber = (val: any) => {
                     if (typeof val === 'number') return val;
@@ -550,7 +554,10 @@ export default function ProductosPage() {
                     Precio_Unitario: cleanNumber(precio),
                     Costo: cleanNumber(costo),
                     Stock_Actual: cleanNumber(stock),
-                    Unidades_Bulto: cleanInt(unidadesBulto)
+                    Unidades_Bulto: cleanInt(unidadesBulto),
+                    Precio_Decant: cleanNumber(precioDecant),
+                    Stock_Decant: cleanNumber(stockDecant),
+                    Volumen_Decant: String(volumenDecant).trim()
                 };
             });
 
@@ -1474,6 +1481,11 @@ function ProductRow({ product, onEdit }: any) {
                            <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/10 px-2 py-0.5 rounded-lg">{product.Categoria || "S/C"}</span>
                            <span className="text-[8px] font-bold text-slate-400">SKU: {product.ID_Producto}</span>
                         </div>
+                        {parseFloat(product.Precio_Decant || 0) > 0 && (
+                            <div className="text-[10px] text-amber-600 dark:text-amber-400 font-black mt-1">
+                                Decant ({product.Volumen_Decant || '10ml'}): ${parseFloat(product.Precio_Decant).toLocaleString()} (Stock: {product.Stock_Decant ?? 0})
+                            </div>
+                        )}
                     </div>
                 </div>
             </td>
@@ -1950,6 +1962,42 @@ function ProductDrawer({ onClose, formData, setFormData, onSave, saving, drawerM
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Carga Total Estimada</span>
                                     <span className="text-sm font-black text-slate-800 dark:text-white">{estimatedStockWeight} kg</span>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* SECCIÓN ADICIONAL: VARIANTE DECANT */}
+                    <div className="space-y-8">
+                         <div className="flex items-center gap-4">
+                            <h4 className="text-[10px] font-black uppercase text-slate-800 dark:text-white tracking-[0.4em]">Variante Decant (Miniatura)</h4>
+                            <div className="flex-1 h-[1px] bg-slate-100 dark:bg-slate-800" />
+                        </div>
+                        
+                        <div className="bg-slate-50/50 dark:bg-slate-900/50 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800/50">
+                            <p className="text-xs text-slate-400 font-medium mb-6">
+                                Configura una variante reducida para este producto. Si el precio del decant es mayor a 0, aparecerá automáticamente como opción seleccionable en la tienda.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <InputField
+                                    label="Precio Venta Decant ($)"
+                                    value={formData.Precio_Decant}
+                                    type="number"
+                                    onChange={(v: any) => setFormData({ ...formData, Precio_Decant: v })}
+                                    highlight
+                                />
+                                <InputField
+                                    label="Stock Decant (unidades)"
+                                    value={formData.Stock_Decant}
+                                    type="number"
+                                    onChange={(v: any) => setFormData({ ...formData, Stock_Decant: v })}
+                                />
+                                <InputField
+                                    label="Medida del Decant (ej: 10ml, 5ml)"
+                                    value={formData.Volumen_Decant || ''}
+                                    type="text"
+                                    placeholder="ej: 10ml"
+                                    onChange={(v: any) => setFormData({ ...formData, Volumen_Decant: v })}
+                                />
                             </div>
                         </div>
                     </div>

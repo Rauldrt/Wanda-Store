@@ -124,7 +124,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     // --- LIMPIEZA DE PWA EN MODO DEV ---
     if (process.env.NODE_ENV === 'development' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (let registration of registrations) {
+        for (const registration of registrations) {
           registration.unregister();
         }
       });

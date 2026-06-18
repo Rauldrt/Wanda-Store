@@ -2,15 +2,16 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { wandaApi } from '@/lib/api';
+import { Product, Client, Order, Seller, WandaConfig, ClientRequest, Liquidation } from '@/types/wanda';
 
 interface DataState {
-    products: any[];
-    clients: any[];
-    orders: any[];
-    sellers: any[];
-    config: any;
-    liquidaciones?: any[];
-    client_requests?: any[];
+    products: Product[];
+    clients: Client[];
+    orders: Order[];
+    sellers: Seller[];
+    config: WandaConfig;
+    liquidaciones?: Liquidation[];
+    client_requests?: ClientRequest[];
 }
 
 interface DataContextType {
@@ -47,17 +48,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const res = await wandaApi.getAll();
             if (res.error) throw new Error(res.error);
 
-            setData(res);
+            setData(res as unknown as DataState);
             if (typeof window !== 'undefined') {
                 localStorage.setItem(CACHE_KEY, JSON.stringify(res));
             }
             setError(null);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Fetch data error:", err);
             // Solo mostramos error si no hay NADIE con cache (esto se puede ver con data externa o simplemente intentando)
             // Para simplificar, si falla y no hay nada en el estado local 'data', mostramos error
             if (!localStorage.getItem(CACHE_KEY)) {
-                setError(err.message || "Error al sincronizar. Verifica tu conexión.");
+                const errMsg = err instanceof Error ? err.message : "Error al sincronizar. Verifica tu conexión.";
+                setError(errMsg);
             }
         } finally {
             setLoading(false);
@@ -92,3 +94,4 @@ export function useData() {
     }
     return context;
 }
+

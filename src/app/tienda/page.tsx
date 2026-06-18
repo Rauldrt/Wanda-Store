@@ -387,18 +387,22 @@ export default function TiendaOnlinePage() {
 
     const cartTotal = useMemo(() => {
         return Object.entries(carrito).reduce((acc, [id, qty]) => {
-            const p = products.find(prod => String(prod.ID_Producto) === id);
+            const isDecant = id.endsWith("-decant");
+            const baseId = isDecant ? id.replace("-decant", "") : id;
+            const p = products.find(prod => String(prod.ID_Producto) === baseId);
             if (!p) return acc;
 
-            const isKg = (p.Unidad || "").toLowerCase() === 'kg';
-            const isBulto = !!modoBulto[id];
+            const isKg = isDecant ? false : (p.Unidad || "").toLowerCase() === 'kg';
+            const isBulto = isDecant ? false : !!modoBulto[id];
 
-            const pureUnitPrice = parseFloat(String(p.Precio_Unitario || "0").replace(',', '.'));
-            const avgWeight = parseFloat(String(p.Peso_Promedio || "1").replace(',', '.'));
-            const unitsPerBulk = parseFloat(String(p.Unidades_Bulto || "1").replace(',', '.'));
+            const pr = isDecant 
+                ? parseFloat(String(p.Precio_Decant || "0").replace(',', '.'))
+                : parseFloat(String(p.Precio_Unitario || "0").replace(',', '.'));
+            const pe = parseFloat(String(p.Peso_Promedio || "1").replace(',', '.'));
+            const ub = parseFloat(String(p.Unidades_Bulto || "1").replace(',', '.'));
 
-            const piecePrice = isKg ? pureUnitPrice * avgWeight : pureUnitPrice;
-            const finalPrice = isBulto ? piecePrice * unitsPerBulk : piecePrice;
+            const piecePrice = isKg ? pr * pe : pr;
+            const finalPrice = isBulto ? piecePrice * ub : piecePrice;
 
             return acc + (finalPrice * qty);
         }, 0);
@@ -425,11 +429,15 @@ export default function TiendaOnlinePage() {
                 Es_Online: true
             },
             items: Object.entries(carrito).map(([id, qty]) => {
-                const p = products.find(prod => String(prod.ID_Producto) === id);
-                const isB = !!modoBulto[id];
-                const isKg = (p?.Unidad || "").toLowerCase() === 'kg';
+                const isDecant = id.endsWith("-decant");
+                const baseId = isDecant ? id.replace("-decant", "") : id;
+                const p = products.find(prod => String(prod.ID_Producto) === baseId);
+                const isB = isDecant ? false : !!modoBulto[id];
+                const isKg = isDecant ? false : (p?.Unidad || "").toLowerCase() === 'kg';
 
-                const pr = parseFloat(String(p?.Precio_Unitario || "0").replace(',', '.'));
+                const pr = isDecant
+                    ? parseFloat(String(p?.Precio_Decant || "0").replace(',', '.'))
+                    : parseFloat(String(p?.Precio_Unitario || "0").replace(',', '.'));
                 const pe = parseFloat(String(p?.Peso_Promedio || "1").replace(',', '.'));
                 const ub = parseFloat(String(p?.Unidades_Bulto || "1").replace(',', '.'));
 
@@ -440,13 +448,15 @@ export default function TiendaOnlinePage() {
                 const total_unidades = isB ? qty * ub : qty;
                 const total_bultos = ub > 0 ? (total_unidades / ub) : 0;
                 const stringBulto = (Math.floor(total_bultos * 100) / 100).toString().replace('.', ',');
+                const rep_bultos = Math.floor(total_bultos);
+                const rep_unidades = Math.round((total_unidades % ub) * 100) / 100;
                 
-                let rep_bultos = Math.floor(total_bultos);
-                let rep_unidades = Math.round((total_unidades % ub) * 100) / 100;
-
                 let desc = "";
                 let picking_format = "";
-                if (isB) {
+                if (isDecant) {
+                    desc = `${qty} Decant (${p?.Volumen_Decant || '10ml'})`;
+                    picking_format = `${qty} Decant (${p?.Volumen_Decant || '10ml'})`;
+                } else if (isB) {
                     desc = `${qty} Bulto${qty > 1 ? 's' : ''} (${ub}u)`;
                 } else if (isKg) {
                     desc = `${qty} Pieza${qty > 1 ? 's' : ''} (~${pe}kg)`;
@@ -454,22 +464,24 @@ export default function TiendaOnlinePage() {
                     desc = `${qty} Unidad${qty > 1 ? 'es' : ''}`;
                 }
 
-                if (isKg) {
-                    picking_format = `${total_unidades} Pieza${total_unidades > 1 ? 's' : ''} (~${(total_unidades*pe).toFixed(2)}kg)`;
-                } else if (ub > 1) {
-                    if (rep_bultos > 0 && rep_unidades > 0) {
-                        picking_format = `${rep_bultos} Bulto${rep_bultos > 1 ? 's' : ''} y ${rep_unidades} Unid.`;
-                    } else if (rep_bultos > 0) {
-                        picking_format = `${rep_bultos} Bulto${rep_bultos > 1 ? 's' : ''}`;
+                if (!isDecant) {
+                    if (isKg) {
+                        picking_format = `${total_unidades} Pieza${total_unidades > 1 ? 's' : ''} (~${(total_unidades*pe).toFixed(2)}kg)`;
+                    } else if (ub > 1) {
+                        if (rep_bultos > 0 && rep_unidades > 0) {
+                            picking_format = `${rep_bultos} Bulto${rep_bultos > 1 ? 's' : ''} y ${rep_unidades} Unid.`;
+                        } else if (rep_bultos > 0) {
+                            picking_format = `${rep_bultos} Bulto${rep_bultos > 1 ? 's' : ''}`;
+                        } else {
+                            picking_format = `${rep_unidades} Unid.`;
+                        }
                     } else {
-                        picking_format = `${rep_unidades} Unid.`;
+                         picking_format = desc;
                     }
-                } else {
-                     picking_format = desc;
                 }
 
                 return {
-                    id_producto: id,
+                    id_producto: baseId,
                     nombre: p?.Nombre,
                     cantidad: qty,
                     precio: finalItemPrice,
@@ -479,7 +491,9 @@ export default function TiendaOnlinePage() {
                     picking_format: picking_format,
                     total_unidades: total_unidades,
                     total_bultos: total_bultos,
-                    fracciones_bulto: stringBulto
+                    fracciones_bulto: stringBulto,
+                    esDecant: isDecant,
+                    decantVolumen: isDecant ? (p?.Volumen_Decant || '10ml') : undefined
                 };
             }),
             total: cartTotal,
@@ -791,6 +805,7 @@ export default function TiendaOnlinePage() {
                     {filteredProducts.map((p: any) => {
                         const pid = String(p.ID_Producto);
                         const qty = carrito[pid] || 0;
+                        const qtyDecant = carrito[pid + "-decant"] || 0;
                         const isBulto = !!modoBulto[pid];
 
                         return (
@@ -798,6 +813,7 @@ export default function TiendaOnlinePage() {
                                 key={pid}
                                 product={p}
                                 qty={qty}
+                                qtyDecant={qtyDecant}
                                 isBulto={isBulto}
                                 onInitialAdd={handleInitialAdd}
                                 onUpdateQty={updateQty}
@@ -958,12 +974,16 @@ export default function TiendaOnlinePage() {
 
                             <div className="flex-1 overflow-y-auto space-y-4 pb-8">
                                 {Object.entries(carrito).map(([id, qty]) => {
-                                    const p = products.find(prod => String(prod.ID_Producto) === id);
+                                    const isDecant = id.endsWith("-decant");
+                                    const baseId = isDecant ? id.replace("-decant", "") : id;
+                                    const p = products.find(prod => String(prod.ID_Producto) === baseId);
                                     if (!p) return null;
 
-                                    const isB = !!modoBulto[id];
-                                    const isKg = (p?.Unidad || "").toLowerCase() === 'kg';
-                                    const pr = parseFloat(String(p?.Precio_Unitario || "0").replace(',', '.'));
+                                    const isB = isDecant ? false : !!modoBulto[id];
+                                    const isKg = isDecant ? false : (p?.Unidad || "").toLowerCase() === 'kg';
+                                    const pr = isDecant 
+                                        ? parseFloat(String(p?.Precio_Decant || "0").replace(',', '.'))
+                                        : parseFloat(String(p?.Precio_Unitario || "0").replace(',', '.'));
                                     const pe = parseFloat(String(p?.Peso_Promedio || "1").replace(',', '.'));
                                     const ub = parseFloat(String(p?.Unidades_Bulto || "1").replace(',', '.'));
 
@@ -978,10 +998,12 @@ export default function TiendaOnlinePage() {
                                                         {p.Imagen_URL && <img src={getImageUrl(p.Imagen_URL) || ""} className="w-full h-full object-cover" />}
                                                     </div>
                                                     <div>
-                                                        <h3 className="text-sm font-black leading-tight text-slate-800 dark:text-white">{p.Nombre}</h3>
+                                                        <h3 className="text-sm font-black leading-tight text-slate-800 dark:text-white">
+                                                            {p.Nombre} {isDecant && <span className="text-amber-500 font-bold">({p.Volumen_Decant || '10ml'})</span>}
+                                                        </h3>
                                                         <div className="flex flex-col mt-0.5">
                                                             <span className="text-[10px] font-bold text-slate-400">
-                                                                Precio: ${finalItemPrice.toLocaleString()} {isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unid.')}
+                                                                Precio: ${finalItemPrice.toLocaleString()} {isDecant ? 'Decant' : (isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unid.'))}
                                                             </span>
                                                             <div className="flex items-center gap-3 mt-1.5">
                                                                 <div className="flex items-center gap-2 bg-white dark:bg-slate-700 rounded-full px-2 py-1 shadow-sm border border-slate-100 dark:border-slate-600">
@@ -999,7 +1021,7 @@ export default function TiendaOnlinePage() {
                                                     <button onClick={() => setCarrito(prev => { const n = { ...prev }; delete n[id]; return n; })} className="text-rose-500 p-1 mt-1"><Trash2 size={16} /></button>
                                                 </div>
                                             </div>
-                                            {ub > 1 && (
+                                            {ub > 1 && !isDecant && (
                                                 <div className="flex bg-white dark:bg-slate-700/50 p-1 rounded-2xl self-end">
                                                     <button
                                                         onClick={() => isB && toggleBulto(id)}

@@ -1,4 +1,5 @@
 import { wandaApi } from "./api";
+import { Product, Client, Order, OrderItem } from "@/types/wanda";
 
 /**
  * Utilidades para exportar e importar datos en formato compatible con Google Sheets (CSV / JSON)
@@ -7,7 +8,7 @@ import { wandaApi } from "./api";
 export const sheetsSync = {
     // --- EXPORTAR ---
 
-    exportToCSV: (data: any[], headers: string[], filename: string) => {
+    exportToCSV: (data: Record<string, unknown>[], headers: string[], filename: string): void => {
         const csvContent = [
             headers.join(";"),
             ...data.map(row => 
@@ -29,31 +30,32 @@ export const sheetsSync = {
         document.body.removeChild(link);
     },
 
-    exportProducts: (products: any[]) => {
+    exportProducts: (products: Product[]): void => {
         const headers = [
             "ID_Producto", "Nombre", "Categoria", "Unidad", 
             "Precio_Unitario", "Costo", "Stock_Actual", 
             "Peso_Promedio", "Unidades_Bulto", "Imagen_URL", 
-            "Es_Oferta", "Nota_Oferta"
+            "Es_Oferta", "Nota_Oferta",
+            "Precio_Decant", "Stock_Decant", "Volumen_Decant"
         ];
-        sheetsSync.exportToCSV(products, headers, "wanda_productos");
+        sheetsSync.exportToCSV(products as unknown as Record<string, unknown>[], headers, "wanda_productos");
     },
 
-    exportClients: (clients: any[]) => {
+    exportClients: (clients: Client[]): void => {
         const headers = [
             "ID_Cliente", "Nombre_Negocio", "Email", "Telefono", 
             "Direccion", "Ubicacion", "Saldo", "Categoria", "Vendedor_Asignado"
         ];
-        sheetsSync.exportToCSV(clients, headers, "wanda_clientes");
+        sheetsSync.exportToCSV(clients as unknown as Record<string, unknown>[], headers, "wanda_clientes");
     },
 
-    exportOrders: (orders: any[], clients?: any[]) => {
+    exportOrders: (orders: Order[], clients?: Client[]): void => {
         const clientsArray = clients || [];
         const clientDictionary = clientsArray.reduce((acc, client) => {
             const id = client.ID_Cliente || client.id;
             if (id) acc[String(id)] = client;
             return acc;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, Client>);
 
         const mappedOrders = orders.map(order => {
             let fechaDate = "";
@@ -80,7 +82,7 @@ export const sheetsSync = {
             }
 
             return {
-                ...order,
+                ...(order as unknown as Record<string, unknown>),
                 fecha: fechaDate || order.fecha,
                 hora: horaDate,
                 zona: zona
@@ -94,15 +96,15 @@ export const sheetsSync = {
         sheetsSync.exportToCSV(mappedOrders, headers, "wanda_pedidos");
     },
 
-    exportOrderDetails: (orders: any[], clients?: any[]) => {
+    exportOrderDetails: (orders: Order[], clients?: Client[]): void => {
         const clientsArray = clients || [];
         const clientDictionary = clientsArray.reduce((acc, client) => {
             const id = client.ID_Cliente || client.id;
             if (id) acc[String(id)] = client;
             return acc;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, Client>);
 
-        const details: any[] = [];
+        const details: Record<string, unknown>[] = [];
         orders.forEach(order => {
             let fechaDate = "";
             let horaDate = "";
@@ -128,7 +130,7 @@ export const sheetsSync = {
             }
 
             if (order.items && Array.isArray(order.items)) {
-                order.items.forEach((item: any) => {
+                order.items.forEach((item: OrderItem) => {
                     details.push({
                         Pedido_ID: order.id,
                         Fecha: fechaDate || order.fecha,
@@ -137,12 +139,12 @@ export const sheetsSync = {
                         Cliente: order.cliente_nombre,
                         Vendedor: order.vendedor,
                         Producto_ID: item.id_producto || item.id || item.id_prod,
-                        Producto_Nombre: item.nombre || item.producto,
+                        Producto_Nombre: item.nombre,
                         Cantidad: item.cantidad,
-                        Tipo_Unidad: item.detalle || (item.esBulto ? 'BULTO' : 'UNIDAD'),
+                        Tipo_Unidad: item.descripcion || (item.esBulto ? 'BULTO' : 'UNIDAD'),
                         Fracciones_Unidad: item.fracciones_bulto || (item.cantidad),
-                        Precio: item.precio || item.precio_unitario,
-                        Subtotal: (item.cantidad * (item.precio || item.precio_unitario || 0)).toFixed(2),
+                        Precio: item.precio,
+                        Subtotal: (item.cantidad * (item.precio || 0)).toFixed(2),
                         Estado: order.estado
                     });
                 });
@@ -159,14 +161,14 @@ export const sheetsSync = {
 
     // --- IMPORTAR ---
 
-    parseCSV: (csvText: string): any[] => {
+    parseCSV: (csvText: string): Record<string, string>[] => {
         const rows = csvText.split(/\r?\n/).filter(line => line.trim() !== "");
         if (rows.length < 2) return [];
 
         const headers = rows[0].split(";").map(h => h.replace(/^"|"$/g, '').trim());
         return rows.slice(1).map(row => {
             const values = row.split(";").map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
-            const obj: any = {};
+            const obj: Record<string, string> = {};
             headers.forEach((header, i) => {
                 obj[header] = values[i];
             });
@@ -174,18 +176,18 @@ export const sheetsSync = {
         });
     },
 
-    importProducts: async (csvText: string) => {
+    importProducts: async (csvText: string): Promise<{ success: boolean, message?: string, count?: number }> => {
         const data = sheetsSync.parseCSV(csvText);
         if (data.length === 0) return { success: false, message: "No se encontraron datos" };
 
         const formatted = data.map(item => {
-            const cleanItem: any = {};
+            const cleanItem: Record<string, string | number | boolean> = {};
             // Solo incluimos campos que tengan valor para no sobreescribir con vacíos
             Object.keys(item).forEach(key => {
                 if (item[key] !== "" && item[key] !== undefined && item[key] !== null) {
-                    let value = item[key];
+                    let value: string | number | boolean = item[key];
                     // Conversiones de tipos
-                    if (["Precio_Unitario", "Costo", "Stock_Actual", "Peso_Promedio"].includes(key)) {
+                    if (["Precio_Unitario", "Costo", "Stock_Actual", "Peso_Promedio", "Precio_Decant", "Stock_Decant"].includes(key)) {
                         value = parseFloat(value.toString().replace(",", "."));
                     } else if (key === "Unidades_Bulto") {
                         value = parseInt(value);
@@ -195,32 +197,33 @@ export const sheetsSync = {
                     cleanItem[key] = value;
                 }
             });
-            return cleanItem;
+            return cleanItem as unknown as Partial<Product>;
         });
 
         await wandaApi.bulkUpdateProducts(formatted);
         return { success: true, count: formatted.length };
     },
 
-    importClients: async (csvText: string) => {
+    importClients: async (csvText: string): Promise<{ success: boolean, message?: string, count?: number }> => {
         const data = sheetsSync.parseCSV(csvText);
         if (data.length === 0) return { success: false, message: "No se encontraron datos" };
 
         const formatted = data.map(item => {
-            const cleanItem: any = {};
+            const cleanItem: Record<string, string | number | boolean> = {};
             Object.keys(item).forEach(key => {
                 if (item[key] !== "" && item[key] !== undefined && item[key] !== null) {
-                    let value = item[key];
+                    let value: string | number | boolean = item[key];
                     if (key === "Saldo") {
                         value = parseFloat(value.toString().replace(",", "."));
                     }
                     cleanItem[key] = value;
                 }
             });
-            return cleanItem;
+            return cleanItem as unknown as Partial<Client>;
         });
 
         await wandaApi.bulkUpdateClients(formatted);
         return { success: true, count: formatted.length };
     }
 };
+
