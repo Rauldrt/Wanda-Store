@@ -72,6 +72,16 @@ export const wandaApi = {
         const id = String(reqId).replace(/\//g, "-").trim();
         product.id = id;
         product.ID_Producto = id;
+        
+        // Sanitizar campos numéricos
+        const numFields = ["Precio_Unitario", "Costo", "Stock_Actual", "Peso_Promedio", "Unidades_Bulto", "Precio_Decant", "Stock_Decant"];
+        numFields.forEach(f => {
+            if (product[f] !== undefined && product[f] !== null) {
+                const pVal = parseFloat(String(product[f]).replace(",", "."));
+                product[f] = isNaN(pVal) ? 0 : pVal;
+            }
+        });
+
         await setDoc(doc(db, "products", id), product, { merge: true });
         return { result: "OK" };
     },
@@ -148,6 +158,15 @@ export const wandaApi = {
             // Limpiamos campos temporales
             delete finalData.id;
             
+            // Sanitizar campos numéricos
+            const numFields = ["Precio_Unitario", "Costo", "Stock_Actual", "Peso_Promedio", "Unidades_Bulto", "Precio_Decant", "Stock_Decant"];
+            numFields.forEach(f => {
+                if (finalData[f] !== undefined && finalData[f] !== null) {
+                    const pVal = parseFloat(String(finalData[f]).replace(",", "."));
+                    finalData[f] = isNaN(pVal) ? 0 : pVal;
+                }
+            });
+
             batch.set(docRef, finalData, { merge: true });
         });
         await batch.commit();
@@ -288,15 +307,30 @@ export const wandaApi = {
         const batch = writeBatch(db);
         batch.set(doc(db, "orders", idPedido), finalOrder);
 
-        // Descontar stock
+        // Descontar stock de forma segura (saneando strings a números y verificando existencia)
         if (orderData.items && orderData.items.length > 0) {
-            orderData.items.forEach((item: OrderItem) => {
+            for (const item of orderData.items) {
                 const idProd = String(item.id_producto || item.id || item.id_prod).replace(/\//g, "-").trim();
-                const stockField = item.esDecant ? "Stock_Decant" : "Stock_Actual";
-                batch.update(doc(db, "products", idProd), {
-                    [stockField]: increment(-item.cantidad)
-                });
-            });
+                const prodRef = doc(db, "products", idProd);
+                try {
+                    const prodSnap = await getDoc(prodRef);
+                    if (prodSnap.exists()) {
+                        const prodData = prodSnap.data();
+                        const stockField = item.esDecant ? "Stock_Decant" : "Stock_Actual";
+                        
+                        let currentStock = parseFloat(String(prodData[stockField] || "0").replace(",", "."));
+                        if (isNaN(currentStock)) currentStock = 0;
+                        
+                        const newStock = currentStock - item.cantidad;
+                        
+                        batch.update(prodRef, {
+                            [stockField]: newStock
+                        });
+                    }
+                } catch (stockErr) {
+                    console.error(`No se pudo descontar stock del producto ${idProd}:`, stockErr);
+                }
+            }
         }
 
         await batch.commit();

@@ -662,22 +662,30 @@ export default function TiendaOnlinePage() {
             } else if (metodoPago === 'astropay') {
                 alert(`❌ Error al iniciar el pago con AstroPay: ${err.message || err}.`);
             } else {
-                // LÓGICA OFFLINE tradicional
-                try {
-                    const savedPending = localStorage.getItem("order_history_online");
-                    const pendingOrders = savedPending ? JSON.parse(savedPending) : [];
-                    const offlineOrder = {
-                        ...orderData,
-                        fecha: new Date().toISOString(),
-                        isOffline: true
-                    };
-                    pendingOrders.push(offlineOrder);
-                    localStorage.setItem("order_history_online", JSON.stringify(pendingOrders));
-                    alert("📡 Sin conexión. Tu pedido se guardó en el dispositivo y se enviará automáticamente cuando recuperes internet.");
-                    setCarrito({});
-                    setIsCartOpen(false);
-                } catch (localErr) {
-                    alert("❌ Error al guardar el pedido. Verifica tu conexión.");
+                // Verificar si realmente estamos offline o es otro tipo de error de Firebase/permisos/sintaxis
+                const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+                if (isOffline) {
+                    // LÓGICA OFFLINE tradicional
+                    try {
+                        const savedPending = localStorage.getItem("order_history_online");
+                        const pendingOrders = savedPending ? JSON.parse(savedPending) : [];
+                        const offlineOrder = {
+                            ...orderData,
+                            fecha: new Date().toISOString(),
+                            isOffline: true
+                        };
+                        pendingOrders.push(offlineOrder);
+                        localStorage.setItem("order_history_online", JSON.stringify(pendingOrders));
+                        alert("📡 Sin conexión. Tu pedido se guardó en el dispositivo y se enviará automáticamente cuando recuperes internet.");
+                        setCarrito({});
+                        setIsCartOpen(false);
+                    } catch (localErr) {
+                        alert("❌ Error al guardar el pedido localmente.");
+                    }
+                } else {
+                    // Es un error del servidor/código/permisos a pesar de tener conexión
+                    alert(`❌ Error al procesar tu pedido: ${err.message || err}`);
                 }
             }
         } finally {
