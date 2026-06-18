@@ -844,14 +844,14 @@ export default function TiendaOnlinePage() {
                 {/* Descripción Contextual de Categoría */}
                 {categoryFilter !== "ALL" && CATEGORY_DESCRIPTIONS[categoryFilter.toUpperCase()] && (
                     <motion.div 
-                        initial={{ opacity: 0, y: -10 }} 
+                        initial={{ opacity: 0, y: -5 }} 
                         animate={{ opacity: 1, y: 0 }} 
-                        className="p-6 rounded-[24px] bg-gradient-to-r from-indigo-500/5 via-indigo-500/[0.01] to-transparent border border-indigo-500/10 border-l-4 border-l-indigo-500 shadow-sm mb-4"
+                        className="py-6 px-1 mb-6 flex flex-col gap-2"
                     >
-                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-[0.2em] leading-none mb-2">
+                        <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-[0.15em] leading-tight">
                             {CATEGORY_DESCRIPTIONS[categoryFilter.toUpperCase()].title}
                         </h3>
-                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+                        <p className="text-sm sm:text-base md:text-lg text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-4xl">
                             {CATEGORY_DESCRIPTIONS[categoryFilter.toUpperCase()].desc}
                         </p>
                     </motion.div>
