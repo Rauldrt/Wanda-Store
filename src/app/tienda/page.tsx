@@ -452,11 +452,11 @@ export default function TiendaOnlinePage() {
         const orderData = {
             cliente: {
                 ID_Cliente: "ONLINE",
-                Nombre_Negocio: userInfo.name,
-                Email: userInfo.email,
-                Telefono: checkoutData.telefono,
-                Direccion: checkoutData.direccion,
-                Ubicacion: checkoutData.ubicacion,
+                Nombre_Negocio: userInfo.name || "Cliente Web",
+                Email: userInfo.email || "",
+                Telefono: checkoutData.telefono || "",
+                Direccion: checkoutData.direccion || "",
+                Ubicacion: checkoutData.ubicacion || "",
                 Es_Online: true
             },
             items: Object.entries(carrito).map(([id, qty]) => {
@@ -513,7 +513,7 @@ export default function TiendaOnlinePage() {
 
                 return {
                     id_producto: baseId,
-                    nombre: p?.Nombre,
+                    nombre: p?.Nombre || "Producto",
                     cantidad: qty,
                     precio: finalItemPrice,
                     subtotal: subtotal,
@@ -524,7 +524,7 @@ export default function TiendaOnlinePage() {
                     total_bultos: total_bultos,
                     fracciones_bulto: stringBulto,
                     esDecant: isDecant,
-                    decantVolumen: isDecant ? (p?.Volumen_Decant || '10ml') : undefined
+                    decantVolumen: isDecant ? (p?.Volumen_Decant || '10ml') : null
                 };
             }),
             total: cartTotal,
