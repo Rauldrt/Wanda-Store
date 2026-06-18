@@ -35,6 +35,33 @@ import { getImageUrl, normalizeText, smartSearch } from "@/lib/utils";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import { ShopProductCard } from "@/components/ShopProductCard";
 
+const CATEGORY_DESCRIPTIONS: Record<string, { title: string, desc: string }> = {
+    "MASCULINOS": {
+        title: "Fragancias Masculinas",
+        desc: "Fragancias con presencia, carácter y elegancia. Descubrí aromas únicos para cada estilo y ocasión."
+    },
+    "FEMENINOS": {
+        title: "Fragancias Femeninas",
+        desc: "Fragancias llenas de elegancia, dulzura y sofisticación. Descubrí aromas irresistibles que resaltan tu esencia en cada momento."
+    },
+    "UNISEX": {
+        title: "Perfumes Unisex",
+        desc: "Perfumes unisex diseñados para quienes buscan destacar sin límites. Aromas modernos, versátiles y envolventes que se adaptan a cada personalidad."
+    },
+    "INFANTILES": {
+        title: "Fragancias Infantiles",
+        desc: "Perfumes infantiles suaves, divertidos y encantadores. Aromas delicados pensados para acompañar cada momento con ternura y frescura."
+    },
+    "CUIDADO PERSONAL": {
+        title: "Cuidado Personal",
+        desc: "Productos de cuidado personal pensados para tu bienestar diario. Opciones que combinan frescura, cuidado y una experiencia única para tu piel y rutina."
+    },
+    "PARA EL HOGAR": {
+        title: "Aromas para el Hogar",
+        desc: "Fragancias delicadas pensadas para ambientar tus espacios con calidez, armonía y frescura."
+    }
+};
+
 export default function TiendaOnlinePage() {
     const { data } = useData();
     const router = useRouter();
@@ -96,6 +123,10 @@ export default function TiendaOnlinePage() {
     });
 
     const [isLocating, setIsLocating] = useState(false);
+    const [isRegalo, setIsRegalo] = useState(false);
+    const [regaloNombre, setRegaloNombre] = useState("");
+    const [regaloMensaje, setRegaloMensaje] = useState("");
+    const [regaloInstrucciones, setRegaloInstrucciones] = useState("");
 
     const handleGetLocation = () => {
         if (!navigator.geolocation) {
@@ -498,9 +529,18 @@ export default function TiendaOnlinePage() {
             }),
             total: cartTotal,
             vendedor: "Venta Online",
-            notas: `Pedido realizado desde la tienda online. Método de Pago: ${
-                metodoPago === 'mercadopago' ? 'Mercado Pago' : metodoPago === 'astropay' ? 'AstroPay' : 'Efectivo/Transferencia'
-            }.`,
+            notas: (() => {
+                let note = `Pedido realizado desde la tienda online. Método de Pago: ${
+                    metodoPago === 'mercadopago' ? 'Mercado Pago' : metodoPago === 'astropay' ? 'AstroPay' : 'Efectivo/Transferencia'
+                }.`;
+                if (isRegalo) {
+                    note += `\n\n🎁 [REGALO SORPRESA - SERVICIO CONFIDENCIAL]`;
+                    note += `\n• Homenajeado: ${regaloNombre || 'No especificado'}`;
+                    note += `\n• Mensaje Dedicado: ${regaloMensaje || 'Sin mensaje'}`;
+                    note += `\n• Instrucciones Entrega: ${regaloInstrucciones || 'Sin instrucciones'}`;
+                }
+                return note;
+            })(),
             id_interno: Date.now().toString(),
             estado: (metodoPago === 'mercadopago' || metodoPago === 'astropay') ? 'Pendiente de Pago' : 'Pendiente'
         };
@@ -801,6 +841,22 @@ export default function TiendaOnlinePage() {
                     </div>
                 )}
 
+                {/* Descripción Contextual de Categoría */}
+                {categoryFilter !== "ALL" && CATEGORY_DESCRIPTIONS[categoryFilter.toUpperCase()] && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: -10 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        className="p-6 rounded-[24px] bg-gradient-to-r from-indigo-500/5 via-indigo-500/[0.01] to-transparent border border-indigo-500/10 border-l-4 border-l-indigo-500 shadow-sm mb-4"
+                    >
+                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-[0.2em] leading-none mb-2">
+                            {CATEGORY_DESCRIPTIONS[categoryFilter.toUpperCase()].title}
+                        </h3>
+                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+                            {CATEGORY_DESCRIPTIONS[categoryFilter.toUpperCase()].desc}
+                        </p>
+                    </motion.div>
+                )}
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {filteredProducts.map((p: any) => {
                         const pid = String(p.ID_Producto);
@@ -1092,6 +1148,79 @@ export default function TiendaOnlinePage() {
                                                                     {isLocating ? <Loader2 className="animate-spin" size={20} /> : <LocateFixed size={20} />}
                                                                 </button>
                                                             </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                {/* Módulo de Regalo Sorpresa */}
+                                <div className="bg-slate-50 dark:bg-slate-800 rounded-[28px] overflow-hidden border border-slate-100/50 dark:border-slate-700/50 my-4">
+                                    <div className="p-5 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-sm">
+                                                🎁
+                                            </div>
+                                            <div className="text-left">
+                                                <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">¿Es un regalo sorpresa?</h3>
+                                                <p className="text-[9px] font-bold text-slate-400 mt-0.5">
+                                                    Servicio Confidencial y Exclusivo
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsRegalo(!isRegalo)}
+                                            className={`w-12 h-6 rounded-full transition-all relative ${isRegalo ? 'bg-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}
+                                        >
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isRegalo ? 'left-7' : 'left-1'}`} />
+                                        </button>
+                                    </div>
+
+                                    <AnimatePresence>
+                                        {isRegalo && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                            >
+                                                <div className="px-5 pb-5 pt-2 space-y-4 border-t border-slate-100 dark:border-slate-700/50 bg-indigo-500/[0.02]">
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase leading-relaxed mb-2">
+                                                        Realizaremos una entrega discreta y planificada respetando cada detalle.
+                                                    </p>
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">¿Quién lo recibe?</label>
+                                                            <input 
+                                                                type="text" 
+                                                                value={regaloNombre} 
+                                                                onChange={e => setRegaloNombre(e.target.value)} 
+                                                                placeholder="Nombre de la persona homenajeada" 
+                                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" 
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Mensaje de Dedicatoria</label>
+                                                            <textarea 
+                                                                value={regaloMensaje} 
+                                                                onChange={e => setRegaloMensaje(e.target.value)} 
+                                                                placeholder="Escribe el mensaje que quieras dedicarle..." 
+                                                                rows={3}
+                                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors resize-none" 
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Instrucciones de entrega discreta</label>
+                                                            <textarea 
+                                                                value={regaloInstrucciones} 
+                                                                onChange={e => setRegaloInstrucciones(e.target.value)} 
+                                                                placeholder="Ej: Entregar de 15 a 17 hs. No decir que es de Wanda Essence. Llamar antes al llegar..." 
+                                                                rows={2}
+                                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors resize-none" 
+                                                            />
                                                         </div>
                                                     </div>
                                                 </div>
