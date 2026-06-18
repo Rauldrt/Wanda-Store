@@ -1016,9 +1016,9 @@ export default function TiendaOnlinePage() {
                             initial={{ y: "100%" }}
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
-                            className="fixed inset-x-0 bottom-0 bg-white dark:bg-slate-900 rounded-t-[40px] z-[70] max-h-[90vh] flex flex-col p-8"
+                            className="fixed inset-x-0 bottom-0 bg-white dark:bg-slate-900 rounded-t-[40px] z-[70] h-[95vh] md:h-[90vh] flex flex-col p-6 md:p-8"
                         >
-                            <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center justify-between mb-6 flex-shrink-0">
                                 <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-3">
                                     <ShoppingCart size={28} className="text-indigo-500" /> Tu Pedido
                                 </h2>
@@ -1028,261 +1028,276 @@ export default function TiendaOnlinePage() {
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto space-y-4 pb-8">
-                                {Object.entries(carrito).map(([id, qty]) => {
-                                    const isDecant = id.endsWith("-decant");
-                                    const baseId = isDecant ? id.replace("-decant", "") : id;
-                                    const p = products.find(prod => String(prod.ID_Producto) === baseId);
-                                    if (!p) return null;
+                            {/* Cuerpo del Modal (Grid responsivo) */}
+                            <div className="flex-1 overflow-y-auto md:overflow-hidden md:grid md:grid-cols-12 md:gap-8 pb-6 min-h-0">
+                                
+                                {/* Columna de Productos */}
+                                <div className="md:col-span-7 flex flex-col md:overflow-hidden mb-6 md:mb-0 min-h-0">
+                                    <h3 className="text-xs font-black uppercase text-slate-450 dark:text-slate-400 tracking-widest mb-4">Productos en tu carrito</h3>
+                                    <div className="flex-1 md:overflow-y-auto space-y-4 md:pr-4">
+                                        {Object.entries(carrito).map(([id, qty]) => {
+                                            const isDecant = id.endsWith("-decant");
+                                            const baseId = isDecant ? id.replace("-decant", "") : id;
+                                            const p = products.find(prod => String(prod.ID_Producto) === baseId);
+                                            if (!p) return null;
 
-                                    const isB = isDecant ? false : !!modoBulto[id];
-                                    const isKg = isDecant ? false : (p?.Unidad || "").toLowerCase() === 'kg';
-                                    const pr = isDecant 
-                                        ? parseFloat(String(p?.Precio_Decant || "0").replace(',', '.'))
-                                        : parseFloat(String(p?.Precio_Unitario || "0").replace(',', '.'));
-                                    const pe = parseFloat(String(p?.Peso_Promedio || "1").replace(',', '.'));
-                                    const ub = parseFloat(String(p?.Unidades_Bulto || "1").replace(',', '.'));
+                                            const isB = isDecant ? false : !!modoBulto[id];
+                                            const isKg = isDecant ? false : (p?.Unidad || "").toLowerCase() === 'kg';
+                                            const pr = isDecant 
+                                                ? parseFloat(String(p?.Precio_Decant || "0").replace(',', '.'))
+                                                : parseFloat(String(p?.Precio_Unitario || "0").replace(',', '.'));
+                                            const pe = parseFloat(String(p?.Peso_Promedio || "1").replace(',', '.'));
+                                            const ub = parseFloat(String(p?.Unidades_Bulto || "1").replace(',', '.'));
 
-                                    const piecePrice = isKg ? pr * pe : pr;
-                                    const finalItemPrice = isB ? piecePrice * ub : piecePrice;
+                                            const piecePrice = isKg ? pr * pe : pr;
+                                            const finalItemPrice = isB ? piecePrice * ub : piecePrice;
 
-                                    return (
-                                        <div key={id} className="bg-slate-50 dark:bg-slate-800 p-5 rounded-[28px] flex flex-col gap-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-14 h-14 bg-white dark:bg-slate-700 rounded-2xl overflow-hidden flex-shrink-0">
-                                                        {p.Imagen_URL && <img src={getImageUrl(p.Imagen_URL) || ""} className="w-full h-full object-cover" />}
+                                            return (
+                                                <div key={id} className="bg-slate-50 dark:bg-slate-800 p-5 rounded-[28px] flex flex-col gap-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-14 h-14 bg-white dark:bg-slate-700 rounded-2xl overflow-hidden flex-shrink-0">
+                                                                {p.Imagen_URL && <img src={getImageUrl(p.Imagen_URL) || ""} className="w-full h-full object-cover" />}
+                                                            </div>
+                                                            <div>
+                                                                <h3 className="text-sm font-black leading-tight text-slate-800 dark:text-white">
+                                                                    {p.Nombre} {isDecant && <span className="text-amber-500 font-bold">({p.Volumen_Decant || '10ml'})</span>}
+                                                                </h3>
+                                                                <div className="flex flex-col mt-0.5">
+                                                                    <span className="text-[10px] font-bold text-slate-400">
+                                                                        Precio: ${finalItemPrice.toLocaleString()} {isDecant ? 'Decant' : (isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unid.'))}
+                                                                    </span>
+                                                                    <div className="flex items-center gap-3 mt-1.5">
+                                                                        <div className="flex items-center gap-2 bg-white dark:bg-slate-700 rounded-full px-2 py-1 shadow-sm border border-slate-100 dark:border-slate-600">
+                                                                            <button onClick={() => updateQty(id, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500">-</button>
+                                                                            <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(id, v); else setQtyExact(id, 0); }} className="w-8 text-center text-[10px] font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded" onFocus={(e) => e.target.select()} />
+                                                                            <button onClick={() => updateQty(id, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-500">+</button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Subtotal</div>
+                                                            <div className="text-lg font-black text-indigo-500 leading-tight">${(finalItemPrice * qty).toLocaleString()}</div>
+                                                            <button onClick={() => setCarrito(prev => { const n = { ...prev }; delete n[id]; return n; })} className="text-rose-500 p-1 mt-1"><Trash2 size={16} /></button>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <h3 className="text-sm font-black leading-tight text-slate-800 dark:text-white">
-                                                            {p.Nombre} {isDecant && <span className="text-amber-500 font-bold">({p.Volumen_Decant || '10ml'})</span>}
-                                                        </h3>
-                                                        <div className="flex flex-col mt-0.5">
-                                                            <span className="text-[10px] font-bold text-slate-400">
-                                                                Precio: ${finalItemPrice.toLocaleString()} {isDecant ? 'Decant' : (isB ? 'Bulto' : (isKg ? 'Pieza' : 'Unid.'))}
-                                                            </span>
-                                                            <div className="flex items-center gap-3 mt-1.5">
-                                                                <div className="flex items-center gap-2 bg-white dark:bg-slate-700 rounded-full px-2 py-1 shadow-sm border border-slate-100 dark:border-slate-600">
-                                                                    <button onClick={() => updateQty(id, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500">-</button>
-                                                                    <input type="number" min="0" value={qty || ""} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setQtyExact(id, v); else setQtyExact(id, 0); }} className="w-8 text-center text-[10px] font-black bg-transparent border-none outline-none focus:ring-2 focus:ring-indigo-500/50 rounded" onFocus={(e) => e.target.select()} />
-                                                                    <button onClick={() => updateQty(id, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-500">+</button>
+                                                    {ub > 1 && !isDecant && (
+                                                        <div className="flex bg-white dark:bg-slate-700/50 p-1 rounded-2xl self-end">
+                                                            <button
+                                                                onClick={() => isB && toggleBulto(id)}
+                                                                className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${!isB ? 'bg-white dark:bg-slate-600 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                                            >
+                                                                {isKg ? 'Pieza' : 'Unidad'}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => !isB && toggleBulto(id)}
+                                                                className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${isB ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
+                                                            >
+                                                                Bulto
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Columna de Datos de Envío y Pago (Checkout) */}
+                                <div className="md:col-span-5 flex flex-col md:overflow-y-auto md:border-l md:border-slate-100 md:dark:border-slate-800 md:pl-8 space-y-6 md:pr-2 min-h-0">
+                                    <h3 className="text-xs font-black uppercase text-slate-450 dark:text-slate-400 tracking-widest hidden md:block mb-1">Detalles del Pedido</h3>
+                                    
+                                    {/* Acordeón Datos de Envío */}
+                                    <div className="bg-slate-50 dark:bg-slate-800 rounded-[28px] overflow-hidden">
+                                        <button
+                                            onClick={() => setIsDeliveryFormOpen(!isDeliveryFormOpen)}
+                                            className="w-full p-5 flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                                                    <MapPin size={18} />
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">Datos de Entrega</h3>
+                                                    <p className="text-[9px] font-bold text-slate-400 mt-0.5">
+                                                        {(checkoutData.telefono && checkoutData.direccion) ? '✅ Información completa' : '⚠️ Pendiente de completar'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <ChevronDown
+                                                size={20}
+                                                className={`text-slate-400 transition-transform duration-300 ${isDeliveryFormOpen ? 'rotate-180' : ''}`}
+                                            />
+                                        </button>
+
+                                        <AnimatePresence>
+                                            {isDeliveryFormOpen && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                                >
+                                                    <div className="px-5 pb-5 pt-2 space-y-4 border-t border-slate-100 dark:border-slate-700/50">
+                                                        <div className="space-y-3">
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Teléfono / WhatsApp</label>
+                                                                <input type="tel" value={checkoutData.telefono} onChange={e => setCheckoutData({ ...checkoutData, telefono: e.target.value })} placeholder="Ej. 3764 123456" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Dirección de Entrega</label>
+                                                                <input type="text" value={checkoutData.direccion} onChange={e => setCheckoutData({ ...checkoutData, direccion: e.target.value })} placeholder="Calle y Número, Barrio" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ubicación Geográfica (GPS)</label>
+                                                                <div className="flex gap-2">
+                                                                    <input type="text" value={checkoutData.ubicacion} readOnly placeholder="Ubicación no establecida" className="flex-1 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl px-4 py-3 text-sm font-bold text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap outline-none cursor-default" />
+                                                                    <button onClick={handleGetLocation} disabled={isLocating} className="bg-indigo-500 text-white p-3 rounded-xl flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 min-w-[3rem] transition-colors">
+                                                                        {isLocating ? <Loader2 className="animate-spin" size={20} /> : <LocateFixed size={20} />}
+                                                                    </button>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Subtotal</div>
-                                                    <div className="text-lg font-black text-indigo-500 leading-tight">${(finalItemPrice * qty).toLocaleString()}</div>
-                                                    <button onClick={() => setCarrito(prev => { const n = { ...prev }; delete n[id]; return n; })} className="text-rose-500 p-1 mt-1"><Trash2 size={16} /></button>
-                                                </div>
-                                            </div>
-                                            {ub > 1 && !isDecant && (
-                                                <div className="flex bg-white dark:bg-slate-700/50 p-1 rounded-2xl self-end">
-                                                    <button
-                                                        onClick={() => isB && toggleBulto(id)}
-                                                        className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${!isB ? 'bg-white dark:bg-slate-600 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
-                                                    >
-                                                        {isKg ? 'Pieza' : 'Unidad'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => !isB && toggleBulto(id)}
-                                                        className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${isB ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
-                                                    >
-                                                        Bulto
-                                                    </button>
-                                                </div>
+                                                </motion.div>
                                             )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                        </AnimatePresence>
+                                    </div>
 
-                            <div className="pt-8 border-t border-slate-100 dark:border-slate-800 space-y-6">
-                                {/* Acordeón Datos de Envío */}
-                                <div className="bg-slate-50 dark:bg-slate-800 rounded-[28px] overflow-hidden">
-                                    <button
-                                        onClick={() => setIsDeliveryFormOpen(!isDeliveryFormOpen)}
-                                        className="w-full p-5 flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-                                                <MapPin size={18} />
+                                    {/* Módulo de Regalo Sorpresa */}
+                                    <div className="bg-slate-50 dark:bg-slate-800 rounded-[28px] overflow-hidden border border-slate-100/50 dark:border-slate-700/50">
+                                        <div className="p-5 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-sm">
+                                                    🎁
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">¿Es un regalo sorpresa?</h3>
+                                                    <p className="text-[9px] font-bold text-slate-400 mt-0.5">
+                                                        Servicio Confidencial y Exclusivo
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="text-left">
-                                                <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">Datos de Entrega</h3>
-                                                <p className="text-[9px] font-bold text-slate-400 mt-0.5">
-                                                    {(checkoutData.telefono && checkoutData.direccion) ? '✅ Información completa' : '⚠️ Pendiente de completar'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <ChevronDown
-                                            size={20}
-                                            className={`text-slate-400 transition-transform duration-300 ${isDeliveryFormOpen ? 'rotate-180' : ''}`}
-                                        />
-                                    </button>
-
-                                    <AnimatePresence>
-                                        {isDeliveryFormOpen && (
-                                            <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: 'auto', opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsRegalo(!isRegalo)}
+                                                className={`w-12 h-6 rounded-full transition-all relative ${isRegalo ? 'bg-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}
                                             >
-                                                <div className="px-5 pb-5 pt-2 space-y-4 border-t border-slate-100 dark:border-slate-700/50">
-                                                    <div className="space-y-3">
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Teléfono / WhatsApp</label>
-                                                            <input type="tel" value={checkoutData.telefono} onChange={e => setCheckoutData({ ...checkoutData, telefono: e.target.value })} placeholder="Ej. 3764 123456" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Dirección de Entrega</label>
-                                                            <input type="text" value={checkoutData.direccion} onChange={e => setCheckoutData({ ...checkoutData, direccion: e.target.value })} placeholder="Calle y Número, Barrio" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ubicación Geográfica (GPS)</label>
-                                                            <div className="flex gap-2">
-                                                                <input type="text" value={checkoutData.ubicacion} readOnly placeholder="Ubicación no establecida" className="flex-1 bg-slate-100 dark:bg-slate-900 border border-transparent rounded-xl px-4 py-3 text-sm font-bold text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap outline-none cursor-default" />
-                                                                <button onClick={handleGetLocation} disabled={isLocating} className="bg-indigo-500 text-white p-3 rounded-xl flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 min-w-[3rem] transition-colors">
-                                                                    {isLocating ? <Loader2 className="animate-spin" size={20} /> : <LocateFixed size={20} />}
-                                                                </button>
+                                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isRegalo ? 'left-7' : 'left-1'}`} />
+                                            </button>
+                                        </div>
+
+                                        <AnimatePresence>
+                                            {isRegalo && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                                >
+                                                    <div className="px-5 pb-5 pt-2 space-y-4 border-t border-slate-100 dark:border-slate-700/50 bg-indigo-500/[0.02]">
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase leading-relaxed mb-2">
+                                                            Realizaremos una entrega discreta y planificada respetando cada detalle.
+                                                        </p>
+                                                        <div className="space-y-3">
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">¿Quién lo recibe?</label>
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={regaloNombre} 
+                                                                    onChange={e => setRegaloNombre(e.target.value)} 
+                                                                    placeholder="Nombre de la persona homenajeada" 
+                                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" 
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Mensaje de Dedicatoria</label>
+                                                                <textarea 
+                                                                    value={regaloMensaje} 
+                                                                    onChange={e => setRegaloMensaje(e.target.value)} 
+                                                                    placeholder="Escribe el mensaje que quieras dedicarle..." 
+                                                                    rows={3}
+                                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors resize-none" 
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Instrucciones de entrega discreta</label>
+                                                                <textarea 
+                                                                    value={regaloInstrucciones} 
+                                                                    onChange={e => setRegaloInstrucciones(e.target.value)} 
+                                                                    placeholder="Ej: Entregar de 15 a 17 hs. No decir que es de Wanda Essence. Llamar antes al llegar..." 
+                                                                    rows={2}
+                                                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors resize-none" 
+                                                                />
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-
-                                {/* Módulo de Regalo Sorpresa */}
-                                <div className="bg-slate-50 dark:bg-slate-800 rounded-[28px] overflow-hidden border border-slate-100/50 dark:border-slate-700/50 my-4">
-                                    <div className="p-5 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-sm">
-                                                🎁
-                                            </div>
-                                            <div className="text-left">
-                                                <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">¿Es un regalo sorpresa?</h3>
-                                                <p className="text-[9px] font-bold text-slate-400 mt-0.5">
-                                                    Servicio Confidencial y Exclusivo
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsRegalo(!isRegalo)}
-                                            className={`w-12 h-6 rounded-full transition-all relative ${isRegalo ? 'bg-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-slate-200 dark:bg-slate-700'}`}
-                                        >
-                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isRegalo ? 'left-7' : 'left-1'}`} />
-                                        </button>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
 
-                                    <AnimatePresence>
-                                        {isRegalo && (
-                                            <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: 'auto', opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                            >
-                                                <div className="px-5 pb-5 pt-2 space-y-4 border-t border-slate-100 dark:border-slate-700/50 bg-indigo-500/[0.02]">
-                                                    <p className="text-[10px] text-slate-400 font-bold uppercase leading-relaxed mb-2">
-                                                        Realizaremos una entrega discreta y planificada respetando cada detalle.
-                                                    </p>
-                                                    <div className="space-y-3">
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">¿Quién lo recibe?</label>
-                                                            <input 
-                                                                type="text" 
-                                                                value={regaloNombre} 
-                                                                onChange={e => setRegaloNombre(e.target.value)} 
-                                                                placeholder="Nombre de la persona homenajeada" 
-                                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" 
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Mensaje de Dedicatoria</label>
-                                                            <textarea 
-                                                                value={regaloMensaje} 
-                                                                onChange={e => setRegaloMensaje(e.target.value)} 
-                                                                placeholder="Escribe el mensaje que quieras dedicarle..." 
-                                                                rows={3}
-                                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors resize-none" 
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Instrucciones de entrega discreta</label>
-                                                            <textarea 
-                                                                value={regaloInstrucciones} 
-                                                                onChange={e => setRegaloInstrucciones(e.target.value)} 
-                                                                placeholder="Ej: Entregar de 15 a 17 hs. No decir que es de Wanda Essence. Llamar antes al llegar..." 
-                                                                rows={2}
-                                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 transition-colors resize-none" 
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-
-                                {/* Selección de Método de Pago */}
-                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-                                    <div className="p-4 bg-slate-100/50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-                                            <ShoppingCart size={18} />
+                                    {/* Selección de Método de Pago */}
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                        <div className="p-4 bg-slate-100/50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                                                <ShoppingCart size={18} />
+                                            </div>
+                                            <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">Método de Pago</h3>
                                         </div>
-                                        <h3 className="text-xs font-black uppercase text-indigo-500 tracking-widest">Método de Pago</h3>
-                                    </div>
-                                    <div className="p-4 flex flex-col sm:flex-row gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setMetodoPago('efectivo')}
-                                            className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center justify-center gap-2 ${
-                                                metodoPago === 'efectivo'
-                                                    ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
-                                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
-                                            }`}
-                                        >
-                                            <span className="text-lg">💵</span>
-                                            <span className="text-center">Efectivo / Transf.</span>
-                                        </button>
-
-                                        {config.ENABLE_MERCADOPAGO !== 'false' && (
+                                        <div className="p-4 flex flex-col sm:flex-row gap-3">
                                             <button
                                                 type="button"
-                                                onClick={() => setMetodoPago('mercadopago')}
+                                                onClick={() => setMetodoPago('efectivo')}
                                                 className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center justify-center gap-2 ${
-                                                    metodoPago === 'mercadopago'
+                                                    metodoPago === 'efectivo'
                                                         ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
                                                         : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
                                                 }`}
                                             >
-                                                <span className="text-lg">💳</span>
-                                                <span className="text-center">Mercado Pago</span>
+                                                <span className="text-lg">💵</span>
+                                                <span className="text-center">Efectivo / Transf.</span>
                                             </button>
-                                        )}
 
-                                        {config.ENABLE_ASTROPAY === 'true' && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setMetodoPago('astropay')}
-                                                className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center justify-center gap-2 ${
-                                                    metodoPago === 'astropay'
-                                                        ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
-                                                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
-                                                }`}
-                                            >
-                                                <span className="text-lg">🪙</span>
-                                                <span className="text-center">AstroPay</span>
-                                            </button>
-                                        )}
+                                            {config.ENABLE_MERCADOPAGO !== 'false' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setMetodoPago('mercadopago')}
+                                                    className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center justify-center gap-2 ${
+                                                        metodoPago === 'mercadopago'
+                                                            ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
+                                                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                                                    }`}
+                                                >
+                                                    <span className="text-lg">💳</span>
+                                                    <span className="text-center">Mercado Pago</span>
+                                                </button>
+                                            )}
+
+                                            {config.ENABLE_ASTROPAY === 'true' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setMetodoPago('astropay')}
+                                                    className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border flex flex-col items-center justify-center gap-2 ${
+                                                        metodoPago === 'astropay'
+                                                            ? 'bg-indigo-500 text-white border-indigo-400 shadow-lg shadow-indigo-500/20'
+                                                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700'
+                                                    }`}
+                                                >
+                                                    <span className="text-lg">🪙</span>
+                                                    <span className="text-center">AstroPay</span>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
+                            </div>
+
+                            {/* Footer del Modal (Fijo abajo) */}
+                            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4 flex-shrink-0">
                                 <div className="flex justify-between items-center px-2">
                                     <span className="text-sm font-black uppercase text-slate-400 tracking-widest">Total a pagar</span>
                                     <span className="text-4xl font-black text-slate-900 dark:text-white">${cartTotal.toLocaleString()}</span>
