@@ -1099,7 +1099,37 @@ function ImportModal({ onClose, preview, setPreview, onConfirm, onDelete, import
                 throw new Error(data.error);
             }
 
-            setPreview(data.products || []);
+            const rawProducts = data.products || [];
+            const processedProducts = [];
+            
+            for (let index = 0; index < rawProducts.length; index++) {
+                const product = rawProducts[index];
+                setStatusText(`Guardando imagen de: ${product.Nombre} (${index + 1} de ${rawProducts.length})...`);
+                
+                try {
+                    const imgRes = await fetch(`/api/image-proxy?url=${encodeURIComponent(product.Imagen_URL)}`);
+                    if (!imgRes.ok) {
+                        throw new Error(`Error al descargar la imagen: ${imgRes.statusText}`);
+                    }
+                    const blob = await imgRes.blob();
+                    const file = new File([blob], `${product.ID_Producto}.jpg`, { type: "image/jpeg" });
+                    
+                    const uploadRes = await wandaApi.uploadImage(file, `catalog_products/${product.ID_Producto}.jpg`);
+                    if ('error' in uploadRes) {
+                        throw new Error(uploadRes.error);
+                    }
+                    
+                    processedProducts.push({
+                        ...product,
+                        Imagen_URL: uploadRes.url
+                    });
+                } catch (imgError) {
+                    console.error(`Error procesando imagen para ${product.Nombre}:`, imgError);
+                    processedProducts.push(product); // fallback a la original si falla la subida
+                }
+            }
+
+            setPreview(processedProducts);
         } catch (error: any) {
             console.error(error);
             alert("Error en la extracción: " + error.message);
