@@ -33,6 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     manifest: "/manifest.json",
+    referrer: "no-referrer",
     icons: {
       icon: logoUrl,
       apple: logoUrl,

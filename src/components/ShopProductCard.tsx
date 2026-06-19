@@ -66,6 +66,7 @@ export const ShopProductCard: React.FC<ShopProductCardProps> = ({
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
             alt={p.Nombre} 
             loading="lazy"
+            referrerPolicy="no-referrer"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon size={32} /></div>

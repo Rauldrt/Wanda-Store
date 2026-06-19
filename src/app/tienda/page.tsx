@@ -1086,7 +1086,7 @@ export default function TiendaOnlinePage() {
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-4">
                                                             <div className="w-14 h-14 bg-white dark:bg-slate-700 rounded-2xl overflow-hidden flex-shrink-0">
-                                                                {p.Imagen_URL && <img src={getImageUrl(p.Imagen_URL) || ""} className="w-full h-full object-cover" />}
+                                                                {p.Imagen_URL && <img src={getImageUrl(p.Imagen_URL) || ""} className="w-full h-full object-cover" referrerPolicy="no-referrer" />}
                                                             </div>
                                                             <div>
                                                                 <h3 className="text-sm font-black leading-tight text-slate-800 dark:text-white">
