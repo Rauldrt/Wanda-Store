@@ -97,8 +97,7 @@ export async function POST(request: Request) {
                             .replace(/(^-|-$)/g, "")
                             .substring(0, 25);
                         
-                        const rand = Math.floor(1000 + Math.random() * 9000);
-                        const id = `PROD-${slug.toUpperCase()}-${rand}`;
+                        const id = `PROD-${slug.toUpperCase()}`;
 
                         allProducts.push({
                             ID_Producto: id,
