@@ -1054,6 +1054,7 @@ export default function ProductosPage() {
                             setImportPreview([]);
                         }}
                         preview={importPreview}
+                        setPreview={setImportPreview}
                         onConfirm={handleConfirmImport}
                         onDelete={deleteFromPreview}
                         importing={isImporting}
@@ -1065,7 +1066,49 @@ export default function ProductosPage() {
 }
 
 // --- SUBCOMPONENTE MODAL DE IMPORTACIÓN ---
-function ImportModal({ onClose, preview, onConfirm, onDelete, importing }: any) {
+function ImportModal({ onClose, preview, setPreview, onConfirm, onDelete, importing }: any) {
+    const [activeTab, setActiveTab] = useState<'csv' | 'landing'>('landing');
+    const [selectedCats, setSelectedCats] = useState<string[]>([
+        "MASCULINOS", "FEMENINOS", "UNISEX", "INFANTILES", "CUIDADO PERSONAL", "PARA EL HOGAR"
+    ]);
+    const [scraping, setScraping] = useState(false);
+    const [statusText, setStatusText] = useState("");
+
+    const handleScrape = async () => {
+        if (selectedCats.length === 0) {
+            alert("Selecciona al menos una categoría para extraer.");
+            return;
+        }
+        try {
+            setScraping(true);
+            setStatusText("Conectando con Google Sites...");
+            const res = await fetch("/api/scrape-landing", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ categories: selectedCats })
+            });
+
+            if (!res.ok) {
+                throw new Error("No se pudo conectar con el servidor de extracción.");
+            }
+
+            const data = await res.json();
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            setPreview(data.products || []);
+        } catch (error: any) {
+            console.error(error);
+            alert("Error en la extracción: " + error.message);
+        } finally {
+            setScraping(false);
+            setStatusText("");
+        }
+    };
+
     return (
         <>
             <motion.div
@@ -1088,9 +1131,9 @@ function ImportModal({ onClose, preview, onConfirm, onDelete, importing }: any) 
                             <div className="w-10 h-10 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
                                 <Upload size={20} />
                             </div>
-                            <h2 className="text-2xl font-black text-slate-800 dark:text-white">Previsualización de Importación</h2>
+                            <h2 className="text-2xl font-black text-slate-800 dark:text-white">Importador y Extractor Masivo</h2>
                         </div>
-                        <p className="text-slate-500 text-xs mt-1 font-medium italic">Revisa los datos antes de impactar en la base de datos de producción.</p>
+                        <p className="text-slate-500 text-xs mt-1 font-medium italic">Sincroniza tus productos desde un archivo o directamente desde tu catálogo virtual.</p>
                     </div>
                     <button onClick={onClose} className="w-12 h-12 flex items-center justify-center hover:bg-rose-500 hover:text-white rounded-2xl transition-all group active:scale-90">
                         <X size={20} className="group-hover:rotate-90 transition-transform" />
@@ -1098,66 +1141,160 @@ function ImportModal({ onClose, preview, onConfirm, onDelete, importing }: any) 
                 </div>
 
                 {/* Contenido / Tabla de Preview */}
-                <div className="flex-1 overflow-auto p-4 md:p-8 custom-scroll bg-slate-50 dark:bg-slate-950/20">
+                <div className="flex-1 overflow-auto p-4 md:p-8 custom-scroll bg-slate-50 dark:bg-slate-950/20 flex flex-col">
                     {preview.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center gap-6 p-20 text-center">
-                            <div className="w-24 h-24 rounded-[40px] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300">
-                                <FileSpreadsheet size={48} strokeWidth={1} />
-                            </div>
-                            <div className="max-w-md mx-auto space-y-4">
-                                <h3 className="text-xl font-black text-slate-800 dark:text-white">Instrucciones de Importación</h3>
-                                <div className="text-slate-500 text-sm space-y-2 text-left bg-white dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm leading-relaxed font-medium">
-                                    <p className="flex items-start gap-3">
-                                        <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
-                                        El archivo debe ser un <b>.CSV</b> separado por punto y coma (;) o comas (,).
-                                    </p>
-                                    <p className="flex items-start gap-3">
-                                        <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
-                                        Columnas requeridas: <b>ID_Producto</b>, <b>Nombre</b>, <b>Categoria</b>, <b>Precio_Unitario</b>, <b>Stock_Actual</b>.
-                                    </p>
-                                    <p className="flex items-start gap-3">
-                                        <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
-                                        Si el <b>ID_Producto</b> ya existe, el producto se actualizará. Si no, se creará uno nuevo.
-                                    </p>
+                        scraping ? (
+                            <div className="flex-1 flex flex-col items-center justify-center gap-6 p-20 text-center">
+                                <div className="w-24 h-24 rounded-[40px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center animate-pulse">
+                                    <Loader2 size={48} className="animate-spin" />
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="text-xl font-black text-slate-800 dark:text-white">Extrayendo Productos...</h3>
+                                    <p className="text-slate-500 text-sm font-medium italic animate-bounce">{statusText || "Analizando el árbol de páginas del Catálogo Virtual..."}</p>
                                 </div>
                             </div>
-                            <button 
-                                onClick={() => (window as any).triggerImportFile?.()}
-                                className="px-10 py-5 bg-indigo-600 text-white rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-3"
-                            >
-                                <FileSpreadsheet size={18} />
-                                Seleccionar Archivo CSV Ahora
-                            </button>
-                        </div>
+                        ) : (
+                            <div className="flex-1 flex flex-col">
+                                {/* Selector de pestañas */}
+                                <div className="flex gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/50 rounded-2xl self-center mb-8 border border-slate-200/50 dark:border-slate-800">
+                                    <button
+                                        onClick={() => setActiveTab('landing')}
+                                        className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                            activeTab === 'landing'
+                                                ? 'bg-white dark:bg-slate-900 text-indigo-500 shadow-sm'
+                                                : 'text-slate-400 hover:text-slate-600'
+                                        }`}
+                                    >
+                                        <Globe size={14} />
+                                        Catálogo Virtual (Google Sites)
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('csv')}
+                                        className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                            activeTab === 'csv'
+                                                ? 'bg-white dark:bg-slate-900 text-indigo-500 shadow-sm'
+                                                : 'text-slate-400 hover:text-slate-600'
+                                        }`}
+                                    >
+                                        <FileSpreadsheet size={14} />
+                                        Subir Archivo CSV
+                                    </button>
+                                </div>
+
+                                {activeTab === 'landing' ? (
+                                    <div className="max-w-2xl mx-auto w-full flex flex-col items-center justify-center gap-6 p-4">
+                                        <div className="w-20 h-20 rounded-[30px] bg-indigo-50 dark:bg-indigo-900/10 text-indigo-500 flex items-center justify-center shadow-inner">
+                                            <Globe size={36} />
+                                        </div>
+                                        <div className="text-center space-y-2">
+                                            <h3 className="text-xl font-black text-slate-800 dark:text-white">Extractor Automático de Google Sites</h3>
+                                            <p className="text-slate-500 text-sm max-w-lg font-medium leading-relaxed">
+                                                Esta función descargará las páginas seleccionadas de tu catálogo virtual, extraerá las imágenes y los nombres correctos y los preparará para tu base de datos.
+                                            </p>
+                                        </div>
+
+                                        <div className="w-full bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-4">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Seleccionar Categorías para Extraer:</h4>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {["MASCULINOS", "FEMENINOS", "UNISEX", "INFANTILES", "CUIDADO PERSONAL", "PARA EL HOGAR"].map((cat) => (
+                                                    <label key={cat} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850 rounded-2xl cursor-pointer hover:border-indigo-500/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-all select-none">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedCats.includes(cat)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setSelectedCats([...selectedCats, cat]);
+                                                                } else {
+                                                                    setSelectedCats(selectedCats.filter(c => c !== cat));
+                                                                }
+                                                            }}
+                                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                                        />
+                                                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-350">{cat}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={handleScrape}
+                                            className="px-10 py-5 bg-indigo-600 text-white rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center gap-3 mt-4"
+                                        >
+                                            <Zap size={18} />
+                                            Iniciar Extracción Automática
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="max-w-md mx-auto text-center flex flex-col items-center justify-center gap-6 p-4">
+                                        <div className="w-24 h-24 rounded-[40px] bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center text-slate-400 dark:text-slate-500">
+                                            <FileSpreadsheet size={48} strokeWidth={1.5} />
+                                        </div>
+                                        <div className="space-y-4">
+                                            <h3 className="text-xl font-black text-slate-800 dark:text-white">Cargar Archivo de Datos (.CSV)</h3>
+                                            <div className="text-slate-500 text-xs space-y-2 text-left bg-white dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm leading-relaxed font-medium">
+                                                <p className="flex items-start gap-3">
+                                                    <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold">1</span>
+                                                    El archivo debe ser un <b>.CSV</b> separado por punto y coma (;) o comas (,).
+                                                </p>
+                                                <p className="flex items-start gap-3">
+                                                    <span className="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold">2</span>
+                                                    Columnas requeridas: <b>ID_Producto</b>, <b>Nombre</b>, <b>Categoria</b>, <b>Precio_Unitario</b>, <b>Stock_Actual</b>.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => (window as any).triggerImportFile?.()}
+                                            className="px-10 py-5 bg-indigo-600 text-white rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center gap-3 mt-4"
+                                        >
+                                            <Upload size={18} />
+                                            Seleccionar Archivo CSV Ahora
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )
                     ) : (
                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] shadow-xl p-0 overflow-hidden">
                             <table className="w-full text-left border-collapse">
-                                <thead className="bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                <thead className="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">
                                     <tr>
+                                        <th className="px-6 py-4">Imagen</th>
                                         <th className="px-6 py-4">Producto</th>
                                         <th className="px-6 py-4 uppercase">Categoría</th>
-                                        <th className="px-6 py-4 text-right">Precio</th>
-                                        <th className="px-6 py-4 text-center">Stock</th>
+                                        <th className="px-6 py-4 text-right">Precio Inicial</th>
+                                        <th className="px-6 py-4 text-center">Stock Inicial</th>
                                         <th className="px-6 py-4 text-center">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-50 dark:divide-slate-800">
                                     {preview.map((item: any, idx: number) => (
-                                        <tr key={idx} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        <tr key={idx} className="group hover:bg-slate-50 dark:hover:bg-slate-850/50 transition-colors">
+                                            <td className="px-6 py-3">
+                                                {item.Imagen_URL ? (
+                                                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 border border-slate-100 dark:border-slate-800 relative">
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img src={item.Imagen_URL} alt={item.Nombre} className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300">
+                                                        <Globe size={18} />
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td className="px-6 py-3">
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs font-black text-slate-800 dark:text-white">{item.Nombre}</span>
-                                                    <span className="text-[9px] font-mono text-slate-400">SKU: {item.ID_Producto}</span>
+                                                    <span className="text-xs font-black text-slate-800 dark:text-white leading-tight">{item.Nombre}</span>
+                                                    <span className="text-[9px] font-mono text-slate-400 mt-0.5">SKU: {item.ID_Producto}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-3">
-                                                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">{item.Categoria}</span>
+                                                <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/10 px-2 py-0.5 rounded-lg uppercase tracking-wider">{item.Categoria}</span>
                                             </td>
                                             <td className="px-6 py-3 text-right">
-                                                <span className="text-sm font-black text-emerald-600">${item.Precio_Unitario}</span>
+                                                <span className="text-xs font-black text-emerald-600">${item.Precio_Unitario}</span>
                                             </td>
                                             <td className="px-6 py-3 text-center">
-                                                <span className="text-xs font-black text-slate-700 dark:text-slate-300">{item.Stock_Actual} u</span>
+                                                <span className="text-xs font-black text-slate-700 dark:text-slate-350">{item.Stock_Actual} u</span>
                                             </td>
                                             <td className="px-6 py-3 text-center">
                                                 <button onClick={() => onDelete(idx)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors">
@@ -1176,9 +1313,9 @@ function ImportModal({ onClose, preview, onConfirm, onDelete, importing }: any) 
                 <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-950/80 backdrop-blur-xl">
                     <div className="flex items-center gap-4 text-slate-400">
                         <FileSpreadsheet size={18} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">{preview.length} registros detectados</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{preview.length} registros listos</span>
                     </div>
-                    
+
                     <div className="flex gap-4">
                         <button
                             onClick={onClose}
